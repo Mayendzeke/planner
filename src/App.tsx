@@ -143,7 +143,11 @@ export default function App() {
     const file = e.target.files?.[0]; if (!file) return;
     try {
       const raw = JSON.parse(await file.text());
-      if (raw?.format !== "Studyspace backup" || !Array.isArray(raw.subjects) || !Array.isArray(raw.tasks) || !Array.isArray(raw.sessions)) throw new Error("This is not a valid Studyspace backup.");
+      if (raw?.format !== "Studyspace backup" || raw?.version !== 1 || !Array.isArray(raw.subjects) || !Array.isArray(raw.tasks) || !Array.isArray(raw.sessions)) throw new Error("This is not a valid Studyspace backup.");
+      const validSubjects = raw.subjects.every((s: any) => Number.isFinite(s?.id) && typeof s?.name === "string" && typeof s?.color === "string" && typeof s?.createdAt === "string");
+      const validTasks = raw.tasks.every((t: any) => Number.isFinite(t?.id) && typeof t?.title === "string" && (t?.subjectId === null || Number.isFinite(t?.subjectId)) && typeof t?.dueAt === "string" && Number.isFinite(t?.minutes) && ["High","Medium","Low"].includes(t?.priority) && ["Study","Assignment","Exam","Reading","Other"].includes(t?.kind) && typeof t?.notes === "string" && typeof t?.done === "boolean" && typeof t?.createdAt === "string" && (t?.completedAt === null || typeof t?.completedAt === "string"));
+      const validSessions = raw.sessions.every((s: any) => Number.isFinite(s?.id) && (s?.subjectId === null || Number.isFinite(s?.subjectId)) && typeof s?.date === "string" && Number.isFinite(s?.minutes) && s.minutes > 0);
+      if (!validSubjects || !validTasks || !validSessions) throw new Error("The backup contains invalid or incomplete records. Nothing was changed.");
       if (!window.confirm("Import this backup and replace all Studyspace data on this device? Export a backup first if you need the current data.")) { e.target.value = ""; return; }
       await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, async () => {
         await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear()]);
