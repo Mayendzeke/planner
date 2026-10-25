@@ -1,194 +1,212 @@
 import { useEffect, useMemo, useState } from "react";
-import { plannerDb, type PlannerTask } from "./data/db";
 import {
-  AlarmClock, ArrowDownRight, ArrowUpRight, BookOpen, CalendarDays,
-  Check, ChevronDown, CircleHelp, Clock3, Flame, GraduationCap,
-  LayoutDashboard, Menu, MoreHorizontal, Plus, Search, Settings2,
-  Sparkles, Target, TrendingUp, X
+  AlarmClock, ArrowDownRight, ArrowUpRight, BookOpen, CalendarDays, Check,
+  ChevronRight, CircleHelp, Clock3, Download, GraduationCap, LayoutDashboard,
+  Menu, Moon, MoreHorizontal, Plus, Search, Settings2, Sparkles, Sun, Target,
+  Trash2, TrendingUp, Upload, X, ClipboardList, Flame
 } from "lucide-react";
+import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./data/db";
 
-type Task = PlannerTask;
-
-const initialTasks: Task[] = [
-  { id: 1, title: "Revise quadratic equations", subject: "Mathematics", due: "Today · 14:00", minutes: 35, priority: "High", done: false },
-  { id: 2, title: "Read chapter 4 notes", subject: "English", due: "Today · 16:30", minutes: 25, priority: "Medium", done: false },
-  { id: 3, title: "Practice past paper questions", subject: "Mathematics", due: "Tomorrow", minutes: 45, priority: "High", done: false }
+type Page = "Overview" | "Subjects" | "Planner" | "Progress" | "Settings";
+type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
+const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
+const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
+const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
+  { name: "Overview", icon: LayoutDashboard }, { name: "Subjects", icon: BookOpen },
+  { name: "Planner", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
 ];
+const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const dateLabel = (value: string) => {
+  if (!value) return "No deadline";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "No deadline";
+  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const today = todayISO();
+  const day = value.slice(0, 10);
+  if (day === today) return "Today" + (value.length > 10 ? " · " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  if (day === (() => { const x = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000); return x.toISOString().slice(0, 10); })()) return "Tomorrow";
+  return date + (value.length > 10 ? " · " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+};
+const dueValue = (value: string) => value ? new Date(value).toISOString() : "";
+const downloadJson = (filename: string, value: unknown) => {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob); const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+};
 
-const navItems = [
-  { label: "Overview", icon: LayoutDashboard },
-  { label: "My subjects", icon: BookOpen },
-  { label: "Study planner", icon: CalendarDays },
-  { label: "Progress", icon: TrendingUp }
-];
-
-function App() {
-  const [activeNav, setActiveNav] = useState("Overview");
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [storageReady, setStorageReady] = useState(false);
-  const [storageError, setStorageError] = useState(false);
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskSubject, setTaskSubject] = useState("Mathematics");
-  const [taskDue, setTaskDue] = useState("");
+export default function App() {
+  const [page, setPage] = useState<Page>("Overview");
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [tasks, setTasks] = useState<PlannerTask[]>([]);
+  const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    try { return localStorage.getItem("studyspace-theme") === "light" ? "light" : "dark"; } catch { return "dark"; }
+  });
+  const [goal, setGoal] = useState(8);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("All");
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [subjectOpen, setSubjectOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<number | null>(null);
+  const [taskForm, setTaskForm] = useState<TaskForm>(blankTask);
+  const [subjectName, setSubjectName] = useState("");
+  const [subjectColor, setSubjectColor] = useState(colors[0]);
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const completed = tasks.filter((task) => task.done).length;
-  useEffect(() => {
-    let cancelled = false;
-    async function loadTasks() {
-      try {
-        const saved = await plannerDb.tasks.toArray();
-        if (cancelled) return;
-        if (saved.length) {
-          setTasks(saved);
-        } else {
-          await plannerDb.tasks.bulkPut(initialTasks);
-          if (!cancelled) setTasks(initialTasks);
-        }
-      } catch {
-        if (!cancelled) setStorageError(true);
-      } finally {
-        if (!cancelled) setStorageReady(true);
-      }
-    }
-    void loadTasks();
-    return () => { cancelled = true; };
-  }, []);
+  const [importMessage, setImportMessage] = useState("");
 
   useEffect(() => {
-    if (!storageReady || storageError) return;
-    void plannerDb.tasks.bulkPut(tasks).catch(() => setStorageError(true));
-  }, [tasks, storageReady, storageError]);
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("studyspace-theme", theme); } catch { /* Theme still works for this session. */ }
+  }, [theme]);
 
-  const visibleTasks = useMemo(
-    () => tasks.filter((task) => `${task.title} ${task.subject}`.toLowerCase().includes(query.toLowerCase())),
-    [tasks, query]
-  );
+  async function refresh() {
+    try {
+      const [s, t, l] = await Promise.all([plannerDb.subjects.toArray(), plannerDb.tasks.toArray(), plannerDb.sessions.toArray()]);
+      setSubjects(s.sort((a,b) => a.name.localeCompare(b.name)));
+      setTasks(t.sort((a,b) => (a.dueAt || "9999").localeCompare(b.dueAt || "9999")));
+      setSessions(l.sort((a,b) => b.date.localeCompare(a.date)));
+      setError("");
+    } catch { setError("Your browser could not open local storage. Try a current browser with site storage enabled."); }
+    finally { setReady(true); }
+  }
+  useEffect(() => { void refresh(); }, []);
 
-  function addTask(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!taskTitle.trim()) return;
-    setTasks((current) => [...current, {
-      id: Date.now(), title: taskTitle.trim(), subject: taskSubject,
-      due: taskDue || "No deadline set", minutes: 30, priority: "Medium", done: false
-    }]);
-    setTaskTitle("");
-    setTaskDue("");
-    setShowTaskForm(false);
+  const subjectById = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
+  const openTasks = tasks.filter(t => !t.done);
+  const completedTasks = tasks.filter(t => t.done);
+  const today = todayISO();
+  const dueToday = openTasks.filter(t => t.dueAt && t.dueAt.slice(0,10) === today);
+  const overdue = openTasks.filter(t => t.dueAt && t.dueAt.slice(0,10) < today);
+  const totalMinutes = sessions.reduce((n,s) => n + s.minutes, 0);
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7)); weekStart.setHours(0,0,0,0);
+  const weekSessions = sessions.filter(s => new Date(s.date) >= weekStart);
+  const weekMinutes = weekSessions.reduce((n,s) => n + s.minutes, 0);
+  const weeklyHours = weekMinutes / 60;
+  const visibleTasks = tasks.filter(t => {
+    const sub = subjectById.get(t.subjectId ?? -1)?.name ?? "";
+    const matches = (t.title + " " + sub + " " + t.kind + " " + t.notes).toLowerCase().includes(search.toLowerCase());
+    const state = filter === "All" || (filter === "Open" && !t.done) || (filter === "Completed" && t.done) || (filter === "Overdue" && !t.done && !!t.dueAt && t.dueAt.slice(0,10) < today);
+    return matches && state;
+  });
+
+  function openNewTask() { setEditingTask(null); setTaskForm(blankTask); setTaskOpen(true); }
+  function openEditTask(t: PlannerTask) {
+    setEditingTask(t.id);
+    setTaskForm({ title:t.title, subjectId:t.subjectId == null ? "" : String(t.subjectId), dueAt:t.dueAt ? (() => { const d = new Date(t.dueAt); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,16); })() : "", minutes:String(t.minutes), priority:t.priority, kind:t.kind, notes:t.notes });
+    setTaskOpen(true);
+  }
+  async function saveTask(e: React.FormEvent) {
+    e.preventDefault();
+    const title = taskForm.title.trim(); if (!title) return;
+    const minutes = Math.max(5, Math.min(1440, Number(taskForm.minutes) || 30));
+    const existing = editingTask == null ? null : tasks.find(t => t.id === editingTask);
+    const task: PlannerTask = { id: editingTask ?? Date.now(), title, subjectId: taskForm.subjectId ? Number(taskForm.subjectId) : null, dueAt: dueValue(taskForm.dueAt), minutes, priority:taskForm.priority, kind:taskForm.kind, notes:taskForm.notes.trim(), done:existing?.done ?? false, createdAt:existing?.createdAt ?? new Date().toISOString(), completedAt:existing?.completedAt ?? null };
+    try { await plannerDb.tasks.put(task); setTaskOpen(false); await refresh(); } catch { setError("The task could not be saved. Check available device storage."); }
+  }
+  async function toggleTask(t: PlannerTask) {
+    const done = !t.done;
+    try { await plannerDb.tasks.put({ ...t, done, completedAt: done ? new Date().toISOString() : null }); await refresh(); }
+    catch { setError("The task status could not be saved."); }
+  }
+  async function deleteTask(id: number) {
+    if (!window.confirm("Delete this task permanently from this device?")) return;
+    await plannerDb.tasks.delete(id); await refresh();
+  }
+  async function addSubject(e: React.FormEvent) {
+    e.preventDefault(); const name = subjectName.trim();
+    if (!name || subjects.some(s => s.name.toLocaleLowerCase() === name.toLocaleLowerCase())) return;
+    try { await plannerDb.subjects.add({ id:Date.now(), name, color:subjectColor, createdAt:new Date().toISOString() }); setSubjectName(""); setSubjectOpen(false); await refresh(); }
+    catch { setError("The subject could not be saved."); }
+  }
+  async function deleteSubject(s: Subject) {
+    if (!window.confirm("Delete “" + s.name + "”? Existing tasks will remain, but will no longer be linked to this subject.")) return;
+    await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, async () => {
+      await plannerDb.subjects.delete(s.id);
+      const linked = await plannerDb.tasks.where("subjectId").equals(s.id).toArray();
+      await Promise.all(linked.map(t => plannerDb.tasks.put({ ...t, subjectId:null })));
+    });
+    await refresh();
+  }
+  async function logSession(subjectId: number | null, minutes: number) {
+    try { await plannerDb.sessions.add({ id:Date.now(), subjectId, date:new Date().toISOString(), minutes, notes:"" }); await refresh(); }
+    catch { setError("The study session could not be saved."); }
+  }
+  async function exportData() {
+    const data = { format:"Studyspace backup", version:1, exportedAt:new Date().toISOString(), subjects, tasks, sessions };
+    downloadJson("studyspace-backup-" + today + ".json", data);
+  }
+  async function importData(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    try {
+      const raw = JSON.parse(await file.text());
+      if (raw?.format !== "Studyspace backup" || !Array.isArray(raw.subjects) || !Array.isArray(raw.tasks) || !Array.isArray(raw.sessions)) throw new Error("This is not a valid Studyspace backup.");
+      if (!window.confirm("Import this backup and replace all Studyspace data on this device? Export a backup first if you need the current data.")) { e.target.value = ""; return; }
+      await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, async () => {
+        await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear()]);
+        await plannerDb.subjects.bulkPut(raw.subjects);
+        await plannerDb.tasks.bulkPut(raw.tasks);
+        await plannerDb.sessions.bulkPut(raw.sessions);
+      });
+      setImportMessage("Backup restored successfully."); await refresh();
+    } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
+    e.target.value = "";
+  }
+  async function clearAll() {
+    if (!window.confirm("This permanently deletes all subjects, tasks and study sessions stored on this device. Export a backup first if you need it.")) return;
+    await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, async () => {
+      await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear()]);
+    });
+    await refresh();
   }
 
-  function toggleTask(id: number) {
-    setTasks((current) => current.map((task) => task.id === id ? { ...task, done: !task.done } : task));
-  }
-
-  return (
-    <div className="app-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
-      <aside className={`sidebar glass-panel ${mobileMenu ? "sidebar-open" : ""}`}>
-        <div className="brand">
-          <div className="brand-mark"><GraduationCap size={22} strokeWidth={2.2} /></div>
-          <div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div>
-          <button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18} /></button>
-        </div>
-        <div className="profile-card">
-          <div className="avatar">S</div>
-          <div className="profile-copy"><strong>Student workspace</strong><span>Secondary school</span></div>
-          <ChevronDown size={15} className="muted-icon" />
-        </div>
-        <div className="nav-label">WORKSPACE</div>
-        <nav className="main-nav" aria-label="Main navigation">
-          {navItems.map(({ label, icon: Icon }) => (
-            <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => { setActiveNav(label); setMobileMenu(false); }}>
-              <Icon size={18} /><span>{label}</span>{label === "Study planner" && <span className="nav-count">3</span>}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="streak-card">
-            <div className="streak-icon"><Flame size={18} /></div>
-            <div><strong>Build your streak</strong><p>Study a little every day.</p></div>
-            <ArrowUpRight size={15} className="muted-icon" />
-          </div>
-          <button className="nav-item settings-link" onClick={() => setActiveNav("Settings")}><Settings2 size={18} /><span>Settings</span></button>
-          <div className="offline-status"><span className="status-dot" /> {storageError ? "Local storage unavailable" : storageReady ? "Saved on this device" : "Loading local workspace"}</div>
-        </div>
-      </aside>
-
-      {mobileMenu && <button className="mobile-scrim" aria-label="Close navigation overlay" onClick={() => setMobileMenu(false)} />}
-
-      <main className="main-area">
-        <header className="topbar">
-          <button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={() => setMobileMenu(true)}><Menu size={20} /></button>
-          <div className="breadcrumb">Workspace <span>/</span> <strong>{activeNav}</strong></div>
-          <div className="topbar-actions">
-            <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your tasks..." aria-label="Search tasks" /><kbd>⌘ K</kbd></label>
-            <button className="help-button" aria-label="Help"><CircleHelp size={18} /></button>
-            <div className="top-avatar" aria-label="Student profile">S</div>
-          </div>
-        </header>
-
-        <div className="page-content">
-          <section className="welcome-row">
-            <div>
-              <div className="eyebrow"><Sparkles size={14} /> YOUR PERSONAL STUDY SPACE</div>
-              <h1>{activeNav === "Overview" ? "Make today count." : activeNav}</h1>
-              <p className="welcome-subtitle">{activeNav === "Overview" ? "Small steps today. Big progress tomorrow." : "Keep your learning organised, one step at a time."}</p>
-            </div>
-            <button className="primary-button" onClick={() => setShowTaskForm(true)}><Plus size={17} /> Add a task</button>
-          </section>
-
-          {activeNav === "Settings" ? (
-            <section className="glass-panel placeholder-panel"><Settings2 size={26} /><h2>Workspace settings</h2><p>Profile, preferences, backups and privacy controls will live here.</p><span className="feature-chip">Planned feature</span></section>
-          ) : activeNav === "My subjects" ? (
-            <section className="subject-grid">
-              <div className="subject-card glass-panel math-card"><div className="subject-icon blue"><span>∑</span></div><span className="subject-tag">CORE SUBJECT</span><h3>Mathematics</h3><p>Equations, functions &amp; more</p><div className="subject-progress"><span><i style={{ width: "62%" }} /></span><b>62%</b></div></div>
-              <div className="subject-card glass-panel english-card"><div className="subject-icon mint"><BookOpen size={21} /></div><span className="subject-tag">CORE SUBJECT</span><h3>English</h3><p>Reading, writing &amp; language</p><div className="subject-progress"><span><i style={{ width: "48%" }} /></span><b>48%</b></div></div>
-              <button className="add-subject-card glass-panel" onClick={() => setShowTaskForm(true)}><span><Plus size={22} /></span><strong>Keep building</strong><small>Add a task to get started</small></button>
-            </section>
-          ) : activeNav === "Progress" ? (
-            <section className="glass-panel progress-detail"><div className="section-heading"><div><h2>Your progress</h2><p>Every focused session moves you forward.</p></div><TrendingUp size={22} /></div><div className="progress-large"><strong>{completed} <span>/ {tasks.length}</span></strong><p>Tasks completed in this workspace</p><div className="progress-track"><span style={{ width: `${tasks.length ? completed / tasks.length * 100 : 0}%` }} /></div></div><p className="subtle-note">Your progress will become more meaningful as you add subjects, sessions and assessment results.</p></section>
-          ) : activeNav === "Study planner" ? (
-            <section className="glass-panel planner-panel"><div className="section-heading"><div><h2>Your upcoming study plan</h2><p>Priority tasks stay visible, even when your week gets busy.</p></div><CalendarDays size={22} /></div><TaskList tasks={visibleTasks} onToggle={toggleTask} /></section>
-          ) : (
-            <>
-              <section className="stats-grid">
-                <div className="stat-card glass-panel"><div className="stat-top"><span className="stat-label">WEEKLY STUDY GOAL</span><span className="stat-icon mint-icon"><Target size={17} /></span></div><div className="stat-value">6.0 <span>/ 8 hrs</span></div><div className="stat-foot"><div className="mini-track"><span style={{ width: "75%" }} /></div><span className="positive-text">75%</span></div><p className="stat-note">You're building momentum</p></div>
-                <div className="stat-card glass-panel"><div className="stat-top"><span className="stat-label">TASKS TO FOCUS ON</span><span className="stat-icon violet-icon"><AlarmClock size={17} /></span></div><div className="stat-value">{tasks.filter((task) => !task.done).length.toString().padStart(2, "0")} <span>remaining</span></div><div className="stat-foot"><span className="priority-dot" /> <span className="stat-caption">Prioritise what matters most</span></div><p className="stat-note">Your next step is ready</p></div>
-                <div className="stat-card glass-panel"><div className="stat-top"><span className="stat-label">TOPIC MASTERY</span><span className="stat-icon blue-icon"><BookOpen size={17} /></span></div><div className="stat-value">4 <span>of 7 topics</span></div><div className="stat-foot"><div className="mini-track"><span style={{ width: "57%" }} /></div><span className="positive-text">57%</span></div><p className="stat-note">Keep your revision consistent</p></div>
-              </section>
-
-              <section className="dashboard-grid">
-                <div className="glass-panel focus-panel">
-                  <div className="section-heading"><div><h2>Today's focus</h2><p>A clear plan beats a perfect plan.</p></div><button className="icon-button" aria-label="More focus options"><MoreHorizontal size={20} /></button></div>
-                  <div className="focus-banner"><div className="focus-banner-icon"><Sparkles size={19} /></div><div><strong>Start with your highest priority</strong><p>One focused session at a time. You've got this.</p></div></div>
-                  <TaskList tasks={visibleTasks.slice(0, 3)} onToggle={toggleTask} />
-                  <button className="text-button" onClick={() => setActiveNav("Study planner")}>View full study plan <ArrowDownRight size={15} /></button>
-                </div>
-                <div className="glass-panel week-panel">
-                  <div className="section-heading"><div><h2>This week</h2><p>Your study rhythm at a glance</p></div><button className="icon-button" aria-label="Weekly options"><MoreHorizontal size={20} /></button></div>
-                  <div className="week-summary"><div><strong>6h 00m</strong><span>study time logged</span></div><span className="week-trend"><ArrowUpRight size={14} /> 12%</span></div>
-                  <div className="chart" role="img" aria-label="Illustrative weekly study activity chart"><div className="chart-grid"><span /><span /><span /><span /></div>{[{d:"M",h:35},{d:"T",h:54},{d:"W",h:28},{d:"T",h:75},{d:"F",h:43},{d:"S",h:92},{d:"S",h:62}].map((day, index) => <div className="bar-column" key={index}><div className={`bar ${index === 5 ? "bar-highlight" : ""}`} style={{ height: `${day.h}%` }} /><span>{day.d}</span></div>)}</div>
-                  <div className="next-session"><div className="session-icon"><Clock3 size={17} /></div><div><span>NEXT STUDY SESSION</span><strong>Mathematics · Algebra</strong><small>Saturday · 09:00–09:45</small></div><span className="session-arrow">↗</span></div>
-                </div>
-              </section>
-              <section className="bottom-note"><div className="note-icon"><Check size={15} /></div><p><strong>Your space, your pace.</strong> This preview uses sample information. Your own subjects, deadlines and progress will be stored locally as features are built.</p><span className="note-pill">FOUNDATION PREVIEW</span></section>
-            </>
-          )}
-          <footer className="page-footer"><span>STUDYSPACE <span className="footer-dot">●</span> BUILT FOR YOUR NEXT STEP</span><span><span className="status-dot" /> Local-first by design</span></footer>
-        </div>
-      </main>
-
-      {showTaskForm && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowTaskForm(false); }}><section className="task-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-heading"><div><span className="eyebrow">MAKE IT HAPPEN</span><h2 id="task-modal-title">Add a study task</h2></div><button className="icon-button" aria-label="Close form" onClick={() => setShowTaskForm(false)}><X size={19} /></button></div><form onSubmit={addTask}><label className="field-label">What do you need to work on?<input autoFocus required value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="e.g. Revise linear equations" /></label><label className="field-label">Subject<select value={taskSubject} onChange={(event) => setTaskSubject(event.target.value)}><option>Mathematics</option><option>English</option><option>Science</option><option>History</option><option>Other</option></select></label><label className="field-label">Deadline (optional)<input type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value ? new Date(event.target.value).toLocaleString() : "")} /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setShowTaskForm(false)}>Cancel</button><button type="submit" className="primary-button"><Plus size={16} /> Add task</button></div></form><p className="privacy-hint"><span className="status-dot" /> Tasks are saved in this browser on this device. Backups will be added before release.</p></section></div>}
-    </div>
-  );
+  return <div className="app-shell" data-theme={theme}>
+    <div className="ambient ambient-one" /><div className="ambient ambient-two" />
+    <aside className={"sidebar glass-panel " + (mobileMenu ? "sidebar-open" : "")}>
+      <div className="brand"><div className="brand-mark"><GraduationCap size={23}/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
+      <div className="workspace-label">YOUR WORKSPACE</div>
+      <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>My study space</strong><span>{subjects.length} subjects · {openTasks.length} open tasks</span></div></div>
+      <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
+      <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":ready?"Saved on this device":"Opening workspace"}</div></div>
+    </aside>
+    {mobileMenu&&<button className="mobile-scrim" aria-label="Close navigation overlay" onClick={()=>setMobileMenu(false)}/>}
+    <main className="main-area">
+      <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects"/><kbd>/</kbd></label><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><div className="top-avatar"><GraduationCap size={17}/></div></div></header>
+      <div className="page-content">
+        <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="Overview"?"Make today count.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Progress"?"Progress you can measure.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="Overview"?"A clear view of what matters today.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Progress"?"Your totals are calculated from your own activity.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={openNewTask}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
+        {error&&<div className="alert error-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div>}
+        {!ready?<section className="glass-panel loading-panel"><div className="loader"/><strong>Opening your study space…</strong><p>Your local records are being loaded.</p></section>:<>
+        {page==="Overview"&&<><section className="stats-grid">
+          <Stat label="OPEN TASKS" value={String(openTasks.length)} detail={dueToday.length+" due today"} icon={<ClipboardList size={17}/>} tone="mint"/>
+          <Stat label="OVERDUE" value={String(overdue.length)} detail={overdue.length?"Needs your attention":"Nothing overdue"} icon={<AlarmClock size={17}/>} tone={overdue.length?"rose":"violet"}/>
+          <Stat label="STUDY TIME THIS WEEK" value={weeklyHours.toFixed(1)+"h"} detail={"Goal: "+goal+"h per week"} icon={<Target size={17}/>} tone="blue"/>
+          <Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={tasks.length?Math.round(completedTasks.length/tasks.length*100)+"% of all tasks":"Add a task to begin"} icon={<Check size={17}/>} tone="violet"/>
+        </section><section className="dashboard-grid"><div className="glass-panel focus-panel"><div className="section-heading"><div><h2>Up next</h2><p>Your nearest deadlines and priorities.</p></div><button className="icon-button" aria-label="Open planner" onClick={()=>setPage("Planner")}><ChevronRight size={19}/></button></div>{openTasks.length?<TaskList tasks={openTasks.slice(0,5)} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<Check size={21}/>} title="Nothing waiting on you" text="Add a task when you have something to plan." action="Add your first task" onAction={openNewTask}/>}<button className="text-button" onClick={()=>setPage("Planner")}>Open full planner <ArrowDownRight size={15}/></button></div>
+          <div className="glass-panel week-panel"><div className="section-heading"><div><h2>Study time</h2><p>Minutes you have logged this week.</p></div><Clock3 size={20}/></div><div className="week-summary"><div><strong>{Math.floor(weekMinutes/60)}h {weekMinutes%60}m</strong><span>recorded this week</span></div><span className="week-trend">{Math.min(100,Math.round(weeklyHours/Math.max(1,goal)*100))}% of goal</span></div><div className="goal-track"><span style={{width:Math.min(100,weeklyHours/Math.max(1,goal)*100)+"%"}}/></div><div className="goal-label"><span>0h</span><span>{goal}h weekly goal</span></div><div className="session-actions"><label>Log a session<select id="quick-session-subject" defaultValue=""><option value="">General study</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,25);}}>+25 min</button><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,50);}}>+50 min</button></div><p className="subtle-note">Sessions are logged when you choose a duration. This does not run a background timer.</p></div></section>
+          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your data stays on this device.</strong> Studyspace stores subjects, tasks and sessions in this browser. Use Settings to export a backup before changing devices or clearing browser data.</p><span className="note-pill">LOCAL-FIRST</span></section></>}
+        {page==="Subjects"&&<section className="subject-section"><div className="section-heading"><div><h2>My subjects</h2><p>{subjects.length} subject{subjects.length===1?"":"s"} in your workspace</p></div><button className="secondary-button" onClick={()=>setSubjectOpen(true)}><Plus size={15}/> Add subject</button></div>{subjects.length?<div className="subject-grid">{subjects.map(s=>{const related=tasks.filter(t=>t.subjectId===s.id);const done=related.filter(t=>t.done).length;return <article className="subject-card glass-panel" key={s.id} style={{"--subject-color":s.color} as React.CSSProperties}><div className="subject-card-top"><div className="subject-icon"><BookOpen size={20}/></div><button className="icon-button" onClick={()=>void deleteSubject(s)} aria-label={"Delete "+s.name} title="Delete subject"><Trash2 size={15}/></button></div><h3>{s.name}</h3><p>{related.length} task{related.length===1?"":"s"} · {done} completed</p><div className="subject-progress"><span><i style={{width:(related.length?done/related.length*100:0)+"%"}}/></span><b>{related.length?Math.round(done/related.length*100):0}%</b></div><button className="text-button" onClick={()=>{setPage("Planner");setSearch(s.name);}}>View tasks <ArrowDownRight size={14}/></button></article>})}<button className="add-subject-card glass-panel" onClick={()=>setSubjectOpen(true)}><span><Plus size={22}/></span><strong>Add another subject</strong><small>Choose a name and colour</small></button></div>:<Empty icon={<BookOpen size={22}/>} title="Start with your subjects" text="Add the subjects you study. You can use this planner for school, college or university." action="Add your first subject" onAction={()=>setSubjectOpen(true)}/>}</section>}
+        {page==="Planner"&&<section className="glass-panel planner-panel"><div className="section-heading"><div><h2>All tasks</h2><p>Assignments, exams, reading and study sessions.</p></div><span className="count-chip">{visibleTasks.length} shown</span></div><div className="filter-row"><div className="filter-tabs">{["All","Open","Overdue","Completed"].map(v=><button key={v} className={filter===v?"selected":""} onClick={()=>setFilter(v)}>{v}</button>)}</div><button className="primary-button compact-button" onClick={openNewTask}><Plus size={15}/> Add task</button></div>{visibleTasks.length?<TaskList tasks={visibleTasks} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<CalendarDays size={22}/>} title={search||filter!=="All"?"No tasks match this view":"Your planner is ready"} text={search||filter!=="All"?"Try changing your search or filter.":"Add a task with a deadline, subject and priority to start planning."} action="Add a task" onAction={openNewTask}/>}</section>}
+        {page==="Progress"&&<><section className="stats-grid"><Stat label="TOTAL STUDY TIME" value={Math.floor(totalMinutes/60)+"h "+totalMinutes%60+"m"} detail={sessions.length+" sessions logged"} icon={<Clock3 size={17}/>} tone="blue"/><Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={"of "+tasks.length+" total tasks"} icon={<Check size={17}/>} tone="mint"/><Stat label="SUBJECTS" value={String(subjects.length)} detail="In your workspace" icon={<BookOpen size={17}/>} tone="violet"/><Stat label="OVERDUE TASKS" value={String(overdue.length)} detail="Open tasks past their deadline" icon={<AlarmClock size={17}/>} tone="rose"/></section><section className="glass-panel progress-detail"><div className="section-heading"><div><h2>Subject progress</h2><p>Calculated from the tasks you have entered.</p></div><TrendingUp size={21}/></div>{subjects.length?<div className="progress-subject-list">{subjects.map(s=>{const ts=tasks.filter(t=>t.subjectId===s.id);const done=ts.filter(t=>t.done).length;const mins=sessions.filter(l=>l.subjectId===s.id).reduce((n,l)=>n+l.minutes,0);return <div className="progress-subject" key={s.id}><div className="progress-subject-heading"><span className="subject-dot" style={{background:s.color}}/><strong>{s.name}</strong><span>{done}/{ts.length} tasks · {Math.floor(mins/60)}h {mins%60}m</span></div><div className="progress-track"><span style={{width:(ts.length?done/ts.length*100:0)+"%",background:s.color}}/></div></div>})}</div>:<Empty icon={<TrendingUp size={22}/>} title="Progress starts with your data" text="Add subjects and complete tasks to see meaningful progress here." action="Add a subject" onAction={()=>setPage("Subjects")}/>}<div className="progress-total"><strong>{completedTasks.length} of {tasks.length}</strong><span>tasks completed</span><div className="progress-track"><span style={{width:(tasks.length?completedTasks.length/tasks.length*100:0)+"%"}}/></div></div></section><section className="glass-panel session-history"><div className="section-heading"><div><h2>Recent study sessions</h2><p>Sessions you explicitly logged.</p></div><Clock3 size={20}/></div>{sessions.length?<div className="session-list">{sessions.slice(0,12).map(s=><div className="session-row" key={s.id}><div className="session-icon"><Clock3 size={16}/></div><div><strong>{subjectById.get(s.subjectId??-1)?.name??"General study"}</strong><span>{new Date(s.date).toLocaleString()}</span></div><b>{s.minutes} min</b></div>)}</div>:<p className="subtle-note">No study sessions logged yet. Log one from the Overview page.</p>}</section></>}
+        {page==="Settings"&&<section className="settings-stack"><div className="glass-panel settings-card"><div className="section-heading"><div><h2>Appearance</h2><p>Choose the look that works best for you.</p></div><Sun size={20}/></div><div className="setting-row"><div><strong>Colour theme</strong><span>Switch between dark and light glass styles.</span></div><div className="theme-options"><button className={theme==="dark"?"chosen":""} onClick={()=>setTheme("dark")}><Moon size={15}/> Dark</button><button className={theme==="light"?"chosen":""} onClick={()=>setTheme("light")}><Sun size={15}/> Light</button></div></div><div className="setting-row"><div><strong>Weekly study goal</strong><span>Used to calculate your progress indicator.</span></div><label className="goal-input"><input type="number" min="1" max="168" value={goal} onChange={e=>setGoal(Math.max(1,Math.min(168,Number(e.target.value)||1)))}/> hours</label></div></div>
+          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Backup &amp; restore</h2><p>Keep a copy before changing devices or clearing site data.</p></div><Download size={20}/></div><div className="setting-row"><div><strong>Export backup</strong><span>Downloads your subjects, tasks and logged sessions as a JSON file.</span></div><button className="secondary-button" onClick={()=>void exportData()}><Download size={15}/> Export data</button></div><div className="setting-row"><div><strong>Restore backup</strong><span>Replaces local data with a valid Studyspace backup file.</span></div><label className="secondary-button upload-button"><Upload size={15}/> Choose file<input type="file" accept="application/json,.json" onChange={importData}/></label></div>{importMessage&&<p className="inline-message" role="status">{importMessage}</p>}</div>
+          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Privacy &amp; local data</h2><p>Studyspace does not have accounts or cloud sync in this release.</p></div><CircleHelp size={20}/></div><div className="privacy-list"><p><Check size={16}/> Subjects, tasks and sessions are stored in this browser on this device.</p><p><Check size={16}/> Each student's browser has its own separate data store.</p><p><Check size={16}/> No information is sent to a Studyspace server because no app backend is configured.</p><p><CircleHelp size={16}/> Clearing browser/site data can erase your records. Export backups regularly.</p></div><div className="danger-row"><div><strong>Delete all local data</strong><span>Permanently removes every subject, task and study session on this device.</span></div><button className="danger-button" onClick={()=>void clearAll()}><Trash2 size={15}/> Delete data</button></div></div></section>}
+        </>}
+        <footer className="page-footer"><span>STUDYSPACE <span className="footer-dot">●</span> BUILT FOR YOUR NEXT STEP</span><span><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":"Local-first · No account required"}</span></footer>
+      </div>
+    </main>
+    {taskOpen&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setTaskOpen(false);}}><section className="task-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-heading"><div><span className="eyebrow">YOUR NEXT STEP</span><h2 id="task-modal-title">{editingTask===null?"Add a study task":"Edit study task"}</h2></div><button className="icon-button" aria-label="Close form" onClick={()=>setTaskOpen(false)}><X size={19}/></button></div><form onSubmit={e=>void saveTask(e)}><label className="field-label">Task title<input autoFocus required maxLength={160} value={taskForm.title} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} placeholder="e.g. Revise chapter 3"/></label><div className="form-grid"><label className="field-label">Subject<select value={taskForm.subjectId} onChange={e=>setTaskForm({...taskForm,subjectId:e.target.value})}><option value="">No subject</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="field-label">Task type<select value={taskForm.kind} onChange={e=>setTaskForm({...taskForm,kind:e.target.value as PlannerTask["kind"]})}>{["Study","Assignment","Exam","Reading","Other"].map(v=><option key={v}>{v}</option>)}</select></label><label className="field-label">Deadline<input type="datetime-local" value={taskForm.dueAt} onChange={e=>setTaskForm({...taskForm,dueAt:e.target.value})}/></label><label className="field-label">Estimated minutes<input type="number" min="5" max="1440" step="5" value={taskForm.minutes} onChange={e=>setTaskForm({...taskForm,minutes:e.target.value})}/></label><label className="field-label">Priority<select value={taskForm.priority} onChange={e=>setTaskForm({...taskForm,priority:e.target.value as PlannerTask["priority"]})}>{["High","Medium","Low"].map(v=><option key={v}>{v}</option>)}</select></label></div><label className="field-label">Notes (optional)<textarea rows={3} maxLength={1500} value={taskForm.notes} onChange={e=>setTaskForm({...taskForm,notes:e.target.value})} placeholder="Add instructions or details"/></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={()=>setTaskOpen(false)}>Cancel</button><button type="submit" className="primary-button"><Check size={16}/>{editingTask===null?"Save task":"Save changes"}</button></div></form><p className="privacy-hint"><span className="status-dot"/> Saved only in this browser on this device.</p></section></div>}
+    {subjectOpen&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSubjectOpen(false);}}><section className="task-modal glass-panel subject-modal" role="dialog" aria-modal="true" aria-labelledby="subject-modal-title"><div className="modal-heading"><div><span className="eyebrow">BUILD YOUR WORKSPACE</span><h2 id="subject-modal-title">Add a subject</h2></div><button className="icon-button" aria-label="Close form" onClick={()=>setSubjectOpen(false)}><X size={19}/></button></div><form onSubmit={e=>void addSubject(e)}><label className="field-label">Subject name<input autoFocus required maxLength={80} value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Biology"/></label><div className="field-label">Choose a colour<div className="color-options">{colors.map(c=><button type="button" key={c} aria-label={"Choose "+c} aria-pressed={subjectColor===c} className={subjectColor===c?"color-choice active-color":"color-choice"} style={{background:c}} onClick={()=>setSubjectColor(c)}/>)}</div></div><div className="modal-actions"><button type="button" className="secondary-button" onClick={()=>setSubjectOpen(false)}>Cancel</button><button type="submit" className="primary-button"><Plus size={16}/> Add subject</button></div></form></section></div>}
+  </div>;
 }
 
-function TaskList({ tasks, onToggle }: { tasks: Task[]; onToggle: (id: number) => void }) {
-  if (!tasks.length) return <div className="empty-state"><Search size={19} /><span>No matching tasks. Try another search.</span></div>;
-  return <div className="task-list">{tasks.map((task) => <div className={`task-row ${task.done ? "task-done" : ""}`} key={task.id}><button className={`task-check ${task.done ? "checked" : ""}`} aria-label={task.done ? `Mark ${task.title} incomplete` : `Complete ${task.title}`} onClick={() => onToggle(task.id)}>{task.done && <Check size={13} />}</button><div className="task-copy"><strong>{task.title}</strong><span>{task.subject} <i /> <Clock3 size={12} /> {task.minutes} min</span></div><div className="task-meta"><span className={`priority priority-${task.priority.toLowerCase()}`}>{task.priority}</span><span className="task-due">{task.due}</span></div></div>)}</div>;
+function Stat({label,value,detail,icon,tone}:{label:string;value:string;detail:string;icon:React.ReactNode;tone:string}) {
+  return <article className="stat-card glass-panel"><div className="stat-top"><span className="stat-label">{label}</span><span className={"stat-icon "+tone}>{icon}</span></div><div className="stat-value">{value}</div><div className="stat-foot"><span className="stat-caption">{detail}</span></div></article>;
 }
-
-export default App;
+function Empty({icon,title,text,action,onAction}:{icon:React.ReactNode;title:string;text:string;action:string;onAction:()=>void}) {
+  return <div className="empty-state"><div className="empty-icon">{icon}</div><h3>{title}</h3><p>{text}</p><button className="secondary-button" onClick={onAction}><Plus size={15}/>{action}</button></div>;
+}
+function TaskList({tasks,subjects,onToggle,onEdit,onDelete}:{tasks:PlannerTask[];subjects:Map<number,Subject>;onToggle:(t:PlannerTask)=>void;onEdit:(t:PlannerTask)=>void;onDelete:(id:number)=>void}) {
+  return <div className="task-list">{tasks.map(t=>{const s=subjects.get(t.subjectId??-1);const isOverdue=!t.done&&!!t.dueAt&&t.dueAt.slice(0,10)<todayISO();return <article className={"task-row "+(t.done?"task-done":"")} key={t.id}><button className={"task-check "+(t.done?"checked":"")} aria-label={t.done?"Mark incomplete":"Mark complete"} onClick={()=>onToggle(t)}>{t.done&&<Check size={13}/>}</button><button className="task-copy" onClick={()=>onEdit(t)} aria-label={"Edit "+t.title}><strong>{t.title}</strong><span>{s&&<><i className="subject-dot" style={{background:s.color}}/>{s.name} <i className="separator-dot"/></>}{t.kind} <i className="separator-dot"/><Clock3 size={12}/> {t.minutes} min</span>{t.notes&&<small>{t.notes}</small>}</button><div className="task-meta"><span className={"priority priority-"+t.priority.toLowerCase()}>{t.priority}</span><span className={"task-due "+(isOverdue?"overdue-text":"")}>{isOverdue?"Overdue · ":""}{dateLabel(t.dueAt)}</span></div><div className="task-actions"><button className="icon-button" onClick={()=>onEdit(t)} aria-label={"Edit "+t.title} title="Edit task"><Settings2 size={14}/></button><button className="icon-button" onClick={()=>onDelete(t.id)} aria-label={"Delete "+t.title} title="Delete task"><Trash2 size={14}/></button></div></article>})}</div>;
+}
