@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { plannerDb, type PlannerTask } from "./data/db";
 import {
   AlarmClock, ArrowDownRight, ArrowUpRight, BookOpen, CalendarDays,
   Check, ChevronDown, CircleHelp, Clock3, Flame, GraduationCap,
@@ -6,7 +7,7 @@ import {
   Sparkles, Target, TrendingUp, X
 } from "lucide-react";
 
-type Task = { id: number; title: string; subject: string; due: string; minutes: number; priority: "High" | "Medium" | "Low"; done: boolean };
+type Task = PlannerTask;
 
 const initialTasks: Task[] = [
   { id: 1, title: "Revise quadratic equations", subject: "Mathematics", due: "Today · 14:00", minutes: 35, priority: "High", done: false },
@@ -24,6 +25,8 @@ const navItems = [
 function App() {
   const [activeNav, setActiveNav] = useState("Overview");
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [storageReady, setStorageReady] = useState(false);
+  const [storageError, setStorageError] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskSubject, setTaskSubject] = useState("Mathematics");
@@ -32,6 +35,33 @@ function App() {
   const [query, setQuery] = useState("");
 
   const completed = tasks.filter((task) => task.done).length;
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTasks() {
+      try {
+        const saved = await plannerDb.tasks.toArray();
+        if (cancelled) return;
+        if (saved.length) {
+          setTasks(saved);
+        } else {
+          await plannerDb.tasks.bulkPut(initialTasks);
+          if (!cancelled) setTasks(initialTasks);
+        }
+      } catch {
+        if (!cancelled) setStorageError(true);
+      } finally {
+        if (!cancelled) setStorageReady(true);
+      }
+    }
+    void loadTasks();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady || storageError) return;
+    void plannerDb.tasks.bulkPut(tasks).catch(() => setStorageError(true));
+  }, [tasks, storageReady, storageError]);
+
   const visibleTasks = useMemo(
     () => tasks.filter((task) => `${task.title} ${task.subject}`.toLowerCase().includes(query.toLowerCase())),
     [tasks, query]
@@ -83,7 +113,7 @@ function App() {
             <ArrowUpRight size={15} className="muted-icon" />
           </div>
           <button className="nav-item settings-link" onClick={() => setActiveNav("Settings")}><Settings2 size={18} /><span>Settings</span></button>
-          <div className="offline-status"><span className="status-dot" /> Offline-ready workspace</div>
+          <div className="offline-status"><span className="status-dot" /> {storageError ? "Local storage unavailable" : storageReady ? "Saved on this device" : "Loading local workspace"}</div>
         </div>
       </aside>
 
@@ -151,7 +181,7 @@ function App() {
         </div>
       </main>
 
-      {showTaskForm && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowTaskForm(false); }}><section className="task-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-heading"><div><span className="eyebrow">MAKE IT HAPPEN</span><h2 id="task-modal-title">Add a study task</h2></div><button className="icon-button" aria-label="Close form" onClick={() => setShowTaskForm(false)}><X size={19} /></button></div><form onSubmit={addTask}><label className="field-label">What do you need to work on?<input autoFocus required value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="e.g. Revise linear equations" /></label><label className="field-label">Subject<select value={taskSubject} onChange={(event) => setTaskSubject(event.target.value)}><option>Mathematics</option><option>English</option><option>Science</option><option>History</option><option>Other</option></select></label><label className="field-label">Deadline (optional)<input type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value ? new Date(event.target.value).toLocaleString() : "")} /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setShowTaskForm(false)}>Cancel</button><button type="submit" className="primary-button"><Plus size={16} /> Add task</button></div></form><p className="privacy-hint"><span className="status-dot" /> Prototype only — tasks currently reset when the page reloads.</p></section></div>}
+      {showTaskForm && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowTaskForm(false); }}><section className="task-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-heading"><div><span className="eyebrow">MAKE IT HAPPEN</span><h2 id="task-modal-title">Add a study task</h2></div><button className="icon-button" aria-label="Close form" onClick={() => setShowTaskForm(false)}><X size={19} /></button></div><form onSubmit={addTask}><label className="field-label">What do you need to work on?<input autoFocus required value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="e.g. Revise linear equations" /></label><label className="field-label">Subject<select value={taskSubject} onChange={(event) => setTaskSubject(event.target.value)}><option>Mathematics</option><option>English</option><option>Science</option><option>History</option><option>Other</option></select></label><label className="field-label">Deadline (optional)<input type="datetime-local" value={taskDue} onChange={(event) => setTaskDue(event.target.value ? new Date(event.target.value).toLocaleString() : "")} /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setShowTaskForm(false)}>Cancel</button><button type="submit" className="primary-button"><Plus size={16} /> Add task</button></div></form><p className="privacy-hint"><span className="status-dot" /> Tasks are saved in this browser on this device. Backups will be added before release.</p></section></div>}
     </div>
   );
 }
