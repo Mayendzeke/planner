@@ -16,11 +16,12 @@ export default defineConfig({
         background_color: "#0a1020",
         display: "standalone",
         orientation: "portrait",
-        start_url: "/",
+        start_url: "/planner/",
+        scope: "/planner/",
         icons: []
       },
       workbox: {
-        navigateFallback: "/index.html",
+        navigateFallback: "/planner/index.html",
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"]
       }
     })
