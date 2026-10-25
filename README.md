@@ -1,48 +1,62 @@
-# Student Academic Planner
+# Studyspace — Student Academic Planner
 
-An offline-first academic planner for students from primary school through university.
+Studyspace is an offline-first academic planner designed for learners from primary school through university. It is built as a local, single-device application: each browser profile has its own records, and no account or server is configured.
 
-## Product principles
+## Current capabilities
 
-- **Local-first privacy:** student records stay on the device by default.
-- **Offline capable:** the app shell and core features are designed to work offline after the first load.
-- **Flexible academics:** support custom subjects, topics, academic periods, assessments and study preferences.
-- **Explainable planning:** urgent assessments receive priority without silently deleting displaced study tasks.
-- **Accessible by design:** responsive layouts, readable contrast, keyboard support and reduced-motion support.
-- **No paid AI dependency:** Release 1 planning is deterministic and rules-based.
+- Create, edit, complete and delete study tasks, assignments, exams, reading and other work.
+- Add and remove custom subjects, choose subject colours, and link tasks to subjects.
+- Set deadlines, estimated minutes, priority and notes; search tasks and filter open, overdue and completed work.
+- Review dashboard totals, subject completion rates and study time calculated from records entered in the app.
+- Explicitly log study sessions and set a weekly study-time goal.
+- Switch between dark and light glass-inspired themes.
+- Export a JSON backup and validate/restore a compatible backup.
+- Delete all local records with a confirmation.
+- Install as a PWA and cache the application shell for offline use after a successful first load.
+
+## Privacy and data safety
+
+- Subject, task and study-session records are stored in the browser's IndexedDB database on the current device.
+- The application has no sign-in, cloud sync, analytics service or remote database.
+- Records are not automatically shared between students, devices or browsers.
+- Clearing site/browser storage, uninstalling the browser, or losing the device can erase records. Export backups regularly and keep backup files private.
+- A backup contains the records you entered. Anyone with that file may be able to read its contents.
+- The app does not provide multi-device synchronisation, account recovery, notifications or a background study timer in this release.
 
 ## Technology
 
 - React + TypeScript + Vite
-- Dexie / IndexedDB for structured local records
-- vite-plugin-pwa for installability and offline app-shell caching
+- Dexie / IndexedDB with a versioned schema migration
+- vite-plugin-pwa / Workbox
 - Lucide icons
-- Static hosting; no backend required for the first release
+- Static hosting; no backend required
 
-## Development
+## Local development
 
 Requires Node.js 20+ and npm.
 
 ```bash
 npm install
-npm run dev
-```
-
-Create a production build:
-
-```bash
+npm run typecheck
 npm run build
 npm run preview
 ```
 
-## Current status
+## GitHub Pages
 
-**Foundation stage.** The first responsive dashboard and task interactions are in place. Persistence, real planner logic, onboarding, and data export/import are still being built. Dashboard chart and summary figures are illustrative, not calculated academic results.
+The Vite base path is configured for the repository path `/planner/`. The Pages deployment workflow builds `dist` and deploys it when Pages is enabled for the repository. A successful workflow run is required before treating the site as ready.
 
-## Privacy and data safety
+On GitHub Free, GitHub Pages requires the repository to be public. A public repository exposes source files, commit history, documentation and workflow definitions. Keep secrets, personal student records and backup files out of the repository.
 
-Do not enter real student information into prototype builds. Before release, verify local persistence, backup/restore validation, storage migrations and explicit data deletion. Clearing browser data may erase local records, so backup/restore is a required release feature.
+## Release verification checklist
 
-## Design direction
+- [ ] GitHub Actions typecheck and production build pass.
+- [ ] Test add/edit/complete/delete for tasks and add/delete for subjects.
+- [ ] Test deadlines in the device's local timezone, search and all planner filters.
+- [ ] Test study-session logging and progress totals.
+- [ ] Test JSON export and valid/invalid restore, including cancellation.
+- [ ] Test dark/light themes and small-screen layout.
+- [ ] Test first load, refresh, installation and offline relaunch on target browsers.
+- [ ] Confirm no credentials, personal data or private files are present in the repository or commit history before changing visibility.
 
-Dark navy glassmorphism, translucent layered panels, restrained 3D depth, soft elevation, cool blue highlights and mint progress indicators. Visual effects must not compromise readability or offline operation.
+Studyspace is a personal local planner, not a central school management system. Each student must use their own browser/device profile. Cloud sync and administrator/student accounts are not included.
