@@ -192,9 +192,7 @@ export default function App() {
   }
   async function clearAll() {
     if (!window.confirm("This permanently deletes your profile, subjects, tasks, study sessions, academic calendar and personal library files stored on this device. Export a backup first if you need it.")) return;
-    await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, plannerDb.resources, plannerDb.events, async () => {
-      await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
-    });
+    await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
     localStorage.removeItem("studyspace-profile");
     setProfile(null);
     await refresh();
