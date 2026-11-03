@@ -92,8 +92,13 @@ export default function App() {
   useEffect(() => { void refresh(); }, []);
   useEffect(() => {
     const root = document.querySelector(".page-content");
-    if (!root || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const targets = root.querySelectorAll<HTMLElement>(":scope > .welcome-row, :scope > .stats-grid, :scope > .dashboard-grid, :scope > .glass-panel, :scope > .upcoming-calendar, :scope > .bottom-note, .dashboard-grid > *");
+    if (!root) return;
+    const targets = Array.from(root.querySelectorAll<HTMLElement>(":scope > *:not(.page-footer)"));
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion || typeof IntersectionObserver === "undefined") {
+      targets.forEach(element => element.classList.remove("scroll-reveal", "scroll-visible"));
+      return;
+    }
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -101,10 +106,11 @@ export default function App() {
           observer.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.08, rootMargin: "0px 0px -35px 0px" });
+    }, { threshold: 0.06, rootMargin: "0px 0px -28px 0px" });
     targets.forEach((element, index) => {
+      element.classList.remove("scroll-visible");
       element.classList.add("scroll-reveal");
-      element.style.setProperty("--reveal-delay", Math.min(index % 4, 3) * 65 + "ms");
+      element.style.setProperty("--reveal-delay", Math.min(index, 4) * 55 + "ms");
       observer.observe(element);
     });
     return () => observer.disconnect();
