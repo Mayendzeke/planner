@@ -90,6 +90,26 @@ export default function App() {
     finally { setReady(true); }
   }
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    const root = document.querySelector(".page-content");
+    if (!root || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const targets = root.querySelectorAll<HTMLElement>(":scope > .welcome-row, :scope > .stats-grid, :scope > .dashboard-grid, :scope > .glass-panel, :scope > .upcoming-calendar, :scope > .bottom-note, .dashboard-grid > *");
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("scroll-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: "0px 0px -35px 0px" });
+    targets.forEach((element, index) => {
+      element.classList.add("scroll-reveal");
+      element.style.setProperty("--reveal-delay", Math.min(index % 4, 3) * 65 + "ms");
+      observer.observe(element);
+    });
+    return () => observer.disconnect();
+  }, [page, ready]);
+
 
   async function finishOnboarding(nextProfile: StudentProfile) {
     try {
