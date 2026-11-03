@@ -142,3 +142,41 @@
 .library-empty strong{font:700 13px Manrope,sans-serif}
 .library-empty p{max-width:360px;font-size:10px;line-height:1.6;color:var(--muted);margin:8px 0 17px}
 @media(max-width:600px){.library-intro{flex-wrap:wrap;padding:15px}.library-intro>div:nth-child(2){flex:1 1 calc(100% - 60px)}.library-intro>.library-upload{width:100%}.library-file{gap:6px}.library-file .icon-button{width:29px;height:29px}.library-list{padding:15px}.splash-wordmark{font-size:30px}}
+
+
+/* Stage 4 — liquid glass surfaces and unified calendar */
+.glass-panel{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 82%,rgba(255,255,255,.12)),color-mix(in srgb,var(--panel) 90%,transparent));border-color:color-mix(in srgb,var(--border) 75%,rgba(255,255,255,.2));box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -1px 0 rgba(255,255,255,.025),0 18px 48px rgba(0,0,0,.13);backdrop-filter:blur(28px) saturate(145%);-webkit-backdrop-filter:blur(28px) saturate(145%)}
+.glass-panel:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;background:linear-gradient(125deg,rgba(255,255,255,.07),transparent 28%,transparent 72%,rgba(141,185,255,.035))}
+:root[data-theme="light"] .glass-panel{background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(244,248,255,.7));box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(255,255,255,.35),0 18px 45px rgba(45,68,110,.08)}
+.sidebar.glass-panel{background:linear-gradient(160deg,color-mix(in srgb,var(--panel-strong) 90%,rgba(255,255,255,.09)),var(--panel))}
+.stat-card,.focus-panel,.week-panel,.settings-card,.academic-calendar-intro,.academic-period-group,.academic-period-form,.upcoming-calendar,.library-list{transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.stat-card:hover,.focus-panel:hover,.week-panel:hover,.upcoming-calendar:hover{border-color:color-mix(in srgb,var(--mint) 30%,var(--border));box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 22px 55px rgba(0,0,0,.16)}
+.upcoming-calendar{padding:21px;margin:0 0 16px}
+.upcoming-calendar .section-heading{align-items:flex-start}
+.upcoming-calendar .section-heading h2{margin-top:7px}
+.upcoming-list{display:grid}
+.upcoming-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);min-width:0}
+.upcoming-item:last-child{border-bottom:0}
+.upcoming-date{width:43px;height:47px;display:flex;align-items:center;justify-content:center;flex-direction:column;flex-shrink:0;border:1px solid var(--border);border-radius:11px;background:color-mix(in srgb,var(--panel) 78%,transparent)}
+.upcoming-date strong{font:800 16px Manrope,sans-serif;line-height:1.1}
+.upcoming-date span{font-size:8px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:4px}
+.upcoming-date.national-date{color:var(--mint);border-color:rgba(121,226,196,.25);background:rgba(121,226,196,.08)}
+.upcoming-copy{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.upcoming-copy>strong{font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.upcoming-copy>span{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:9px}
+.upcoming-copy>span i{width:3px;height:3px;border-radius:50%;background:var(--subtle)}
+.upcoming-copy small{font-size:9px;color:var(--subtle);line-height:1.45}
+.calendar-source-note{display:flex;align-items:flex-start;gap:7px;border-top:1px solid var(--border);padding-top:12px;margin:12px 0 0;color:var(--subtle);font-size:9px;line-height:1.5}
+.calendar-source-note svg{flex-shrink:0;color:var(--mint)}
+.calendar-event-form{display:grid;gap:13px;padding:16px;margin:0 0 14px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--panel) 75%,transparent);box-shadow:inset 0 1px 8px rgba(0,0,0,.04)}
+.upcoming-compact{margin-top:0}
+.reminder-settings{margin-bottom:0}
+.reminder-days{display:grid;gap:10px;padding:16px 0;border-top:1px solid var(--border)}
+.reminder-days>strong{font-size:11px}
+.reminder-days>div{display:flex;flex-wrap:wrap;gap:7px}
+.reminder-note{display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px solid rgba(121,226,196,.17);border-radius:11px;background:rgba(121,226,196,.055);color:var(--muted);font-size:9px;line-height:1.6}
+.reminder-note svg{color:var(--mint);flex-shrink:0;margin-top:1px}
+.reminder-enabled{color:var(--mint);border-color:rgba(121,226,196,.35)}
+.reminder-blocked{font-size:10px;color:var(--danger)}
+@media(max-width:650px){.upcoming-calendar{padding:16px}.upcoming-calendar .section-heading{flex-direction:column}.upcoming-calendar .section-heading>.primary-button{width:100%}.upcoming-item{gap:9px}.upcoming-date{width:39px;height:43px}}
+@media(prefers-reduced-transparency:reduce){.glass-panel{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--panel)}}
