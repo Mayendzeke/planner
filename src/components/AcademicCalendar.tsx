@@ -45,7 +45,7 @@ export default function AcademicCalendar() {
     if (title.length > 100 || form.notes.length > 1000) { setError("Please shorten the title or notes."); return; }
     const duplicate = periods.some(item => item.title.toLocaleLowerCase() === title.toLocaleLowerCase() && item.startDate === form.startDate && item.endDate === form.endDate && item.kind === form.kind);
     if (duplicate) { setError("This academic period already exists."); return; }
-    const record: AcademicPeriod = { ...form, title, notes: form.notes.trim(), id: Date.now(), createdAt: new Date().toISOString() };
+    const record: AcademicPeriod = { ...form, title, notes: form.notes.trim(), id: Math.max(Date.now(), ...periods.map(period => period.id + 1)), createdAt: new Date().toISOString() };
     setBusy(true);
     try {
       await plannerDb.academicPeriods.add(record);
