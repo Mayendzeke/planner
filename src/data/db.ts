@@ -5,6 +5,11 @@ export type Subject = {
   name: string;
   color: string;
   createdAt: string;
+  code?: string;
+  description?: string;
+  category?: string;
+  targetMark?: number;
+  periodIds?: number[];
 };
 export type PlannerTask = {
   id: number;
@@ -74,6 +79,7 @@ class PlannerDatabase extends Dexie {
       sessions: "id, subjectId, date",
       academicPeriods: "id, kind, startDate, endDate"
     });
+    this.version(4).stores({ tasks: "id, subjectId, dueAt, priority, kind, done, createdAt", subjects: "id, name, createdAt", sessions: "id, subjectId, date", academicPeriods: "id, kind, startDate, endDate" });
   }
 }
 
