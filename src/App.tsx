@@ -140,15 +140,6 @@ export default function App() {
     try { await plannerDb.subjects.add({ id:Date.now(), name, color:subjectColor, createdAt:new Date().toISOString() }); setSubjectName(""); setSubjectOpen(false); await refresh(); }
     catch { setError("The subject could not be saved."); }
   }
-  async function deleteSubject(s: Subject) {
-    if (!window.confirm("Delete “" + s.name + "”? Existing tasks will remain, but will no longer be linked to this subject.")) return;
-    await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, async () => {
-      await plannerDb.subjects.delete(s.id);
-      const linked = await plannerDb.tasks.where("subjectId").equals(s.id).toArray();
-      await Promise.all(linked.map(t => plannerDb.tasks.put({ ...t, subjectId:null })));
-    });
-    await refresh();
-  }
   async function logSession(subjectId: number | null, minutes: number) {
     try { await plannerDb.sessions.add({ id:Date.now(), subjectId, date:new Date().toISOString(), minutes, notes:"" }); await refresh(); }
     catch { setError("The study session could not be saved."); }
