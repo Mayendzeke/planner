@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, CalendarDays, ChevronRight, Flag, Plus, X } from "lucide-react";
+import { Bell, CalendarDays, Flag, Plus, X } from "lucide-react";
 import { plannerDb, type AcademicPeriod, type CalendarEvent, type PlannerTask } from "../data/db";
 
 type NationalDate = { date: string; title: string; note?: string; provisional?: boolean };
