@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
-import SplashScreen from "./components/SplashScreen";
 import StudentLibrary from "./components/StudentLibrary";
 import AcademicCalendar from "./components/AcademicCalendar";
 import UpcomingCalendar from "./components/UpcomingCalendar";
@@ -45,7 +44,6 @@ const downloadJson = (filename: string, value: unknown) => {
 
 export default function App() {
   const [page, setPage] = useState<Page>("Overview");
-  const [showSplash, setShowSplash] = useState(true);
   const [profile, setProfile] = useState<StudentProfile | null>(() => { try { const raw = localStorage.getItem("studyspace-profile"); return raw ? JSON.parse(raw) as StudentProfile : null; } catch { return null; } });
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
@@ -68,11 +66,6 @@ export default function App() {
   const [subjectColor, setSubjectColor] = useState(colors[0]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [importMessage, setImportMessage] = useState("");
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setShowSplash(false), 2800);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -224,7 +217,6 @@ export default function App() {
     await refresh();
   }
 
-  if (showSplash) return <SplashScreen />;
   if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
 
   return <div className="app-shell" data-theme={theme}>
