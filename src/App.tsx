@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
+import AcademicCalendar from "./components/AcademicCalendar";
 
 type Page = "Overview" | "Subjects" | "Planner" | "Progress" | "Settings";
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
