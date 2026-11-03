@@ -65,7 +65,8 @@ class PlannerDatabase extends Dexie {
   tasks!: EntityTable<PlannerTask, "id">;
   sessions!: EntityTable<StudySession, "id">;
   academicPeriods!: EntityTable<AcademicPeriod, "id">;
-  resources!: EntityTable<StudentResource, "id">;\n  events!: EntityTable<CalendarEvent, "id">;
+  resources!: EntityTable<StudentResource, "id">;
+  events!: EntityTable<CalendarEvent, "id">;
 
   constructor() {
     super("studyspace-local");
