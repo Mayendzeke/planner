@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, CalendarDays, Flag, Plus, X } from "lucide-react";
+import { Bell, CalendarDays, ChevronLeft, ChevronRight, Flag, Plus, X } from "lucide-react";
 import { plannerDb, type AcademicPeriod, type CalendarEvent, type PlannerTask } from "../data/db";
 
 type NationalDate = { date: string; title: string; note?: string; provisional?: boolean };
@@ -32,7 +32,7 @@ function dateLabel(value: string) {
 }
 
 export default function UpcomingCalendar({ tasks = [], compact = false }: { tasks?: PlannerTask[]; compact?: boolean }) {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [monthOffset, setMonthOffset] = useState(0);\n  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -58,6 +58,21 @@ export default function UpcomingCalendar({ tasks = [], compact = false }: { task
     const academic: AgendaItem[] = periods.filter(item => item.endDate >= todayKey).map(item => ({ id: "period-" + item.id, date: item.startDate < todayKey ? todayKey : item.startDate, title: item.title, kind: item.kind, detail: item.startDate === item.endDate ? undefined : "Until " + dateLabel(item.endDate) }));
     return [...national, ...personal, ...deadlines, ...academic].sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? "") || a.title.localeCompare(b.title));
   }, [events, periods, tasks]);
+
+  const monthCells = useMemo(() => {
+    const first = new Date();
+    first.setDate(1);
+    first.setMonth(first.getMonth() + monthOffset);
+    const start = new Date(first);
+    start.setDate(1 - ((start.getDay() + 6) % 7));
+    return Array.from({ length: 42 }, (_, index) => {
+      const day = new Date(start);
+      day.setDate(start.getDate() + index);
+      const key = day.getFullYear() + "-" + String(day.getMonth() + 1).padStart(2, "0") + "-" + String(day.getDate()).padStart(2, "0");
+      return { key, day, currentMonth: day.getMonth() === first.getMonth(), items: items.filter(item => item.date === key) };
+    });
+  }, [items, monthOffset]);
+  const monthTitle = monthCells[10]?.day.toLocaleDateString(undefined, { month: "long", year: "numeric" }) ?? "";
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
