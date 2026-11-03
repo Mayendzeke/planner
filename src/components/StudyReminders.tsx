@@ -16,7 +16,7 @@ function readSettings(): ReminderSettings {
   } catch { return defaultSettings; }
 }
 
-export default function StudyReminders({ preferredDays = [] }: { preferredDays?: string[] }) {
+export default function StudyReminders({ preferredDays = [], showSettings = true }: { preferredDays?: string[]; showSettings?: boolean }) {
   const [settings, setSettings] = useState<ReminderSettings>(() => {
     const saved = readSettings();
     return localStorage.getItem(STORAGE_KEY) ? saved : { ...defaultSettings, days: preferredDays.length ? preferredDays.filter(day => DAYS.includes(day)) : defaultSettings.days };
@@ -73,6 +73,8 @@ export default function StudyReminders({ preferredDays = [] }: { preferredDays?:
     const days = settings.days.includes(day) ? settings.days.filter(item => item !== day) : [...settings.days, day];
     update({ ...settings, days });
   }
+
+  if (!showSettings) return null;
 
   return <section className="glass-panel settings-card reminder-settings">
     <div className="section-heading"><div><h2>Study reminders</h2><p>Choose when Studyspace should nudge you to begin a study session.</p></div><BellRing size={20}/></div>
