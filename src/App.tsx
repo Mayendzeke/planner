@@ -154,7 +154,7 @@ export default function App() {
   }
   async function exportData() {
     const academicPeriods = await plannerDb.academicPeriods.toArray();
-    const data = { format:"Studyspace backup", version:2, exportedAt:new Date().toISOString(), subjects, tasks, sessions, academicPeriods };
+    const data = { format:"Studyspace backup", version:2, exportedAt:new Date().toISOString(), profile, subjects, tasks, sessions, academicPeriods };
     downloadJson("studyspace-backup-" + today + ".json", data);
   }
   async function importData(e: React.ChangeEvent<HTMLInputElement>) {
@@ -166,10 +166,11 @@ export default function App() {
       const validTasks = raw.tasks.every((t: any) => Number.isFinite(t?.id) && typeof t?.title === "string" && (t?.subjectId === null || Number.isFinite(t?.subjectId)) && typeof t?.dueAt === "string" && Number.isFinite(t?.minutes) && ["High","Medium","Low"].includes(t?.priority) && ["Study","Assignment","Exam","Reading","Other"].includes(t?.kind) && typeof t?.notes === "string" && typeof t?.done === "boolean" && typeof t?.createdAt === "string" && (t?.completedAt === null || typeof t?.completedAt === "string"));
       const validSessions = raw.sessions.every((s: any) => Number.isFinite(s?.id) && (s?.subjectId === null || Number.isFinite(s?.subjectId)) && typeof s?.date === "string" && !Number.isNaN(Date.parse(s.date)) && Number.isFinite(s?.minutes) && s.minutes > 0 && typeof s?.notes === "string");
       const academicPeriods = raw.version === 2 ? raw.academicPeriods : [];
+      const validProfile = raw.profile === undefined || (raw.profile && typeof raw.profile.fullName === "string" && typeof raw.profile.preferredName === "string" && typeof raw.profile.country === "string" && typeof raw.profile.institution === "string" && typeof raw.profile.level === "string" && typeof raw.profile.grade === "string" && typeof raw.profile.curriculum === "string" && typeof raw.profile.academicYear === "string" && typeof raw.profile.termCount === "string" && typeof raw.profile.goals === "string" && typeof raw.profile.targetMark === "string" && typeof raw.profile.weeklyHours === "string" && Array.isArray(raw.profile.preferredDays) && raw.profile.preferredDays.every((day: unknown) => typeof day === "string") && Array.isArray(raw.profile.subjects) && raw.profile.subjects.every((subject: unknown) => typeof subject === "string"));
       const validAcademicPeriods = academicPeriods.every((p: any) => Number.isSafeInteger(p?.id) && typeof p?.title === "string" && p.title.trim().length > 0 && ["Term","Holiday","Examination","Other"].includes(p?.kind) && typeof p?.startDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.startDate) && typeof p?.endDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.endDate) && p.endDate >= p.startDate && typeof p?.notes === "string" && typeof p?.createdAt === "string" && !Number.isNaN(Date.parse(p.createdAt)));
       const subjectIds = new Set(raw.subjects.map((s: any) => s.id));
       const linkedRecordsValid = raw.tasks.every((t: any) => t.subjectId === null || subjectIds.has(t.subjectId)) && raw.sessions.every((s: any) => s.subjectId === null || subjectIds.has(s.subjectId));
-      if (!validSubjects || !validTasks || !validSessions || !validAcademicPeriods || !linkedRecordsValid) throw new Error("The backup contains invalid, incomplete or incorrectly linked records. Nothing was changed.");
+      if (!validProfile || !validSubjects || !validTasks || !validSessions || !validAcademicPeriods || !linkedRecordsValid) throw new Error("The backup contains invalid, incomplete or incorrectly linked records. Nothing was changed.");
       if (!window.confirm("Import this backup and replace all Studyspace data on this device? Export a backup first if you need the current data.")) { e.target.value = ""; return; }
       await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, async () => {
         await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear()]);
@@ -178,6 +179,7 @@ export default function App() {
         await plannerDb.sessions.bulkPut(raw.sessions);
         if (academicPeriods.length) await plannerDb.academicPeriods.bulkPut(academicPeriods);
       });
+      if (raw.profile) { localStorage.setItem("studyspace-profile", JSON.stringify(raw.profile)); setProfile(raw.profile as StudentProfile); }
       setImportMessage("Backup restored successfully."); await refresh();
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
     e.target.value = "";
@@ -187,6 +189,8 @@ export default function App() {
     await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, async () => {
       await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear()]);
     });
+    localStorage.removeItem("studyspace-profile");
+    setProfile(null);
     await refresh();
   }
 
