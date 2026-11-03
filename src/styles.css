@@ -40,3 +40,30 @@
 .onboarding-next{min-width:145px}
 .onboarding-privacy{text-align:center;color:var(--subtle);font-size:9px;margin:20px 0 0}
 @media(max-width:520px){.onboarding-card{padding:22px 18px}.onboarding-two-col{grid-template-columns:1fr}.onboarding-heading{margin:24px 0 20px}.onboarding-actions{justify-content:stretch}.onboarding-actions button{flex:1}}
+
+
+/* Academic calendar */
+.academic-calendar-stack{display:grid;gap:16px}
+.academic-calendar-intro{display:flex;align-items:center;gap:15px;padding:20px}
+.academic-calendar-intro>div:nth-child(2){flex:1;min-width:0}
+.academic-calendar-intro h2{font:800 16px Manrope,sans-serif;margin:0 0 5px}
+.academic-calendar-intro p,.academic-period-group .section-heading p{font-size:10px;line-height:1.55;color:var(--muted);margin:0}
+.academic-calendar-icon{width:43px;height:43px;flex:0 0 43px;display:grid;place-items:center;border-radius:13px;background:rgba(121,226,196,.12);color:var(--mint)}
+.academic-period-form,.academic-period-group{padding:20px}
+.academic-period-form form{display:grid;gap:14px}
+.academic-period-list{display:grid}
+.academic-period-row{display:flex;align-items:flex-start;gap:13px;padding:15px 0;border-bottom:1px solid var(--border)}
+.academic-period-row:last-child{border-bottom:0;padding-bottom:0}
+.academic-period-marker{width:9px;height:9px;flex:0 0 9px;border-radius:50%;margin-top:5px;background:var(--blue);box-shadow:0 0 0 4px color-mix(in srgb,var(--blue) 13%,transparent)}
+.period-holiday{background:var(--mint);box-shadow:0 0 0 4px color-mix(in srgb,var(--mint) 13%,transparent)}
+.period-examination{background:#f28ca6;box-shadow:0 0 0 4px color-mix(in srgb,#f28ca6 13%,transparent)}
+.period-other{background:#c4a4ff;box-shadow:0 0 0 4px color-mix(in srgb,#c4a4ff 13%,transparent)}
+.academic-period-copy{flex:1;min-width:0;display:grid;gap:5px}
+.academic-period-copy strong{font-size:12px}
+.academic-period-copy>span,.academic-period-copy p{font-size:10px;color:var(--muted);margin:0;line-height:1.5}
+.academic-overlap-note{font-size:9px;color:var(--warning,#e7b66b)}
+.academic-empty{padding:35px 20px;text-align:center;display:grid;justify-items:center;gap:10px}
+.academic-empty h3{font:700 15px Manrope,sans-serif;margin:0}
+.academic-empty p{font-size:10px;color:var(--muted);max-width:420px;line-height:1.6;margin:0 0 5px}
+.academic-calendar-footnote{font-size:9px;color:var(--subtle);line-height:1.5;margin:0}
+@media(max-width:600px){.academic-calendar-intro{align-items:flex-start;flex-wrap:wrap;padding:15px}.academic-calendar-intro>div:nth-child(2){flex:1 1 calc(100% - 60px)}.academic-calendar-intro>.primary-button{width:100%;justify-content:center}.academic-period-form,.academic-period-group{padding:15px}}
