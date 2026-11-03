@@ -27,12 +27,18 @@ const NATIONAL_DATES: NationalDate[] = [
 
 type AgendaItem = { id: string; date: string; time?: string; title: string; kind: string; detail?: string; national?: boolean; provisional?: boolean };
 
+function todayISOForCalendar() {
+  const today = new Date();
+  return today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+}
+
 function dateLabel(value: string) {
   return new Date(value + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function UpcomingCalendar({ tasks = [], compact = false }: { tasks?: PlannerTask[]; compact?: boolean }) {
-  const [monthOffset, setMonthOffset] = useState(0);\n  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [periods, setPeriods] = useState<AcademicPeriod[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -106,6 +112,11 @@ export default function UpcomingCalendar({ tasks = [], compact = false }: { task
       <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setOpen(false)}>Cancel</button><button type="submit" className="primary-button"><Plus size={15}/> Save event</button></div>
     </form>}
     {!open && error && <p className="inline-message" role="alert">{error}</p>}
+    <div className="month-calendar">
+      <div className="month-calendar-heading"><strong>{monthTitle}</strong><div><button className="icon-button" aria-label="Previous month" onClick={() => setMonthOffset(value => value - 1)}><ChevronLeft size={16}/></button><button className="icon-button" aria-label="Next month" onClick={() => setMonthOffset(value => value + 1)}><ChevronRight size={16}/></button></div></div>
+      <div className="month-calendar-grid">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(day => <span className="month-weekday" key={day}>{day}</span>)}{monthCells.map(cell => <div key={cell.key} className={"month-day " + (!cell.currentMonth ? "month-day-muted " : "") + (cell.key === todayISOForCalendar() ? "month-day-today" : "")} title={cell.items.map(item => item.title).join(" · ")}><span>{cell.day.getDate()}</span>{cell.items.length > 0 && <i className="month-day-dots">{cell.items.slice(0, 3).map(item => <b key={item.id} className={item.national ? "dot-national" : item.kind.toLowerCase().includes("exam") || item.kind === "Test" ? "dot-test" : "dot-personal"}/>)}</i>}</div>)}</div>
+      <div className="month-legend"><span><i className="dot-national"/> National holiday</span><span><i className="dot-test"/> Tests / deadlines</span><span><i className="dot-personal"/> Events / school periods</span></div>
+    </div>
     {items.length ? <div className="upcoming-list">{items.slice(0, compact ? 6 : 40).map(item => <article className="upcoming-item" key={item.id}>
       <div className={"upcoming-date " + (item.national ? "national-date" : "")}><strong>{new Date(item.date + "T12:00:00").getDate()}</strong><span>{new Date(item.date + "T12:00:00").toLocaleDateString(undefined, { month: "short" })}</span></div>
       <div className="upcoming-copy"><strong>{item.title}</strong><span>{dateLabel(item.date)}{item.time ? " · " + item.time : ""} <i/> {item.kind}</span>{(item.detail || item.provisional) && <small>{item.detail || "Indicative date — check the official government announcement."}</small>}</div>
