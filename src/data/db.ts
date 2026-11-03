@@ -26,11 +26,21 @@ export type StudySession = {
   minutes: number;
   notes: string;
 };
+export type AcademicPeriod = {
+  id: number;
+  title: string;
+  kind: "Term" | "Holiday" | "Examination" | "Other";
+  startDate: string;
+  endDate: string;
+  notes: string;
+  createdAt: string;
+};
 
 class PlannerDatabase extends Dexie {
   subjects!: EntityTable<Subject, "id">;
   tasks!: EntityTable<PlannerTask, "id">;
   sessions!: EntityTable<StudySession, "id">;
+  academicPeriods!: EntityTable<AcademicPeriod, "id">;
 
   constructor() {
     super("studyspace-local");
@@ -57,6 +67,12 @@ class PlannerDatabase extends Dexie {
           completedAt: old.done ? new Date().toISOString() : null
         });
       }
+    });
+    this.version(3).stores({
+      tasks: "id, subjectId, dueAt, priority, kind, done, createdAt",
+      subjects: "id, name, createdAt",
+      sessions: "id, subjectId, date",
+      academicPeriods: "id, kind, startDate, endDate"
     });
   }
 }
