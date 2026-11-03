@@ -40,6 +40,16 @@ export type StudentResource = {
   createdAt: string;
 };
 
+export type CalendarEvent = {
+  id: number;
+  title: string;
+  date: string;
+  time: string;
+  kind: "Test" | "School event" | "Personal" | "Other";
+  notes: string;
+  createdAt: string;
+};
+
 export type AcademicPeriod = {
   id: number;
   title: string;
@@ -55,7 +65,7 @@ class PlannerDatabase extends Dexie {
   tasks!: EntityTable<PlannerTask, "id">;
   sessions!: EntityTable<StudySession, "id">;
   academicPeriods!: EntityTable<AcademicPeriod, "id">;
-  resources!: EntityTable<StudentResource, "id">;
+  resources!: EntityTable<StudentResource, "id">;\n  events!: EntityTable<CalendarEvent, "id">;
 
   constructor() {
     super("studyspace-local");
@@ -91,6 +101,7 @@ class PlannerDatabase extends Dexie {
     });
     this.version(4).stores({ tasks: "id, subjectId, dueAt, priority, kind, done, createdAt", subjects: "id, name, createdAt", sessions: "id, subjectId, date", academicPeriods: "id, kind, startDate, endDate" });
     this.version(5).stores({ tasks: "id, subjectId, dueAt, priority, kind, done, createdAt", subjects: "id, name, createdAt", sessions: "id, subjectId, date", academicPeriods: "id, kind, startDate, endDate", resources: "id, name, mimeType, createdAt" });
+    this.version(6).stores({ tasks: "id, subjectId, dueAt, priority, kind, done, createdAt", subjects: "id, name, createdAt", sessions: "id, subjectId, date", academicPeriods: "id, kind, startDate, endDate", resources: "id, name, mimeType, createdAt", events: "id, date, kind, createdAt" });
   }
 }
 
