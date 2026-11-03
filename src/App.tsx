@@ -7,16 +7,18 @@ import {
 } from "lucide-react";
 import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
+import SplashScreen from "./components/SplashScreen";
+import StudentLibrary from "./components/StudentLibrary";
 import AcademicCalendar from "./components/AcademicCalendar";
 import SubjectManager from "./components/SubjectManager";
 
-type Page = "Overview" | "Subjects" | "Planner" | "Academic Calendar" | "Progress" | "Settings";
+type Page = "Overview" | "Subjects" | "Planner" | "My Library" | "Academic Calendar" | "Progress" | "Settings";
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
 const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
 const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Subjects", icon: BookOpen },
-  { name: "Planner", icon: CalendarDays }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
+  { name: "Planner", icon: CalendarDays }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
 ];
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
@@ -41,6 +43,7 @@ const downloadJson = (filename: string, value: unknown) => {
 
 export default function App() {
   const [page, setPage] = useState<Page>("Overview");
+  const [showSplash, setShowSplash] = useState(true);
   const [profile, setProfile] = useState<StudentProfile | null>(() => { try { const raw = localStorage.getItem("studyspace-profile"); return raw ? JSON.parse(raw) as StudentProfile : null; } catch { return null; } });
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
@@ -63,6 +66,11 @@ export default function App() {
   const [subjectColor, setSubjectColor] = useState(colors[0]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowSplash(false), 2800);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -187,6 +195,7 @@ export default function App() {
     await refresh();
   }
 
+  if (showSplash) return <SplashScreen />;
   if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
 
   return <div className="app-shell" data-theme={theme}>
@@ -214,6 +223,7 @@ export default function App() {
           <div className="glass-panel week-panel"><div className="section-heading"><div><h2>Study time</h2><p>Minutes you have logged this week.</p></div><Clock3 size={20}/></div><div className="week-summary"><div><strong>{Math.floor(weekMinutes/60)}h {weekMinutes%60}m</strong><span>recorded this week</span></div><span className="week-trend">{Math.min(100,Math.round(weeklyHours/Math.max(1,goal)*100))}% of goal</span></div><div className="goal-track"><span style={{width:Math.min(100,weeklyHours/Math.max(1,goal)*100)+"%"}}/></div><div className="goal-label"><span>0h</span><span>{goal}h weekly goal</span></div><div className="session-actions"><label>Log a session<select id="quick-session-subject" defaultValue=""><option value="">General study</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,25);}}>+25 min</button><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,50);}}>+50 min</button></div><p className="subtle-note">Sessions are logged when you choose a duration. This does not run a background timer.</p></div></section>
           <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your data stays on this device.</strong> Studyspace stores your profile, subjects, tasks, study sessions and academic calendar in this browser. Use Settings to export a backup before changing devices or clearing browser data.</p><span className="note-pill">LOCAL-FIRST</span></section></>}
         {page==="Subjects"&&<SubjectManager onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
+        {page==="My Library"&&<StudentLibrary/>}
         {page==="Planner"&&<section className="glass-panel planner-panel"><div className="section-heading"><div><h2>Study calendar</h2><p>Plan around your deadlines. Select a day to add a task.</p></div><span className="count-chip">{visibleTasks.length} shown</span></div><div className="filter-row"><div className="filter-tabs">{["All","Open","Overdue","Completed"].map(v=><button key={v} className={filter===v?"selected":""} onClick={()=>setFilter(v)}>{v}</button>)}</div><div className="filter-tabs"><button className={plannerMode==="week"?"selected":""} onClick={()=>setPlannerMode("week")}>Week view</button><button className={plannerMode==="list"?"selected":""} onClick={()=>setPlannerMode("list")}>List view</button><button className="primary-button compact-button" onClick={()=>openNewTask()}><Plus size={15}/> Add task</button></div></div>{plannerMode==="week"&&<WeekCalendar tasks={visibleTasks} subjects={subjectById} offset={weekOffset} onOffset={setWeekOffset} onAdd={openNewTask} onEdit={openEditTask}/ >}{plannerMode==="list"&&(visibleTasks.length?<TaskList tasks={visibleTasks} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<CalendarDays size={22}/>} title={search||filter!=="All"?"No tasks match this view":"Your planner is ready"} text={search||filter!=="All"?"Try changing your search or filter.":"Add a task with a deadline, subject and priority to start planning."} action="Add a task" onAction={()=>openNewTask()}/>)}</section>}
         {page==="Academic Calendar"&&<AcademicCalendar/>}
         {page==="Progress"&&<><section className="stats-grid"><Stat label="TOTAL STUDY TIME" value={Math.floor(totalMinutes/60)+"h "+totalMinutes%60+"m"} detail={sessions.length+" sessions logged"} icon={<Clock3 size={17}/>} tone="blue"/><Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={"of "+tasks.length+" total tasks"} icon={<Check size={17}/>} tone="mint"/><Stat label="SUBJECTS" value={String(subjects.length)} detail="In your workspace" icon={<BookOpen size={17}/>} tone="violet"/><Stat label="OVERDUE TASKS" value={String(overdue.length)} detail="Open tasks past their deadline" icon={<AlarmClock size={17}/>} tone="rose"/></section><section className="glass-panel progress-detail"><div className="section-heading"><div><h2>Subject progress</h2><p>Calculated from the tasks you have entered.</p></div><TrendingUp size={21}/></div>{subjects.length?<div className="progress-subject-list">{subjects.map(s=>{const ts=tasks.filter(t=>t.subjectId===s.id);const done=ts.filter(t=>t.done).length;const mins=sessions.filter(l=>l.subjectId===s.id).reduce((n,l)=>n+l.minutes,0);return <div className="progress-subject" key={s.id}><div className="progress-subject-heading"><span className="subject-dot" style={{background:s.color}}/><strong>{s.name}</strong><span>{done}/{ts.length} tasks · {Math.floor(mins/60)}h {mins%60}m</span></div><div className="progress-track"><span style={{width:(ts.length?done/ts.length*100:0)+"%",background:s.color}}/></div></div>})}</div>:<Empty icon={<TrendingUp size={22}/>} title="Progress starts with your data" text="Add subjects and complete tasks to see meaningful progress here." action="Add a subject" onAction={()=>setPage("Subjects")}/>}<div className="progress-total"><strong>{completedTasks.length} of {tasks.length}</strong><span>tasks completed</span><div className="progress-track"><span style={{width:(tasks.length?completedTasks.length/tasks.length*100:0)+"%"}}/></div></div></section><section className="glass-panel session-history"><div className="section-heading"><div><h2>Recent study sessions</h2><p>Sessions you explicitly logged.</p></div><Clock3 size={20}/></div>{sessions.length?<div className="session-list">{sessions.slice(0,12).map(s=><div className="session-row" key={s.id}><div className="session-icon"><Clock3 size={16}/></div><div><strong>{subjectById.get(s.subjectId??-1)?.name??"General study"}</strong><span>{new Date(s.date).toLocaleString()}</span></div><b>{s.minutes} min</b></div>)}</div>:<p className="subtle-note">No study sessions logged yet. Log one from the Overview page.</p>}</section></>}
