@@ -9,13 +9,13 @@ import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import AcademicCalendar from "./components/AcademicCalendar";
 
-type Page = "Overview" | "Subjects" | "Planner" | "Progress" | "Settings";
+type Page = "Overview" | "Subjects" | "Planner" | "Academic Calendar" | "Progress" | "Settings";
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
 const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
 const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Subjects", icon: BookOpen },
-  { name: "Planner", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
+  { name: "Planner", icon: CalendarDays }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
 ];
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
