@@ -200,3 +200,17 @@
 .month-legend span{display:flex;align-items:center;gap:5px;font-size:8px;color:var(--muted)}
 .month-legend i{width:6px;height:6px}
 @media(max-width:480px){.month-calendar{padding:10px}.month-calendar-grid{gap:2px}.month-day{height:36px}.month-legend{gap:8px}.month-legend span{font-size:7px}}
+
+
+/* Layout refinement — compact welcome area and scroll reveal */
+.page-content{padding-top:18px}
+.topbar{height:68px}
+.welcome-row{margin-bottom:19px}
+.welcome-row h1{margin-top:8px}
+.onboarding-shell{align-content:start;place-items:start center;padding:clamp(18px,3.5vh,34px) 16px 28px}
+.onboarding-card{margin:0 auto}
+.onboarding-heading{margin:23px 0 20px}
+.scroll-reveal{opacity:0;transform:translate3d(0,18px,0);transition:opacity .55s ease,transform .65s cubic-bezier(.2,.7,.2,1);transition-delay:var(--reveal-delay,0ms)}
+.scroll-reveal.scroll-visible{opacity:1;transform:translate3d(0,0,0)}
+@media(max-width:760px){.page-content{padding-top:14px}.topbar{height:62px}.welcome-row{margin-bottom:16px}.onboarding-shell{padding-top:16px}}
+@media(prefers-reduced-motion:reduce){.scroll-reveal,.scroll-reveal.scroll-visible{opacity:1;transform:none;transition:none}}
