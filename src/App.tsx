@@ -6,6 +6,7 @@ import {
   Trash2, TrendingUp, Upload, X, ClipboardList, Flame
 } from "lucide-react";
 import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./data/db";
+import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 
 type Page = "Overview" | "Subjects" | "Planner" | "Progress" | "Settings";
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
@@ -38,6 +39,7 @@ const downloadJson = (filename: string, value: unknown) => {
 
 export default function App() {
   const [page, setPage] = useState<Page>("Overview");
+  const [profile, setProfile] = useState<StudentProfile | null>(() => { try { const raw = localStorage.getItem("studyspace-profile"); return raw ? JSON.parse(raw) as StudentProfile : null; } catch { return null; } });
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
@@ -76,6 +78,18 @@ export default function App() {
     finally { setReady(true); }
   }
   useEffect(() => { void refresh(); }, []);
+
+  async function finishOnboarding(nextProfile: StudentProfile) {
+    try {
+      localStorage.setItem("studyspace-profile", JSON.stringify(nextProfile));
+      setProfile(nextProfile);
+      const existing = await plannerDb.subjects.toArray();
+      const names = new Set(existing.map(subject => subject.name.toLocaleLowerCase()));
+      const additions = nextProfile.subjects.filter(name => !names.has(name.toLocaleLowerCase()));
+      if (additions.length) await plannerDb.subjects.bulkAdd(additions.map((name, index) => ({ id: Date.now() + index, name, color: colors[index % colors.length], createdAt: new Date().toISOString() })));
+      await refresh();
+    } catch { setError("Your profile was saved, but some subjects could not be added. You can add them from the Subjects page."); }
+  }
 
   const subjectById = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
   const openTasks = tasks.filter(t => !t.done);
@@ -171,12 +185,14 @@ export default function App() {
     await refresh();
   }
 
+  if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
+
   return <div className="app-shell" data-theme={theme}>
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
     <aside className={"sidebar glass-panel " + (mobileMenu ? "sidebar-open" : "")}>
       <div className="brand"><div className="brand-mark"><GraduationCap size={23}/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
       <div className="workspace-label">YOUR WORKSPACE</div>
-      <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>My study space</strong><span>{subjects.length} subjects · {openTasks.length} open tasks</span></div></div>
+      <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span></div></div>
       <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
       <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":ready?"Saved on this device":"Opening workspace"}</div></div>
     </aside>
