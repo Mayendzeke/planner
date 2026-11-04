@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard,
@@ -67,6 +67,12 @@ export default function App() {
   const [subjectColor, setSubjectColor] = useState(colors[0]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  // Prevent mobile browsers from restoring a stale scroll offset above the dashboard.
+  useLayoutEffect(() => {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+  }, [page]);
+
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
