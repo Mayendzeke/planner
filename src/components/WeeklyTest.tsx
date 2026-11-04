@@ -137,10 +137,10 @@ const modes: { name: Mode; icon: typeof ListChecks; description: string }[] = [
 ];
 
 function bankFor(subject: string): Record<Mode, Exercise[]> | null {
-  const name = subject.toLocaleLowerCase();
-  if (name.includes("math")) return banks.mathematics;
-  if (name.includes("english") || name.includes("language") || name.includes("literature")) return banks.english;
-  if (name.includes("biology") || name.includes("science") || name.includes("chemistry") || name.includes("physics")) return banks.science;
+  const name = subject.trim().toLocaleLowerCase();
+  if (name === "mathematics") return banks.mathematics;
+  if (name === "english" || name === "english language") return banks.english;
+  if (name === "science" || name === "combined science") return banks.science;
   return null;
 }
 
