@@ -73,6 +73,7 @@ export default function App() {
   useLayoutEffect(() => {
     if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
     window.scrollTo(0, 0);
+    document.querySelector<HTMLElement>(".main-area")?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
   }, [page]);
 
 
