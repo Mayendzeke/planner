@@ -211,7 +211,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const topics = topicFor(subject);
   const fullPool = useMemo(() => questionsFor(subject), [subject]);
   const topicPool = useMemo(() => fullPool.filter(question => matchesTopic(question, topics.find(item => item.name === topicName) ?? {name:"",keywords:[]})), [fullPool, topics, topicName]);
-  const weeklyPool = useMemo(() => fullPool.slice(0, 10), [fullPool]);
+  const weeklyPool = useMemo(() => modes.flatMap(item => (bankFor(subject)?.[item.name] ?? []).slice(0, 3)), [subject, fullPool]);
   const examPool = fullPool;
   const activePool = path === "Topic test" ? topicPool : path === "Weekly test" ? weeklyPool : path === "Examination" ? examPool : [];
   const question = activePool[questionIndex];
