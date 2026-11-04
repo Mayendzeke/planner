@@ -17,6 +17,9 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
   const [subjectId, setSubjectId] = useState("");
   const [resourceType, setResourceType] = useState<"Study notes" | "Revision notes">("Study notes");
   const [topic, setTopic] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [resourceType, setResourceType] = useState<"Study notes" | "Revision notes">("Study notes");
+  const [topic, setTopic] = useState("");
 
   async function refresh() {
     const stored = await plannerDb.resources.orderBy("createdAt").reverse().toArray();
@@ -47,7 +50,10 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
         mimeType: file.type || "application/octet-stream",
         size: file.size,
         file,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        subjectId: subjectId ? Number(subjectId) : undefined,
+        resourceType,
+        topic: topic.trim() || undefined
       });
     }
     if (!accepted.length) return;
@@ -83,7 +89,8 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
   return <section className="library-page">
     <div className="library-intro glass-panel">
       <div className="library-intro-icon"><BookOpen size={22}/></div>
-      <div><h2>Your personal learning library</h2><p>Keep your own textbooks, revision notes, worksheets and reference documents together.</p></div>
+      <div><h2>Your personal learning library</h2><p>Organise notes by subject and learning purpose so they appear in the correct Study &amp; Exams section.</p></div>
+      <div className="library-upload-fields"><label>Subject<select value={subjectId} onChange={e=>setSubjectId(e.target.value)}><option value="">Personal / unassigned</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>Resource type<select value={resourceType} onChange={e=>setResourceType(e.target.value as "Study notes"|"Revision notes")}><option>Study notes</option><option>Revision notes</option></select></label><label>Topic (optional)<input value={topic} onChange={e=>setTopic(e.target.value)} placeholder="e.g. Algebra"/></label></div>
       <label className="primary-button library-upload"><Upload size={16}/> Add files<input type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.epub,.txt,.rtf" onChange={event => void addFiles(event)} disabled={busy}/></label>
     </div>
     <div className="library-privacy"><FolderOpen size={15}/><span>Private to this browser and device for now. These files are not sent to your teacher or synced to another device.</span></div>
