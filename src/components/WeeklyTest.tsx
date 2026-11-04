@@ -233,7 +233,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     setNoteError("");
     try {
       const { plannerDb } = await import("../data/db");
-      const accepted = files.filter(file => file.size <= 30 * 1024 * 1024 && /\\.(pdf|doc|docx|ppt|pptx|epub|txt|rtf)$/i.test(file.name));
+      const accepted = files.filter(file => file.size <= 30 * 1024 * 1024 && /\.(pdf|doc|docx|ppt|pptx|epub|txt|rtf)$/i.test(file.name));
       if (!accepted.length) { setNoteError("Choose a supported document up to 30 MB."); return; }
       await plannerDb.resources.bulkAdd(accepted.map((file,index) => ({id:Date.now()+index,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size,file,createdAt:new Date().toISOString(),subjectId:activeSubject.id,resourceType:path === "Revision notes" ? "Revision notes" : "Study notes",topic:noteTopic.trim()})));
       await loadNotes();
