@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BookOpen, Download, FileText, FolderOpen, Plus, Trash2, Upload } from "lucide-react";
-import { plannerDb, type StudentResource } from "../data/db";
+import { plannerDb, type StudentResource, type Subject } from "../data/db";
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".epub", ".txt", ".rtf"];
@@ -10,10 +10,13 @@ function formatSize(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-export default function StudentLibrary() {
+export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[] }) {
   const [files, setFiles] = useState<StudentResource[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [subjectId, setSubjectId] = useState("");
+  const [resourceType, setResourceType] = useState<"Study notes" | "Revision notes">("Study notes");
+  const [topic, setTopic] = useState("");
 
   async function refresh() {
     const stored = await plannerDb.resources.orderBy("createdAt").reverse().toArray();
