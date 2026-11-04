@@ -203,8 +203,6 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const [knownCards, setKnownCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("studyspace-known-cards-" + subjectId) || "[]"); } catch { return []; } });
   const [reviewCards, setReviewCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("studyspace-review-cards-" + subjectId) || "[]"); } catch { return []; } });
-  const revisionDeck = useMemo(() => fullPool.map((item, index) => ({ id: String(index), front: item.prompt, back: item.answer, mode: modes.find(mode => bankFor(subject)?.[mode.name].includes(item))?.name ?? "Key idea" })), [fullPool, subject]);
-  const activeFlashcard = revisionDeck[flashcardIndex];
   useEffect(() => {
     try {
       setKnownCards(JSON.parse(localStorage.getItem("studyspace-known-cards-" + subjectId) || "[]"));
@@ -234,6 +232,8 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const subject = activeSubject?.name ?? "";
   const topics = topicFor(subject);
   const fullPool = useMemo(() => questionsFor(subject), [subject]);
+  const revisionDeck = useMemo(() => fullPool.map((item, index) => ({ id: String(index), front: item.prompt, back: item.answer, mode: modes.find(mode => bankFor(subject)?.[mode.name].includes(item))?.name ?? "Key idea" })), [fullPool, subject]);
+  const activeFlashcard = revisionDeck[flashcardIndex];
   const topicPool = useMemo(() => fullPool.filter(question => matchesTopic(question, topics.find(item => item.name === topicName) ?? {name:"",keywords:[]})), [fullPool, topics, topicName]);
   const weeklyPool = useMemo(() => modes.flatMap(item => (bankFor(subject)?.[item.name] ?? []).slice(0, 3)), [subject, fullPool]);
   const examPool = fullPool;
