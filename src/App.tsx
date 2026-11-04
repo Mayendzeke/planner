@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, GraduationCap,
+  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, LayoutDashboard,
   Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
-  Trash2, TrendingUp, Upload, X, ClipboardList, Flame
+  Trash2, TrendingUp, Upload, X, Flame
 } from "lucide-react";
 import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
