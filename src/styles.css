@@ -319,3 +319,5 @@
 .subject-picker-option,.weekly-test-options button,.weekly-test-modes button,.primary-button,.secondary-button{ -webkit-tap-highlight-color:transparent }
 @media(max-width:520px){.subject-picker{padding:11px}.subject-picker-list{grid-template-columns:1fr;max-height:215px}.subject-picker-heading{align-items:flex-start}.subject-picker-heading>b{font-size:8px}.subject-picker-custom{align-items:stretch}.subject-picker-custom input{width:100%}}
 @media(prefers-reduced-motion:reduce){.subject-picker-option,.weekly-test-options button,.weekly-test-modes button{transition:none!important;transform:none!important}}
+
+.subject-picker-option span::before{content:"•";display:inline-block;margin-right:7px;color:var(--mint);font-size:13px;line-height:0;vertical-align:middle}
