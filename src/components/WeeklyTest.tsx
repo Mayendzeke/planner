@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, RotateCcw, Trophy, XCircle, Puzzle, ListChecks, PenLine, ToggleLeft } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronRight, RotateCcw, Trophy, XCircle, Puzzle, ListChecks, PenLine, ToggleLeft } from "lucide-react";
 import type { Subject } from "../data/db";
 
 type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false";
