@@ -38,6 +38,9 @@ export type StudentResource = {
   size: number;
   file: Blob;
   createdAt: string;
+  subjectId?: number;
+  resourceType?: "Study notes" | "Revision notes";
+  topic?: string;
 };
 
 export type CalendarEvent = {
