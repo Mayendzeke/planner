@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check,
+  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, GraduationCap,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, LayoutDashboard,
   Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
   Trash2, TrendingUp, Upload, X, ClipboardList, Flame
@@ -20,7 +20,7 @@ const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30"
 const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
 const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Subjects", icon: BookOpen },
-  { name: "Planner", icon: CalendarDays }, { name: "Weekly Test", icon: ClipboardList }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
+  { name: "Planner", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
 ];
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
