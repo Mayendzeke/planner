@@ -17,9 +17,6 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
   const [subjectId, setSubjectId] = useState("");
   const [resourceType, setResourceType] = useState<"Study notes" | "Revision notes">("Study notes");
   const [topic, setTopic] = useState("");
-  const [subjectId, setSubjectId] = useState("");
-  const [resourceType, setResourceType] = useState<"Study notes" | "Revision notes">("Study notes");
-  const [topic, setTopic] = useState("");
 
   async function refresh() {
     const stored = await plannerDb.resources.orderBy("createdAt").reverse().toArray();
