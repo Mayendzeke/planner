@@ -360,3 +360,43 @@
 @media(max-width:760px){.study-subject-select,.study-notes-panel,.study-topic-panel{padding:14px}.study-subject-grid,.study-path-grid{grid-template-columns:1fr 1fr}.study-path-card{min-height:120px;padding:11px;grid-template-columns:30px 1fr 14px;gap:5px 7px}.study-path-card>span{width:30px;height:30px}.library-upload-fields{width:100%;margin:0}.library-upload-fields label{flex:1;min-width:110px}.library-upload-fields input,.library-upload-fields select{width:100%;max-width:none;min-width:0}}
 @media(max-width:460px){.study-subject-grid,.study-path-grid{grid-template-columns:1fr}.study-path-card{min-height:88px;grid-template-columns:36px 1fr 16px}.study-path-card>span{width:34px;height:34px}}
 @media(prefers-reduced-motion:reduce){.study-subject-card,.study-path-card,.study-topic-option,.study-note-row{transition:none!important;transform:none!important}}
+
+
+/* Mobile viewport and account access screen */
+html,body,#root{min-height:100%;margin:0}
+html{overflow-anchor:none}
+.app-shell{display:flow-root;min-height:100svh;padding-top:0}
+.main-area{margin-top:0;top:0}
+.topbar{margin-top:0}
+.student-access-shell{min-height:100svh;display:grid;place-items:center;position:relative;isolation:isolate;overflow:hidden;padding:28px 16px;background:radial-gradient(ellipse at 50% 0%,rgba(67,105,180,.17),transparent 55%),var(--bg);color:var(--text)}
+.student-access-glow{position:absolute;z-index:-1;width:320px;height:320px;top:8%;right:-100px;border-radius:50%;background:#38bda4;filter:blur(110px);opacity:.12}
+.student-access-card{width:min(100%,460px);padding:clamp(22px,5vw,36px);border:1px solid var(--border);border-radius:24px;background:linear-gradient(145deg,var(--panel-strong),var(--panel));box-shadow:var(--shadow);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.student-access-brand{display:flex;align-items:center;gap:10px;margin-bottom:30px}
+.student-access-brand>span{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(145deg,#b6d1ff,#76e4c5);color:#102c2c}
+.student-access-brand strong{display:block;font:800 20px Manrope,sans-serif;letter-spacing:-.8px}
+.student-access-brand strong span{color:var(--mint)}
+.student-access-brand small{display:block;margin-top:3px;font-size:8px;letter-spacing:1.2px;color:var(--muted)}
+.student-access-icon{width:50px;height:50px;display:grid;place-items:center;border-radius:16px;background:rgba(121,226,196,.1);color:var(--mint)}
+.student-access-heading{margin:17px 0 20px}
+.student-access-heading h1{margin:10px 0 7px;font:800 clamp(27px,7vw,34px)/1.15 Manrope,sans-serif;letter-spacing:-1.1px}
+.student-access-heading p{margin:0;color:var(--muted);font-size:11px;line-height:1.65}
+.student-access-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;margin-bottom:17px;border:1px solid var(--border);border-radius:11px;background:var(--bg2)}
+.student-access-tabs button{padding:10px 7px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:10px;font-weight:700}
+.student-access-tabs button.active{background:var(--panel-strong);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.student-access-form{display:grid;gap:13px}
+.student-access-form>label{display:grid;gap:6px;color:var(--muted);font-size:10px;font-weight:700}
+.student-access-form>label>small{font-size:9px;font-weight:400;line-height:1.5}
+.student-access-form input{width:100%;min-width:0;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);font-size:11px}
+.student-access-input{display:flex;align-items:center;gap:9px;padding-left:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--subtle)}
+.student-access-input input{border:0;background:transparent;padding-left:0}
+.student-access-form input:disabled{opacity:.72;cursor:not-allowed}
+.student-access-submit{width:100%;padding:13px;border:1px solid rgba(121,226,196,.35);border-radius:10px;background:linear-gradient(135deg,#a3f0d7,#80d9c2);color:#102c2c;font-size:11px;font-weight:800}
+.student-access-submit:disabled{opacity:.55;cursor:not-allowed}
+.student-access-notice{display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:12px;border:1px solid rgba(121,226,196,.2);border-radius:11px;background:rgba(121,226,196,.055);color:var(--mint)}
+.student-access-notice svg{flex:0 0 auto;margin-top:1px}
+.student-access-notice p{margin:0;color:var(--muted);font-size:9px;line-height:1.6}
+.student-access-notice strong{color:var(--text)}
+.student-access-offline{display:flex;justify-content:center;gap:8px;width:100%;margin-top:17px;padding:11px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font-size:10px;font-weight:700}
+.student-access-offline span{color:var(--mint)}
+.student-access-foot{margin:10px 0 0;text-align:center;color:var(--subtle);font-size:8px;line-height:1.5}
+@media(max-width:760px){.student-access-shell{min-height:100svh;align-content:start;padding:clamp(18px,5vh,42px) 15px 24px}.student-access-card{padding:22px;border-radius:20px}.student-access-brand{margin-bottom:24px}}
