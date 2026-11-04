@@ -136,12 +136,12 @@ const modes: { name: Mode; icon: typeof ListChecks; description: string }[] = [
   { name: "True or false", icon: ToggleLeft, description: "Judge each statement" }
 ];
 
-function bankFor(subject: string) {
-  const name = subject.toLowerCase();
+function bankFor(subject: string): Record<Mode, Exercise[]> | null {
+  const name = subject.toLocaleLowerCase();
   if (name.includes("math")) return banks.mathematics;
   if (name.includes("english") || name.includes("language") || name.includes("literature")) return banks.english;
   if (name.includes("biology") || name.includes("science") || name.includes("chemistry") || name.includes("physics")) return banks.science;
-  return banks.general;
+  return null;
 }
 
 function readAttempts(): Attempt[] {
@@ -160,10 +160,11 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [attempts, setAttempts] = useState<Attempt[]>(readAttempts);
-  const subject = subjects.find(item => item.id === subjectId)?.name ?? "General study";
-  const questions = useMemo(() => bankFor(subject)[mode], [subject, mode]);
+  const activeSubject = subjects.find(item => item.id === subjectId) ?? subjects[0] ?? null;
+  const subject = activeSubject?.name ?? "";
+  const questions = useMemo(() => bankFor(subject)?.[mode] ?? [], [subject, mode]);
   const question = questions[questionIndex];
-  const correct = response.trim().toLocaleLowerCase() === question.answer.toLocaleLowerCase();
+  const correct = !!question && response.trim().toLocaleLowerCase() === question.answer.toLocaleLowerCase();
   const percent = Math.round((score / questions.length) * 100);
 
   function restart(nextMode = mode) {
@@ -184,15 +185,15 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
 
   return <div className="weekly-test-page">
     <section className="weekly-test-hero glass-panel">
-      <div className="weekly-test-hero-copy"><span className="eyebrow">WEEKLY KNOWLEDGE CHECK</span><h2>Learn it. Test it. Own it.</h2><p>Short practice rounds to strengthen recall, vocabulary and understanding. Your results are saved on this device.</p></div>
+      <div className="weekly-test-hero-copy"><span className="eyebrow">WEEKLY KNOWLEDGE CHECK</span><h2>Learn it. Test it. Own it.</h2><p>Short, subject-focused practice rounds. Every question is tied to the selected subject; unsupported subjects are clearly identified instead of receiving unrelated questions.</p></div>
       <div className="weekly-test-trophy"><Trophy size={28}/><span>{attempts.length} attempts</span></div>
     </section>
     <div className="weekly-test-toolbar">
-      <label className="weekly-test-subject">Subject<select value={subjectId} onChange={event => { setSubjectId(Number(event.target.value)); restart(); }} disabled={!subjects.length}><option value={0}>General study</option>{subjects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label className="weekly-test-subject">Subject<select value={activeSubject?.id ?? ""} onChange={event => { setSubjectId(Number(event.target.value)); restart(); }} disabled={!subjects.length}>{subjects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
       <div className="weekly-test-modes" role="tablist" aria-label="Test format">{modes.map(item => { const Icon=item.icon; return <button key={item.name} role="tab" aria-selected={mode===item.name} className={mode===item.name?"selected":""} onClick={() => restart(item.name)}><Icon size={15}/><span>{item.name}</span></button>; })}</div>
     </div>
     <section className="weekly-test-card glass-panel">
-      {finished ? <div className="weekly-test-result"><div className="weekly-test-result-icon"><Trophy size={30}/></div><span className="eyebrow">ROUND COMPLETE</span><h2>{score >= 4 ? "Excellent work." : score >= 3 ? "Good progress." : "Keep practising."}</h2><div className="weekly-test-score">{score}<small> / {questions.length}</small></div><p>{percent}% correct in {subject} · {mode}</p><div className="weekly-test-result-actions"><button className="primary-button" onClick={() => restart()}><RotateCcw size={16}/> Try again</button><button className="secondary-button" onClick={() => restart(modes[(modes.findIndex(item => item.name === mode)+1)%modes.length].name)}>Next activity <ChevronRight size={16}/></button></div></div> : <>
+      {!subjects.length ? <div className="weekly-test-unavailable"><BookOpen size={30}/><h2>Add your subjects first</h2><p>Your tests will be created only from the subjects you selected during sign-up. Visit Subjects to add your courses.</p></div> : !questions.length ? <div className="weekly-test-unavailable"><BookOpen size={30}/><h2>Question bank coming soon</h2><p>There is not yet a verified question bank for <strong>{subject}</strong>. We will not substitute unrelated general questions. Choose another selected subject or wait for subject-specific content to be added.</p></div> : finished ? <div className="weekly-test-result"><div className="weekly-test-result-icon"><Trophy size={30}/></div><span className="eyebrow">ROUND COMPLETE</span><h2>{score >= 4 ? "Excellent work." : score >= 3 ? "Good progress." : "Keep practising."}</h2><div className="weekly-test-score">{score}<small> / {questions.length}</small></div><p>{percent}% correct in {subject} · {mode}</p><div className="weekly-test-result-actions"><button className="primary-button" onClick={() => restart()}><RotateCcw size={16}/> Try again</button><button className="secondary-button" onClick={() => restart(modes[(modes.findIndex(item => item.name === mode)+1)%modes.length].name)}>Next activity <ChevronRight size={16}/></button></div></div> : <>
         <div className="weekly-test-progress"><div><span>{subject}</span><strong>QUESTION {questionIndex+1} / {questions.length}</strong></div><div className="weekly-test-progress-track"><span style={{width: ((questionIndex+1)/questions.length*100)+"%"}}/></div></div>
         <div className="weekly-test-question"><span className="weekly-test-type">{mode}</span><h2>{mode==="Word puzzle" ? question.clue : "Question "+(questionIndex+1)}</h2><p>{question.prompt}</p></div>
         {mode==="Word puzzle" && <div className="word-scramble"><span>UNSCRAMBLE</span><strong>{question.scramble}</strong></div>}
