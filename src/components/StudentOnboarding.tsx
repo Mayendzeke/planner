@@ -39,7 +39,7 @@ function catalogFor(level: string, curriculum: string) {
   if (level === "University") return subjectCatalog.university;
   const core = subjectCatalog.secondary;
   if (curriculum === "IB") return [...core, "Theory of Knowledge", "Extended Essay", "Creativity, Activity and Service"];
-  if (curriculum === "CAPS") return [...core, "Life Orientation", " isiZulu", " isiXhosa"];
+  if (curriculum === "CAPS") return [...core, "Life Orientation", "isiZulu", "isiXhosa"];
   if (curriculum === "A-Level") return [...core, "General Paper", "Thinking Skills"];
   return core;
 }
@@ -83,9 +83,8 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
     if (step === 0 && !profile.fullName.trim()) { setError("Please enter the student's name."); return; }
     if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim())) { setError("Please enter a grade or year and academic year."); return; }
     if (step === 2) {
-      const subjects = subjectText.split(",").map(item => item.trim()).filter(Boolean);
-      if (!subjects.length) { setError("Add at least one subject. You can add more later."); return; }
-      onComplete({ ...profile, subjects: [...new Set(subjects)] });
+      if (!profile.subjects.length) { setError("Select at least one subject or course to continue."); return; }
+      onComplete({ ...profile, subjects: [...new Set(profile.subjects)] });
       return;
     }
     setStep(current => Math.min(2, current + 1));
