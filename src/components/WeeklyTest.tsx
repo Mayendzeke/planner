@@ -18,7 +18,7 @@ const banks: Record<string, Record<Mode, Exercise[]>> = {
     "Word puzzle": [
       { prompt: "A number that can be divided exactly by 2.", answer: "EVEN", clue: "Number property", scramble: "NEVE" },
       { prompt: "The result of multiplying numbers.", answer: "PRODUCT", clue: "Arithmetic vocabulary", scramble: "DURPTOC" },
-      { prompt: "The distance around a circle.", answer: "CIRCUMFERENCE", clue: "Circle measurement", scramble: "CIRCUFRENCE M" },
+      { prompt: "The distance around a circle.", answer: "CIRCUMFERENCE", clue: "Circle measurement", scramble: "ECNEREFMUCRIC" },
       { prompt: "A mathematical statement that two expressions are equal.", answer: "EQUATION", clue: "Algebra vocabulary", scramble: "QUTAEION" },
       { prompt: "A polygon with three sides.", answer: "TRIANGLE", clue: "Geometry", scramble: "GRAINTLE" }
     ],
