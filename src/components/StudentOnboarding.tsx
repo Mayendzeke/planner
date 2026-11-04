@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, GraduationCap, Sparkles } from "lucide-react";
 
 export type StudentProfile = {
@@ -27,15 +27,46 @@ const emptyProfile: StudentProfile = {
 const levels = ["Primary school", "Secondary school", "High school / Sixth form", "College", "University", "Other"];
 const curricula = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const subjectCatalog: Record<string, string[]> = {
+  primary: ["English", "Siswati", "Mathematics", "Science", "Social Studies", "Environmental Studies", "Agriculture", "ICT / Computer Studies", "Religious Education", "Creative Arts", "Physical Education", "French", "Portuguese"],
+  secondary: ["English Language", "English Literature", "Siswati", "Mathematics", "Additional Mathematics", "Biology", "Chemistry", "Physics", "Combined Science", "Agriculture", "Geography", "History", "Business Studies", "Accounting", "Economics", "Commerce", "Computer Science", "ICT", "French", "Portuguese", "Development Studies", "Design and Technology", "Food and Nutrition", "Art and Design", "Physical Education"],
+  college: ["Accounting", "Business Management", "Marketing", "Economics", "Finance", "Human Resource Management", "Hospitality Management", "Tourism Management", "Computer Science", "Information Technology", "Software Development", "Education", "Law", "Nursing", "Engineering", "Agriculture", "Communications", "Project Management", "Research Methods"],
+  university: ["Accounting", "Business Administration", "Marketing", "Economics", "Finance", "Human Resource Management", "Hospitality Management", "Tourism Management", "Computer Science", "Information Technology", "Software Engineering", "Education", "Law", "Nursing", "Medicine", "Engineering", "Agriculture", "Communications", "Psychology", "Research Methods"]
+};
+function catalogFor(level: string, curriculum: string) {
+  if (level === "Primary school") return subjectCatalog.primary;
+  if (level === "College") return subjectCatalog.college;
+  if (level === "University") return subjectCatalog.university;
+  const core = subjectCatalog.secondary;
+  if (curriculum === "IB") return [...core, "Theory of Knowledge", "Extended Essay", "Creativity, Activity and Service"];
+  if (curriculum === "CAPS") return [...core, "Life Orientation", " isiZulu", " isiXhosa"];
+  if (curriculum === "A-Level") return [...core, "General Paper", "Thinking Skills"];
+  return core;
+}
 
 export default function StudentOnboarding({ onComplete }: { onComplete: (profile: StudentProfile) => void }) {
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<StudentProfile>(emptyProfile);
-  const [subjectText, setSubjectText] = useState("");
+  const [subjectSearch, setSubjectSearch] = useState("");
+  const [customSubject, setCustomSubject] = useState("");
   const [error, setError] = useState("");
 
   function update<K extends keyof StudentProfile>(key: K, value: StudentProfile[K]) {
     setProfile(current => ({ ...current, [key]: value }));
+  }
+
+  const availableSubjects = useMemo(() => catalogFor(profile.level, profile.curriculum), [profile.level, profile.curriculum]);
+  const filteredSubjects = availableSubjects.filter(name => name.toLocaleLowerCase().includes(subjectSearch.trim().toLocaleLowerCase()));
+
+  function toggleSubject(name: string) {
+    setProfile(current => ({ ...current, subjects: current.subjects.includes(name) ? current.subjects.filter(item => item !== name) : [...current.subjects, name] }));
+  }
+
+  function addCustomSubject() {
+    const name = customSubject.trim();
+    if (!name) return;
+    if (!profile.subjects.some(item => item.toLocaleLowerCase() === name.toLocaleLowerCase())) update("subjects", [...profile.subjects, name]);
+    setCustomSubject(""); setSubjectSearch(""); setError("");
   }
 
   function toggleDay(day: string) {
@@ -90,7 +121,16 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
       </div>}
 
       {step === 2 && <div className="onboarding-fields">
-        <label className="field-label">Subjects <span className="field-optional">SEPARATE WITH COMMAS</span><textarea rows={3} value={subjectText} onChange={e => setSubjectText(e.target.value)} placeholder="Mathematics, English, Biology, Geography"/></label>
+        <div className="subject-picker">
+          <div className="subject-picker-heading"><div><strong>Choose your subjects or courses</strong><span>Tap each item to select it. You can choose more than one.</span></div><b>{profile.subjects.length} selected</b></div>
+          <label className="subject-picker-search"><BookOpen size={16}/><input value={subjectSearch} onChange={e => setSubjectSearch(e.target.value)} placeholder="Search subjects or courses…" aria-label="Search subjects and courses"/></label>
+          <div className="subject-picker-list" role="group" aria-label="Available subjects">
+            {filteredSubjects.map(name => <label className="subject-picker-option" key={name}><input type="checkbox" checked={profile.subjects.includes(name)} onChange={() => toggleSubject(name)}/><span>{name}</span><i>{profile.subjects.includes(name) ? "Selected" : "Add"}</i></label>)}
+            {!filteredSubjects.length && <p className="subject-picker-empty">No matching subject in this list. Add it below.</p>}
+          </div>
+          <div className="subject-picker-custom"><input value={customSubject} onChange={e => setCustomSubject(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomSubject(); } }} placeholder="Add a subject or course not listed…" maxLength={80}/><button type="button" className="secondary-button" onClick={addCustomSubject} disabled={!customSubject.trim()}>Add</button></div>
+          {!!profile.subjects.length && <div className="subject-picker-selected"><span>YOUR SELECTION</span><div>{profile.subjects.map(name => <button type="button" key={name} onClick={() => toggleSubject(name)} title={"Remove "+name}>{name}<b>×</b></button>)}</div></div>}
+        </div>
         <label className="field-label">Main academic goal<select value={profile.goals} onChange={e => update("goals", e.target.value)}><option>Improve my marks</option><option>Prepare for examinations</option><option>Stay organised and meet deadlines</option><option>Build consistent study habits</option><option>Maintain strong academic performance</option></select></label>
         <div className="onboarding-two-col">
           <label className="field-label">Target mark (%)<input type="number" min="0" max="100" value={profile.targetMark} onChange={e => update("targetMark", e.target.value)}/></label>
@@ -104,7 +144,7 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
         {step > 0 && <button className="secondary-button" onClick={() => { setError(""); setStep(current => current - 1); }}><ArrowLeft size={15}/> Back</button>}
         <button className="primary-button onboarding-next" onClick={next}>{step === 2 ? <><BookOpen size={16}/> Create my study space</> : <>Continue <ArrowRight size={15}/></>}</button>
       </div>
-      <p className="onboarding-privacy">Your profile is saved locally in this browser. No account is required.</p>
+      <p className="onboarding-privacy">Your subject choices personalise your study space and practice activities. Profile storage is currently local to this browser.</p>
     </section>
   </main>;
 }
