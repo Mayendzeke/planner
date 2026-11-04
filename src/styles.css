@@ -400,3 +400,33 @@ html{overflow-anchor:none}
 .student-access-offline span{color:var(--mint)}
 .student-access-foot{margin:10px 0 0;text-align:center;color:var(--subtle);font-size:8px;line-height:1.5}
 @media(max-width:760px){.student-access-shell{min-height:100svh;align-content:start;padding:clamp(18px,5vh,42px) 15px 24px}.student-access-card{padding:22px;border-radius:20px}.student-access-brand{margin-bottom:24px}}
+
+
+/* Mobile viewport hardening: keep the app's primary scroll surface anchored to the visible viewport.
+   This prevents Android Chrome's restored document scroll offset from placing the dashboard below a
+   large, empty-looking region. The dashboard itself becomes the scroll container. */
+.app-shell > .main-area{
+  position:fixed;
+  top:0;
+  right:0;
+  bottom:0;
+  left:284px;
+  height:100vh;
+  height:100dvh;
+  min-height:0;
+  margin:0;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior-y:contain;
+  -webkit-overflow-scrolling:touch;
+  scroll-padding-top:0;
+}
+@media(max-width:1120px){
+  .app-shell > .main-area{left:254px;right:0;margin:0;padding-right:22px}
+}
+@media(max-width:760px){
+  .app-shell > .main-area{left:0;right:0;margin:0;padding:0 17px}
+}
+@media(max-width:420px){
+  .app-shell > .main-area{padding:0 12px}
+}
