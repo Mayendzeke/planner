@@ -4,7 +4,7 @@ import type { Subject } from "../data/db";
 
 type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false";
 type Exercise = { prompt: string; answer: string; options?: string[]; clue?: string; scramble?: string };
-type Attempt = { id: string; subject: string; mode: Mode; score: number; total: number; completedAt: string };
+type Attempt = { id: string; subject: string; mode: string; score: number; total: number; completedAt: string };
 
 const banks: Record<string, Record<Mode, Exercise[]>> = {
   mathematics: {
@@ -185,12 +185,6 @@ function matchesTopic(question: Exercise, topic: Topic): boolean {
   const text = [question.prompt, question.answer, question.clue ?? "", question.scramble ?? ""].join(" ").toLocaleLowerCase();
   return topic.keywords.some(keyword => text.includes(keyword));
 }
-function readAttempts(): Attempt[] {
-  try {
-    const value = JSON.parse(localStorage.getItem("studyspace-weekly-test-attempts") || "[]");
-    return Array.isArray(value) ? value.filter((item: any) => item && typeof item.subject === "string" && typeof item.mode === "string" && Number.isFinite(item.score) && Number.isFinite(item.total) && typeof item.completedAt === "string") : [];
-  } catch { return []; }
-}
 
 export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 0);
@@ -203,7 +197,6 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [finished, setFinished] = useState(false);
   const [attempts, setAttempts] = useState<Attempt[]>(readAttempts);
   const [notes, setNotes] = useState<{id:number;name:string;subjectId?:number;resourceType?:string;topic?:string;file:Blob;createdAt:string}[]>([]);
-  const [noteType, setNoteType] = useState<"Study notes"|"Revision notes">("Study notes");
   const [noteTopic, setNoteTopic] = useState("");
   const [noteError, setNoteError] = useState("");
   const activeSubject = subjects.find(item => item.id === subjectId) ?? subjects[0] ?? null;
@@ -242,7 +235,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       const { plannerDb } = await import("../data/db");
       const accepted = files.filter(file => file.size <= 30 * 1024 * 1024 && /\\.(pdf|doc|docx|ppt|pptx|epub|txt|rtf)$/i.test(file.name));
       if (!accepted.length) { setNoteError("Choose a supported document up to 30 MB."); return; }
-      await plannerDb.resources.bulkAdd(accepted.map((file,index) => ({id:Date.now()+index,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size,file,createdAt:new Date().toISOString(),subjectId:activeSubject.id,resourceType:path,topic:noteTopic.trim()})));
+      await plannerDb.resources.bulkAdd(accepted.map((file,index) => ({id:Date.now()+index,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size,file,createdAt:new Date().toISOString(),subjectId:activeSubject.id,resourceType:path === "Revision notes" ? "Revision notes" : "Study notes",topic:noteTopic.trim()})));
       await loadNotes();
     } catch { setNoteError("The files could not be saved. Check available device storage."); }
   }
