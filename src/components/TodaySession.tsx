@@ -229,6 +229,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       </div>
       <label className="session-field">Lesson summary<textarea value={lessonSummary} onChange={e=>setLessonSummary(e.target.value)} rows={3} placeholder="A short, student-friendly explanation of what today's lesson is about."/></label>
       <label className="session-field">Key points to cover <small className="session-field-hint">Keep this to a handful. One idea per line; aim for 3–5.</small><textarea value={keyPoints.join("\n")} onChange={e=>setKeyPoints(e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean).slice(0,5))} rows={5} placeholder={"1. First essential idea\n2. Second essential idea\n3. Worked example\n4. Common mistake to avoid\n5. Quick understanding check"}/></label>
+      {exitQuestion && <div className="session-exit-question"><strong>Quick understanding check</strong><p>{exitQuestion}</p></div>}
       <label className="session-field">Worked example / today's notes<textarea className="session-notes-editor" value={notes} onChange={e=>setNotes(e.target.value)} rows={9} placeholder={"One clear worked example…\n\nImportant definitions…\n\nA question to check understanding…"} /></label>
       <div className="session-note-footer"><span>Autosaved locally on this device</span><button className="secondary-button" onClick={()=>{setObjectives("");setLessonSummary("");setKeyPoints([]);setNotes("");}}>Clear lesson notes</button></div>
     </div>}
