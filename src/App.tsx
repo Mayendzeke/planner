@@ -82,6 +82,21 @@ export default function App() {
     try { localStorage.setItem("studyspace-theme", theme); } catch { /* Theme still works for this session. */ }
   }, [theme]);
 
+  useEffect(() => {
+    if (!mobileMenu) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileMenu(false); };
+    const closeOnBack = () => setMobileMenu(false);
+    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("popstate", closeOnBack);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("popstate", closeOnBack);
+    };
+  }, [mobileMenu]);
+
   async function refresh() {
     try {
       const [s, t, l] = await Promise.all([plannerDb.subjects.toArray(), plannerDb.tasks.toArray(), plannerDb.sessions.toArray()]);
