@@ -3,6 +3,7 @@ import { BookOpen, CheckCircle2, ChevronRight, RotateCcw, Trophy, Puzzle, ListCh
 import type { Subject } from "../data/db";
 import { studentStorageKey } from "../lib/studentStorage";
 import PdfViewer from "./PdfViewer";
+import AssignedAssessments from "./AssignedAssessments";
 
 type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false";
 type Exercise = { prompt: string; answer: string; options?: string[]; clue?: string; scramble?: string };
@@ -298,6 +299,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     {name:"Examination",description:"A longer mixed paper covering the available subject question bank.",icon:GraduationCap}
   ];
   return <div className="weekly-test-page study-hub">
+    <AssignedAssessments />
     <section className="weekly-test-hero glass-panel"><div className="weekly-test-hero-copy"><span className="eyebrow">YOUR LEARNING WORKSPACE</span><h2>Study with a clear path.</h2><p>Choose one of your enrolled subjects, then open learning material, practise a topic, complete a weekly check or sit a mixed examination.</p></div><div className="weekly-test-trophy"><Trophy size={28}/><span>{attempts.length} attempts</span></div></section>
     <section className="study-subject-select glass-panel"><div className="section-heading"><div><h2>1. Choose a subject or module</h2><p>Only subjects in your Studyspace profile are shown.</p></div><BookOpen size={20}/></div>{subjects.length?<div className="study-subject-grid">{subjects.map(item=><button key={item.id} className={activeSubject?.id===item.id?"study-subject-card selected":"study-subject-card"} onClick={()=>{setSubjectId(item.id);setPath(null);setTopicName("");}}><span className="study-subject-dot" style={{background:item.color}}/><strong>{item.name}</strong><small>{item.category??"Your subject"}</small><ChevronRight size={16}/></button>)}</div>:<div className="weekly-test-unavailable"><BookOpen size={28}/><h2>Add your subjects first</h2><p>Choose Subjects in the menu to add the modules you are studying.</p></div>}</section>
     {activeSubject&&<section className="study-path-section"><div className="section-heading"><div><h2>2. What would you like to do in {subject}?</h2><p>Choose a learning activity.</p></div><Sparkles size={20}/></div><div className="study-path-grid">{pathOptions.map(item=>{const Icon=item.icon;return <button key={item.name} className={path===item.name?"study-path-card selected":"study-path-card"} onClick={()=>begin(item.name)}><span><Icon size={20}/></span><strong>{item.name}</strong><small>{item.description}</small><ChevronRight size={16}/></button>;})}</div></section>}
