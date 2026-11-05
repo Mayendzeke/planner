@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, ChevronRight, RotateCcw, Trophy, Puzzle, ListChecks, PenLine, ToggleLeft, FileText, Target, CalendarDays, GraduationCap, Sparkles, Upload, FolderOpen, X } from "lucide-react";
 import type { Subject } from "../data/db";
+import { studentStorageKey } from "../lib/studentStorage";
 import PdfViewer from "./PdfViewer";
 
 type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false";
@@ -147,7 +148,7 @@ function bankFor(subject: string): Record<Mode, Exercise[]> | null {
 
 function readAttempts(): Attempt[] {
   try {
-    const value = JSON.parse(localStorage.getItem("studyspace-weekly-test-attempts") || "[]");
+    const value = JSON.parse(localStorage.getItem(studentStorageKey("studyspace-weekly-test-attempts")) || "[]");
     return Array.isArray(value) ? value.filter((item: any) => item && typeof item.subject === "string" && typeof item.mode === "string" && Number.isFinite(item.score) && Number.isFinite(item.total) && typeof item.completedAt === "string") : [];
   } catch { return []; }
 }
@@ -204,12 +205,12 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [notePreviewText, setNotePreviewText] = useState("");
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
-  const [knownCards, setKnownCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("studyspace-known-cards-" + subjectId) || "[]"); } catch { return []; } });
-  const [reviewCards, setReviewCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("studyspace-review-cards-" + subjectId) || "[]"); } catch { return []; } });
+  const [knownCards, setKnownCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"); } catch { return []; } });
+  const [reviewCards, setReviewCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"); } catch { return []; } });
   useEffect(() => {
     try {
-      setKnownCards(JSON.parse(localStorage.getItem("studyspace-known-cards-" + subjectId) || "[]"));
-      setReviewCards(JSON.parse(localStorage.getItem("studyspace-review-cards-" + subjectId) || "[]"));
+      setKnownCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"));
+      setReviewCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"));
     } catch { setKnownCards([]); setReviewCards([]); }
     setFlashcardIndex(0); setFlashcardFlipped(false);
   }, [subjectId]);
@@ -220,8 +221,8 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     const nextReview = known ? reviewCards.filter(item => item !== id) : [...new Set([...reviewCards, id])];
     setKnownCards(nextKnown); setReviewCards(nextReview);
     try {
-      localStorage.setItem("studyspace-known-cards-" + subjectId, JSON.stringify(nextKnown));
-      localStorage.setItem("studyspace-review-cards-" + subjectId, JSON.stringify(nextReview));
+      localStorage.setItem(studentStorageKey("studyspace-known-cards-" + subjectId), JSON.stringify(nextKnown));
+      localStorage.setItem(studentStorageKey("studyspace-review-cards-" + subjectId), JSON.stringify(nextReview));
     } catch { /* The current review remains usable if storage is unavailable. */ }
     setFlashcardFlipped(false);
     setFlashcardIndex(index => (index + 1) % Math.max(1, revisionDeck.length));
@@ -284,7 +285,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     if (questionIndex === activePool.length - 1) {
       const attempt: Attempt = {id:String(Date.now()),subject,mode:path ?? "Weekly test",score:nextScore,total:activePool.length,completedAt:new Date().toISOString()};
       const next=[attempt,...attempts].slice(0,30); setAttempts(next);
-      try { localStorage.setItem("studyspace-weekly-test-attempts",JSON.stringify(next)); } catch { /* Current result remains available. */ }
+      try { localStorage.setItem(studentStorageKey("studyspace-weekly-test-attempts"),JSON.stringify(next)); } catch { /* Current result remains available. */ }
       setScore(nextScore); setFinished(true); return;
     }
     setScore(nextScore); setQuestionIndex(index=>index+1); setResponse(""); setSubmitted(false);
