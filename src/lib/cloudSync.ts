@@ -392,7 +392,24 @@ async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{
   return {downloaded,uploaded};
 }
 
-export async function syncStudentWorkspace(
+const inFlightStudentSyncs = new Map<string, Promise<StudentSyncResult>>();
+
+export function syncStudentWorkspace(
+  userId: string,
+  profile: StudentProfile,
+  weeklyHours: number,
+): Promise<StudentSyncResult> {
+  const existing = inFlightStudentSyncs.get(userId);
+  if (existing) return existing;
+  let pending: Promise<StudentSyncResult>;
+  pending = performStudentWorkspaceSync(userId, profile, weeklyHours).finally(() => {
+    if (inFlightStudentSyncs.get(userId) === pending) inFlightStudentSyncs.delete(userId);
+  });
+  inFlightStudentSyncs.set(userId, pending);
+  return pending;
+}
+
+async function performStudentWorkspaceSync(
   userId: string,
   profile: StudentProfile,
   weeklyHours: number,
