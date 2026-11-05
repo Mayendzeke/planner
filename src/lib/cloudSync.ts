@@ -1,0 +1,497 @@
+import type { StudentProfile } from "../components/StudentOnboarding";
+import {
+  plannerDb,
+  readCloudTombstones,
+  clearCloudTombstones,
+  withCloudSyncPaused,
+  type CloudSyncEntity,
+  type Subject,
+  type PlannerTask,
+  type StudySession,
+  type AcademicPeriod,
+  type CalendarEvent,
+  type StudentResource,
+} from "../data/db";
+import { getStudentStorageOwner, studentStorageKey } from "./studentStorage";
+import { supabase } from "./supabase";
+
+type CloudRow = Record<string, any>;
+type LocalCloudRow = {
+  id: number;
+  cloudId?: string;
+  localUpdatedAt?: string;
+  cloudUpdatedAt?: string;
+};
+
+export type StudentSyncResult = {
+  syncedAt: string;
+  weeklyHours?: number;
+  downloaded: number;
+  uploaded: number;
+  deleted: number;
+};
+
+const remoteTableFor: Record<CloudSyncEntity, string> = {
+  subjects: "student_subjects",
+  tasks: "planner_tasks",
+  sessions: "study_sessions",
+  academicPeriods: "academic_periods",
+  events: "academic_events",
+  resources: "learner_personal_resources",
+};
+
+function timestamp(value?: string | null): number {
+  const parsed = value ? Date.parse(value) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function makeLocalId(existing: number[]): number {
+  let value = Date.now();
+  const used = new Set(existing);
+  while (used.has(value)) value += 1;
+  return value;
+}
+
+function toLocalDateTime(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate())
+    + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
+}
+
+function fromLocalDateTime(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function safeFileName(value: string): string {
+  const result = value.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100);
+  return result || "studyspace-file";
+}
+
+async function fetchRows(table: string, userId: string): Promise<CloudRow[]> {
+  if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const { data, error } = await supabase.from(table).select("*").eq("learner_id", userId);
+  if (error) throw new Error("Could not read " + table.replaceAll("_", " ") + ": " + error.message);
+  return (data ?? []) as CloudRow[];
+}
+
+async function removeCloudRecord(entity: CloudSyncEntity, cloudId: string, userId: string): Promise<void> {
+  if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const remoteTable = remoteTableFor[entity];
+  if (entity === "resources") {
+    const { data, error: readError } = await supabase.from(remoteTable)
+      .select("storage_path").eq("id", cloudId).eq("learner_id", userId).maybeSingle();
+    if (readError) throw readError;
+    if (data?.storage_path) {
+      const { error: storageError } = await supabase.storage.from("studyspace-resources").remove([data.storage_path]);
+      if (storageError) throw storageError;
+    }
+  }
+  const { error } = await supabase.from(remoteTable).delete().eq("id", cloudId).eq("learner_id", userId);
+  if (error) throw new Error("Could not delete a cloud " + entity + " record: " + error.message);
+}
+
+async function reconcileCollection<T extends LocalCloudRow>(
+  entity: CloudSyncEntity,
+  table: any,
+  remoteRows: CloudRow[],
+  userId: string,
+  toCloud: (local: T, subjects: Subject[]) => CloudRow,
+  fromCloud: (remote: CloudRow, localId: number, subjects: Subject[]) => T,
+  subjects: Subject[],
+  matchRemote?: (local: T, rows: CloudRow[]) => CloudRow | undefined,
+): Promise<{ downloaded: number; uploaded: number }> {
+  if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  let localRows = (await table.toArray()) as T[];
+  const existingIds = localRows.map(row => row.id);
+  for (const row of localRows) {
+    if (!row.cloudId || !row.localUpdatedAt) {
+      await withCloudSyncPaused(() => table.update(row.id, {
+        cloudId: row.cloudId || crypto.randomUUID(),
+        localUpdatedAt: row.localUpdatedAt || new Date().toISOString(),
+      }));
+    }
+  }
+  localRows = (await table.toArray()) as T[];
+
+  const remoteById = new Map(remoteRows.map(row => [String(row.id), row]));
+  const localByCloudId = new Map(localRows.filter(row => row.cloudId).map(row => [String(row.cloudId), row]));
+  const handledRemote = new Set<string>();
+  let downloaded = 0;
+  let uploaded = 0;
+
+  const writeLocal = async (remote: CloudRow, localId: number) => {
+    const stamp = String(remote.updated_at || remote.created_at || new Date().toISOString());
+    const record = fromCloud(remote, localId, subjects);
+    await withCloudSyncPaused(() => table.put({
+      ...record,
+      cloudId: String(remote.id),
+      localUpdatedAt: stamp,
+      cloudUpdatedAt: stamp,
+    }));
+    downloaded += 1;
+  };
+
+  const pushLocal = async (local: T, remote?: CloudRow) => {
+    const payload = toCloud(local, subjects);
+    const { data, error } = await supabase!.from(remoteTableFor[entity])
+      .upsert(payload, { onConflict: "id" }).select("*").single();
+    if (error) throw new Error("Could not upload " + entity + " to Studyspace: " + error.message);
+    const stamp = String(data.updated_at || data.created_at || local.localUpdatedAt || new Date().toISOString());
+    await withCloudSyncPaused(() => table.update(local.id, {
+      cloudId: String(data.id),
+      localUpdatedAt: stamp,
+      cloudUpdatedAt: stamp,
+    }));
+    handledRemote.add(String(data.id));
+    uploaded += 1;
+  };
+
+  for (const local of localRows) {
+    let remote = local.cloudId ? remoteById.get(local.cloudId) : undefined;
+    if (!remote && matchRemote) remote = matchRemote(local, remoteRows);
+    if (!remote) {
+      await pushLocal(local);
+      continue;
+    }
+    handledRemote.add(String(remote.id));
+    if (local.cloudId !== String(remote.id)) {
+      await withCloudSyncPaused(() => table.update(local.id, {
+        cloudId: String(remote.id),
+        cloudUpdatedAt: String(remote.updated_at || remote.created_at || ""),
+      }));
+    }
+    if (timestamp(local.localUpdatedAt) > timestamp(remote.updated_at)) {
+      await pushLocal({ ...local, cloudId: String(remote.id) }, remote);
+    } else {
+      await writeLocal(remote, local.id);
+    }
+  }
+
+  for (const remote of remoteRows) {
+    if (handledRemote.has(String(remote.id))) continue;
+    const localId = makeLocalId(existingIds);
+    existingIds.push(localId);
+    await writeLocal(remote, localId);
+  }
+  return { downloaded, uploaded };
+}
+
+async function syncPersonalResources(userId: string, remoteRows: CloudRow[]): Promise<{ downloaded: number; uploaded: number }> {
+  if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const table = plannerDb.resources;
+  let localRows = await table.toArray();
+  const localIds = localRows.map(row => row.id);
+  for (const row of localRows) {
+    if (!row.cloudId || !row.localUpdatedAt) {
+      await withCloudSyncPaused(() => table.update(row.id, {
+        cloudId: row.cloudId || crypto.randomUUID(),
+        localUpdatedAt: row.localUpdatedAt || new Date().toISOString(),
+      }));
+    }
+  }
+  localRows = await table.toArray();
+  const remoteById = new Map(remoteRows.map(row => [String(row.id), row]));
+  const handled = new Set<string>();
+  let downloaded = 0;
+  let uploaded = 0;
+
+  const persistRemote = async (remote: CloudRow, localId: number, existing?: StudentResource) => {
+    if (!existing) {
+      const { data, error } = await supabase!.storage.from("studyspace-resources").download(remote.storage_path);
+      if (error) throw new Error("Could not download your cloud file " + remote.title + ": " + error.message);
+      const resource: StudentResource = {
+        id: localId,
+        cloudId: String(remote.id),
+        localUpdatedAt: String(remote.updated_at || remote.created_at),
+        cloudUpdatedAt: String(remote.updated_at || remote.created_at),
+        name: remote.title,
+        mimeType: remote.mime_type,
+        size: Number(remote.file_size),
+        file: data,
+        createdAt: String(remote.created_at),
+        resourceType: remote.resource_type === "Revision notes" ? "Revision notes" : "Study notes",
+        topic: remote.topic || "",
+      };
+      await withCloudSyncPaused(() => table.put(resource));
+      downloaded += 1;
+    } else {
+      await withCloudSyncPaused(() => table.update(existing.id, {
+        name: remote.title,
+        mimeType: remote.mime_type,
+        size: Number(remote.file_size),
+        createdAt: String(remote.created_at),
+        topic: remote.topic || "",
+        resourceType: remote.resource_type === "Revision notes" ? "Revision notes" : "Study notes",
+        cloudId: String(remote.id),
+        localUpdatedAt: String(remote.updated_at || remote.created_at),
+        cloudUpdatedAt: String(remote.updated_at || remote.created_at),
+      }));
+      downloaded += 1;
+    }
+  };
+
+  for (const local of localRows) {
+    let remote = local.cloudId ? remoteById.get(local.cloudId) : undefined;
+    if (remote) {
+      handled.add(String(remote.id));
+      if (timestamp(local.localUpdatedAt) > timestamp(remote.updated_at)) {
+        const path = remote.storage_path || userId + "/personal/" + local.cloudId + "/" + safeFileName(local.name);
+        const { error: uploadError } = await supabase.storage.from("studyspace-resources").upload(path, local.file, {
+          contentType: local.mimeType || "application/octet-stream",
+          upsert: true,
+        });
+        if (uploadError) throw new Error("Could not update personal file " + local.name + ": " + uploadError.message);
+        const { data, error } = await supabase.from("learner_personal_resources").upsert({
+          id: local.cloudId,
+          learner_id: userId,
+          title: local.name,
+          subject_name: "",
+          topic: local.topic || "",
+          resource_type: local.resourceType || "Personal",
+          description: "",
+          storage_path: path,
+          mime_type: local.mimeType || "application/octet-stream",
+          file_size: local.size,
+          created_at: local.createdAt,
+          updated_at: local.localUpdatedAt,
+        }, { onConflict: "id" }).select("*").single();
+        if (error) throw new Error("Could not save personal file details: " + error.message);
+        const stamp = String(data.updated_at || data.created_at);
+        await withCloudSyncPaused(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
+        uploaded += 1;
+      } else {
+        await persistRemote(remote, local.id, local);
+      }
+      continue;
+    }
+
+    const cloudId = local.cloudId || crypto.randomUUID();
+    const path = userId + "/personal/" + cloudId + "/" + safeFileName(local.name);
+    const { error: uploadError } = await supabase.storage.from("studyspace-resources").upload(path, local.file, {
+      contentType: local.mimeType || "application/octet-stream",
+      upsert: true,
+    });
+    if (uploadError) throw new Error("Could not upload personal file " + local.name + ": " + uploadError.message);
+    const { data, error } = await supabase.from("learner_personal_resources").upsert({
+      id: cloudId,
+      learner_id: userId,
+      title: local.name,
+      subject_name: "",
+      topic: local.topic || "",
+      resource_type: local.resourceType || "Personal",
+      description: "",
+      storage_path: path,
+      mime_type: local.mimeType || "application/octet-stream",
+      file_size: local.size,
+      created_at: local.createdAt,
+      updated_at: local.localUpdatedAt || new Date().toISOString(),
+    }, { onConflict: "id" }).select("*").single();
+    if (error) throw new Error("Could not save personal file details: " + error.message);
+    const stamp = String(data.updated_at || data.created_at);
+    await withCloudSyncPaused(() => table.update(local.id, {
+      cloudId,
+      cloudUpdatedAt: stamp,
+      localUpdatedAt: stamp,
+    }));
+    handled.add(cloudId);
+    uploaded += 1;
+  }
+
+  for (const remote of remoteRows) {
+    if (handled.has(String(remote.id))) continue;
+    const localId = makeLocalId(localIds);
+    localIds.push(localId);
+    await persistRemote(remote, localId);
+  }
+  return { downloaded, uploaded };
+}
+
+export async function syncStudentWorkspace(
+  userId: string,
+  profile: StudentProfile,
+  weeklyHours: number,
+): Promise<StudentSyncResult> {
+  if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  if (!navigator.onLine) throw new Error("You are offline. Your changes are saved on this device and will sync when you reconnect.");
+  if (getStudentStorageOwner() !== userId) throw new Error("The active local workspace does not match the signed-in student.");
+
+  const { data: authState, error: authError } = await supabase.auth.getUser();
+  if (authError || authState.user?.id !== userId) throw new Error("Your Studyspace session needs to be refreshed before syncing.");
+
+  const deletionQueue = readCloudTombstones();
+  const completedDeletes: typeof deletionQueue = [];
+  let deleted = 0;
+  for (const item of deletionQueue) {
+    await removeCloudRecord(item.entity, item.cloudId, userId);
+    completedDeletes.push(item);
+    deleted += 1;
+  }
+  clearCloudTombstones(completedDeletes);
+
+  const [remoteSubjects, remoteTasks, remoteSessions, remotePeriods, remoteEvents, remoteResources, goalResult] = await Promise.all([
+    fetchRows("student_subjects", userId),
+    fetchRows("planner_tasks", userId),
+    fetchRows("study_sessions", userId),
+    fetchRows("academic_periods", userId),
+    fetchRows("academic_events", userId),
+    fetchRows("learner_personal_resources", userId),
+    supabase.from("student_goals").select("*").eq("learner_id", userId).maybeSingle(),
+  ]);
+  if (goalResult.error) throw new Error("Could not read your cloud study preferences: " + goalResult.error.message);
+
+  const subjectResult = await reconcileCollection<Subject>(
+    "subjects", plannerDb.subjects, remoteSubjects, userId,
+    (local) => ({
+      id: local.cloudId, learner_id: userId, name: local.name, subject_code: local.code || null,
+      category: local.category || "Core", color: local.color || "#8db9ff",
+      description: local.description || "", target_mark: local.targetMark ?? null,
+      period_ids: local.periodIds || [], created_at: local.createdAt,
+      updated_at: local.localUpdatedAt || new Date().toISOString(),
+    }),
+    (remote, id) => ({
+      id, name: String(remote.name), color: String(remote.color || "#8db9ff"),
+      code: remote.subject_code || undefined, description: String(remote.description || ""),
+      category: String(remote.category || "Core"), targetMark: remote.target_mark == null ? undefined : Number(remote.target_mark),
+      periodIds: Array.isArray(remote.period_ids) ? remote.period_ids.map(Number) : [],
+      createdAt: String(remote.created_at),
+    }),
+    [],
+    (local, rows) => rows.find(row => String(row.name).trim().toLowerCase() === local.name.trim().toLowerCase()),
+  );
+  void subjectResult;
+
+  const subjects = await plannerDb.subjects.toArray();
+  const subjectByLocalId = new Map(subjects.map(subject => [subject.id, subject]));
+  const subjectByCloudId = new Map(subjects.filter(subject => subject.cloudId).map(subject => [String(subject.cloudId), subject]));
+  const cloudSubjectId = (localId: number | null) => {
+    if (localId == null) return null;
+    return subjectByLocalId.get(localId)?.cloudId || null;
+  };
+  const localSubjectId = (cloudId: string | null) => {
+    if (!cloudId) return null;
+    return subjectByCloudId.get(cloudId)?.id ?? null;
+  };
+
+  const taskResult = await reconcileCollection<PlannerTask>(
+    "tasks", plannerDb.tasks, remoteTasks, userId,
+    (local) => ({
+      id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
+      title: local.title, notes: local.notes || "", task_kind: local.kind || "Study",
+      due_at: fromLocalDateTime(local.dueAt), estimated_minutes: local.minutes,
+      priority: local.priority, is_completed: local.done, completed_at: local.completedAt,
+      created_at: local.createdAt, updated_at: local.localUpdatedAt || new Date().toISOString(),
+    }),
+    (remote, id) => ({
+      id, cloudId: String(remote.id), title: String(remote.title), subjectId: localSubjectId(remote.subject_id),
+      dueAt: toLocalDateTime(remote.due_at), minutes: Number(remote.estimated_minutes || 30),
+      priority: remote.priority, kind: remote.task_kind, notes: String(remote.notes || ""),
+      done: Boolean(remote.is_completed), createdAt: String(remote.created_at),
+      completedAt: remote.completed_at || null,
+    }),
+    subjects,
+  );
+
+  const sessionResult = await reconcileCollection<StudySession>(
+    "sessions", plannerDb.sessions, remoteSessions, userId,
+    (local) => ({
+      id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
+      started_at: local.date, duration_minutes: local.minutes, reflection: local.notes || "",
+      updated_at: local.localUpdatedAt || new Date().toISOString(),
+    }),
+    (remote, id) => ({
+      id, cloudId: String(remote.id), subjectId: localSubjectId(remote.subject_id),
+      date: String(remote.started_at), minutes: Number(remote.duration_minutes), notes: String(remote.reflection || ""),
+    }),
+    subjects,
+  );
+
+  const periodResult = await reconcileCollection<AcademicPeriod>(
+    "academicPeriods", plannerDb.academicPeriods, remotePeriods, userId,
+    (local) => ({
+      id: local.cloudId, learner_id: userId,
+      period_type: local.kind === "Term" ? "term" : local.kind === "Holiday" ? "holiday" : local.kind === "Examination" ? "exam" : "semester",
+      display_kind: local.kind, title: local.title, starts_on: local.startDate,
+      ends_on: local.endDate, notes: local.notes || "", created_at: local.createdAt,
+      updated_at: local.localUpdatedAt || new Date().toISOString(),
+    }),
+    (remote, id) => ({
+      id, cloudId: String(remote.id), title: String(remote.title),
+      kind: remote.display_kind || (remote.period_type === "holiday" ? "Holiday" : remote.period_type === "exam" ? "Examination" : "Term"),
+      startDate: String(remote.starts_on), endDate: String(remote.ends_on),
+      notes: String(remote.notes || ""), createdAt: String(remote.created_at),
+    }),
+    subjects,
+  );
+
+  const eventResult = await reconcileCollection<CalendarEvent>(
+    "events", plannerDb.events, remoteEvents, userId,
+    (local) => ({
+      id: local.cloudId, learner_id: userId, subject_id: null,
+      title: local.title, event_type: local.kind, starts_at: fromLocalDateTime(local.date + "T" + (local.time || "00:00")),
+      ends_at: null, all_day: !local.time, notes: local.notes || "",
+      created_at: local.createdAt, updated_at: local.localUpdatedAt || new Date().toISOString(),
+    }),
+    (remote, id) => {
+      const localDateTime = toLocalDateTime(remote.starts_at);
+      return {
+        id, cloudId: String(remote.id), title: String(remote.title),
+        date: localDateTime.slice(0, 10), time: remote.all_day ? "" : localDateTime.slice(11, 16),
+        kind: remote.event_type || "Other", notes: String(remote.notes || ""),
+        createdAt: String(remote.created_at),
+      };
+    },
+    subjects,
+  );
+
+  const resourceResult = await syncPersonalResources(userId, remoteResources);
+
+  const remoteGoal = goalResult.data as CloudRow | null;
+  const localGoalKey = studentStorageKey("studyspace-weekly-goal");
+  const hasLocalGoal = localStorage.getItem(localGoalKey) !== null;
+  let resolvedWeeklyHours = weeklyHours;
+  if (!hasLocalGoal && remoteGoal && Number.isFinite(Number(remoteGoal.weekly_hours))) {
+    resolvedWeeklyHours = Math.max(1, Math.min(168, Number(remoteGoal.weekly_hours)));
+    localStorage.setItem(localGoalKey, String(resolvedWeeklyHours));
+  }
+
+  const reminderKey = studentStorageKey("studyspace-study-reminders");
+  let reminderSettings: CloudRow = { enabled: false, time: "16:00", days: profile.preferredDays || [] };
+  try {
+    const parsed = JSON.parse(localStorage.getItem(reminderKey) || "null");
+    if (parsed && typeof parsed === "object") reminderSettings = parsed;
+  } catch { /* Use the profile defaults. */ }
+
+  const preferredDays = Array.isArray(remoteGoal?.preferred_days) ? remoteGoal!.preferred_days : (profile.preferredDays || []);
+  const goalPayload = {
+    learner_id: userId,
+    goal_text: profile.goals || "",
+    target_mark: Number(profile.targetMark) || null,
+    weekly_hours: resolvedWeeklyHours,
+    preferred_days: preferredDays,
+    reminder_settings: reminderSettings,
+    updated_at: remoteGoal?.updated_at || new Date().toISOString(),
+  };
+  const needsGoalWrite = !remoteGoal
+    || hasLocalGoal
+    || String(remoteGoal.goal_text || "") !== goalPayload.goal_text
+    || Number(remoteGoal.target_mark || 0) !== Number(goalPayload.target_mark || 0)
+    || Number(remoteGoal.weekly_hours || 0) !== Number(goalPayload.weekly_hours || 0)
+    || JSON.stringify(remoteGoal.reminder_settings || {}) !== JSON.stringify(reminderSettings);
+  if (needsGoalWrite) {
+    const { error } = await supabase.from("student_goals").upsert(goalPayload, { onConflict: "learner_id" });
+    if (error) throw new Error("Could not sync your study goals: " + error.message);
+  }
+
+  return {
+    syncedAt: new Date().toISOString(),
+    weeklyHours: resolvedWeeklyHours,
+    downloaded: subjectResult.downloaded + taskResult.downloaded + sessionResult.downloaded + periodResult.downloaded + eventResult.downloaded + resourceResult.downloaded,
+    uploaded: subjectResult.uploaded + taskResult.uploaded + sessionResult.uploaded + periodResult.uploaded + eventResult.uploaded + resourceResult.uploaded,
+    deleted,
+  };
+}
