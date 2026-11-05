@@ -15,6 +15,7 @@ import StudyReminders from "./components/StudyReminders";
 import SubjectManager from "./components/SubjectManager";
 import WeeklyTest from "./components/WeeklyTest";
 import TodaySession from "./components/TodaySession";
+import { supabase } from "./lib/supabase";
 
 type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Study & Exams" | "My Library" | "Academic Calendar" | "Progress" | "Settings";
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
@@ -113,6 +114,29 @@ export default function App() {
 
   async function finishOnboarding(nextProfile: StudentProfile) {
     try {
+      if (supabase) {
+        const { data: authState } = await supabase.auth.getSession();
+        if (authState.session) {
+          const { error: profileError } = await supabase.rpc("update_studyspace_learner_profile", {
+            p_full_name: nextProfile.fullName,
+            p_preferred_name: nextProfile.preferredName,
+            p_country: nextProfile.country,
+            p_institution: nextProfile.institution,
+            p_education_level: nextProfile.level,
+            p_grade: nextProfile.grade,
+            p_curriculum: nextProfile.curriculum,
+            p_academic_year: nextProfile.academicYear
+          });
+          if (profileError) throw new Error("Your cloud profile could not be saved: " + profileError.message);
+          if (nextProfile.subjects.length) {
+            const { error: subjectsError } = await supabase.from("student_subjects").upsert(
+              nextProfile.subjects.map(name => ({ learner_id: authState.session!.user.id, name })),
+              { onConflict: "learner_id,name", ignoreDuplicates: true }
+            );
+            if (subjectsError) throw new Error("Your cloud profile was saved, but subjects could not be synced: " + subjectsError.message);
+          }
+        }
+      }
       localStorage.setItem("studyspace-profile", JSON.stringify(nextProfile));
       setProfile(nextProfile);
       const existing = await plannerDb.subjects.toArray();
