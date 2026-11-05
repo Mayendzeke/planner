@@ -24,12 +24,10 @@ async function describeAccessError(reason: unknown): Promise<string> {
   return reason instanceof Error ? reason.message : "Studyspace could not complete that request. Try again.";
 }
 
-export default function StudentAccess({ onContinueOffline }: { onContinueOffline: () => void }) {
+export default function StudentAccess() {
   const [mode, setMode] = useState<"signin" | "enrol">("signin");
   const [studentId, setStudentId] = useState("");
   const [pin, setPin] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [preferredName, setPreferredName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,18 +36,18 @@ export default function StudentAccess({ onContinueOffline }: { onContinueOffline
 
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setError(""); setNotice("");
-    if (!supabase) { setError("Cloud access is not configured yet. You can continue in offline mode."); return; }
+    if (!supabase) { setError("Student access is not connected to the Studyspace server. Please contact your administrator."); return; }
+    if (!navigator.onLine) { setError("An internet connection is required to create or access your student account. Reconnect and try again."); return; }
     if (busy) return;
     if (mode === "enrol") {
       if (password.length < 10) { setError("Choose a password with at least 10 characters."); return; }
       if (password !== confirmPassword) { setError("The passwords do not match."); return; }
-      if (!fullName.trim() || !preferredName.trim()) { setError("Enter your full name and preferred name."); return; }
     }
     setBusy(true);
     try {
       if (mode === "enrol") {
         const { data, error: invokeError } = await supabase.functions.invoke("enrol-learner", {
-          body: { studentId, pin, password, fullName, preferredName }
+          body: { studentId: studentId.trim().toUpperCase(), pin, password }
         });
         if (invokeError) throw invokeError;
         if (!data?.success) throw new Error(data?.error || "The account could not be created.");
@@ -57,7 +55,7 @@ export default function StudentAccess({ onContinueOffline }: { onContinueOffline
         setMode("signin"); setPin(""); setConfirmPassword(""); setPassword("");
       } else {
         const { data, error: invokeError } = await supabase.functions.invoke("student-sign-in", {
-          body: { studentId, password }
+          body: { studentId: studentId.trim().toUpperCase(), password }
         });
         if (invokeError) throw invokeError;
         if (!data?.success || !data?.access_token || !data?.refresh_token) throw new Error(data?.error || "Student ID or password is incorrect.");
@@ -65,7 +63,7 @@ export default function StudentAccess({ onContinueOffline }: { onContinueOffline
           access_token: data.access_token, refresh_token: data.refresh_token
         });
         if (sessionError) throw sessionError;
-        onContinueOffline();
+        // App-level auth state listener opens the workspace after this session is stored.
       }
     } catch (reason) {
       setError(await describeAccessError(reason));
@@ -83,18 +81,16 @@ export default function StudentAccess({ onContinueOffline }: { onContinueOffline
         <label>Student ID<span className="student-access-input"><UserRound size={16}/><input value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} type="text" placeholder="e.g. STU-AB12CD34" autoComplete="username" required maxLength={12}/></span></label>
         {mode === "enrol" && <>
           <label>One-time enrolment PIN<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,8))} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="Enter your 8-digit PIN" required/><small>This invitation is assigned to your Student ID and can only be used once.</small></label>
-          <label>Full name<input value={fullName} onChange={e=>setFullName(e.target.value)} autoComplete="name" maxLength={120} required placeholder="Your full name"/></label>
-          <label>Preferred name<input value={preferredName} onChange={e=>setPreferredName(e.target.value)} maxLength={80} required placeholder="What should your teacher call you?"/></label>
         </>}
         <label>Password<span className="student-access-input"><LockKeyhole size={16}/><input value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder={mode === "signin" ? "Enter your password" : "Create a password (10+ characters)"} autoComplete={mode === "signin" ? "current-password" : "new-password"} required minLength={mode === "enrol" ? 10 : 1} maxLength={128}/></span></label>
         {mode === "enrol" && <label>Confirm password<span className="student-access-input"><LockKeyhole size={16}/><input value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} type="password" placeholder="Confirm your password" autoComplete="new-password" required minLength={10} maxLength={128}/></span></label>}
-        <button className="student-access-submit" type="submit" disabled={busy || !supabase}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create student account"}</button>
+        <button className="student-access-submit" type="submit" disabled={busy || !supabase || !navigator.onLine}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create student account"}</button>
       </form>
       {notice && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>{notice}</p></div>}
       {error && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>{error}</p></div>}
       <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID access — no student email required.</strong><br/>If you forget your password, contact your administrator for a secure reset. Do not share your PIN or password.</p></div>
-      <button className="student-access-offline" type="button" onClick={onContinueOffline}>Continue in offline mode <span>→</span></button>
-      <p className="student-access-foot">Offline mode keeps your planner data on this device only. Cloud sync activates as the remaining shared planner services are connected.</p>
+      {!supabase && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>Student access is not connected to the Studyspace server. Account creation and sign-in are unavailable until the administrator fixes the app configuration.</p></div>}
+      {!navigator.onLine && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>An internet connection is required for first-time enrolment and sign-in.</p></div>}
     </section>
   </main>;
 }
