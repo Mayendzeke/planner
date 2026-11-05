@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
+import { syncStudentWorkspace } from "./lib/cloudSync";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentAccess from "./components/StudentAccess";
 import StudentLibrary from "./components/StudentLibrary";
@@ -76,6 +77,10 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [signOutBusy, setSignOutBusy] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"checking" | "syncing" | "synced" | "offline" | "error">("checking");
+  const [syncMessage, setSyncMessage] = useState("");
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [syncRequested, setSyncRequested] = useState(0);
   // The fixed app shell owns its scroll position. Reset only that surface when
   // changing tabs; do not alter document scroll restoration or window scroll.
   useLayoutEffect(() => {
@@ -169,6 +174,64 @@ export default function App() {
     }
     void refresh();
   }, [cloudUserId]);
+
+  // Sync on workspace open, reconnect, tab return and while the app is active.
+  // IndexedDB remains the offline cache; Supabase provides cross-device data.
+  useEffect(() => {
+    if (!cloudUserId || profileOwnerId !== cloudUserId || !profile || !ready) {
+      if (!cloudUserId) setSyncStatus("checking");
+      return;
+    }
+    let alive = true;
+    let inFlight = false;
+    const runSync = async () => {
+      if (inFlight || !alive) return;
+      if (!navigator.onLine) {
+        setSyncStatus("offline");
+        setSyncMessage("Your changes are saved on this device and will sync when you reconnect.");
+        return;
+      }
+      inFlight = true;
+      setSyncStatus("syncing");
+      setSyncMessage("Synchronising subjects, tasks, study history, calendar and personal files…");
+      try {
+        const result = await syncStudentWorkspace(cloudUserId, profile, goal);
+        if (!alive) return;
+        setSyncStatus("synced");
+        setSyncMessage(result.uploaded || result.downloaded || result.deleted
+          ? "Studyspace is up to date. " + result.uploaded + " uploaded, " + result.downloaded + " downloaded, " + result.deleted + " deletion(s) applied."
+          : "Studyspace is up to date on this device and your other signed-in devices.");
+        setLastSyncAt(result.syncedAt);
+        if (typeof result.weeklyHours === "number" && result.weeklyHours !== goal) setGoal(result.weeklyHours);
+        if (result.reminderSettings) {
+          const reminderKey = studentStorageKey("studyspace-study-reminders");
+          if (localStorage.getItem(reminderKey) === null) {
+            localStorage.setItem(reminderKey, JSON.stringify(result.reminderSettings));
+            window.dispatchEvent(new Event("studyspace-cloud-preferences-updated"));
+          }
+        }
+        await refresh();
+      } catch (reason) {
+        if (!alive) return;
+        setSyncStatus("error");
+        setSyncMessage(reason instanceof Error ? reason.message : "Cloud synchronisation failed. Your device copy has been retained.");
+      } finally {
+        inFlight = false;
+      }
+    };
+    void runSync();
+    const interval = window.setInterval(() => void runSync(), 20000);
+    const onOnline = () => void runSync();
+    const onVisibility = () => { if (document.visibilityState === "visible") void runSync(); };
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [cloudUserId, profileOwnerId, profile, ready, goal, syncRequested]);
 
 
   async function finishOnboarding(nextProfile: StudentProfile) {
@@ -350,7 +413,7 @@ export default function App() {
       <div className="workspace-label">YOUR WORKSPACE</div>
       <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span></div></div>
       <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":ready?"Saved on this device":"Opening workspace"}</div></div>
+      <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":syncStatus==="syncing"?"Syncing to Studyspace…":syncStatus==="synced"?"Synced to Studyspace":syncStatus==="offline"?"Offline · changes saved":syncStatus==="error"?"Sync needs attention":ready?"Opening cloud workspace":"Opening workspace"}</div></div>
     </aside>
     {mobileMenu&&<button className="mobile-scrim" aria-label="Close navigation overlay" onClick={()=>setMobileMenu(false)}/>}
     <main className="main-area">
@@ -366,7 +429,7 @@ export default function App() {
           <Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={tasks.length?Math.round(completedTasks.length/tasks.length*100)+"% of all tasks":"Add a task to begin"} icon={<Check size={17}/>} tone="violet"/>
         </section><section className="dashboard-grid"><div className="glass-panel focus-panel"><div className="section-heading"><div><h2>Up next</h2><p>Your nearest deadlines and priorities.</p></div><button className="icon-button" aria-label="Open planner" onClick={()=>setPage("Planner")}><ChevronRight size={19}/></button></div>{openTasks.length?<TaskList tasks={openTasks.slice(0,5)} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<Check size={21}/>} title="Nothing waiting on you" text="Add a task when you have something to plan." action="Add your first task" onAction={()=>openNewTask()}/>}<button className="text-button" onClick={()=>setPage("Planner")}>Open full planner <ArrowDownRight size={15}/></button></div>
           <div className="glass-panel week-panel"><div className="section-heading"><div><h2>Study time</h2><p>Minutes you have logged this week.</p></div><Clock3 size={20}/></div><div className="week-summary"><div><strong>{Math.floor(weekMinutes/60)}h {weekMinutes%60}m</strong><span>recorded this week</span></div><span className="week-trend">{Math.min(100,Math.round(weeklyHours/Math.max(1,goal)*100))}% of goal</span></div><div className="goal-track"><span style={{width:Math.min(100,weeklyHours/Math.max(1,goal)*100)+"%"}}/></div><div className="goal-label"><span>0h</span><span>{goal}h weekly goal</span></div><div className="session-actions"><label>Log a session<select id="quick-session-subject" defaultValue=""><option value="">General study</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,25);}}>+25 min</button><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,50);}}>+50 min</button></div><p className="subtle-note">Sessions are logged when you choose a duration. This does not run a background timer.</p></div></section>
-          <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your data stays on this device.</strong> Studyspace stores your profile, subjects, tasks, study sessions and academic calendar in this browser. Use Settings to export a backup before changing devices or clearing browser data.</p><span className="note-pill">LOCAL-FIRST</span></section></>}
+          <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your Studyspace data travels with your account.</strong> Subjects, tasks, study sessions, academic calendar records and personal files sync to your private Studyspace account when online. This device keeps an offline copy so you can continue studying without a connection.</p><span className="note-pill">CLOUD + OFFLINE</span></section></>}
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
         {page==="Subjects"&&<SubjectManager onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<WeeklyTest subjects={subjects}/>}
@@ -375,11 +438,12 @@ export default function App() {
         {page==="Academic Calendar"&&<><UpcomingCalendar tasks={tasks}/><AcademicCalendar/></>}
         {page==="Progress"&&<><section className="stats-grid"><Stat label="TOTAL STUDY TIME" value={Math.floor(totalMinutes/60)+"h "+totalMinutes%60+"m"} detail={sessions.length+" sessions logged"} icon={<Clock3 size={17}/>} tone="blue"/><Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={"of "+tasks.length+" total tasks"} icon={<Check size={17}/>} tone="mint"/><Stat label="SUBJECTS" value={String(subjects.length)} detail="In your workspace" icon={<BookOpen size={17}/>} tone="violet"/><Stat label="OVERDUE TASKS" value={String(overdue.length)} detail="Open tasks past their deadline" icon={<AlarmClock size={17}/>} tone="rose"/></section><section className="glass-panel progress-detail"><div className="section-heading"><div><h2>Subject progress</h2><p>Calculated from the tasks you have entered.</p></div><TrendingUp size={21}/></div>{subjects.length?<div className="progress-subject-list">{subjects.map(s=>{const ts=tasks.filter(t=>t.subjectId===s.id);const done=ts.filter(t=>t.done).length;const mins=sessions.filter(l=>l.subjectId===s.id).reduce((n,l)=>n+l.minutes,0);return <div className="progress-subject" key={s.id}><div className="progress-subject-heading"><span className="subject-dot" style={{background:s.color}}/><strong>{s.name}</strong><span>{done}/{ts.length} tasks · {Math.floor(mins/60)}h {mins%60}m</span></div><div className="progress-track"><span style={{width:(ts.length?done/ts.length*100:0)+"%",background:s.color}}/></div></div>})}</div>:<Empty icon={<TrendingUp size={22}/>} title="Progress starts with your data" text="Add subjects and complete tasks to see meaningful progress here." action="Add a subject" onAction={()=>setPage("Subjects")}/>}<div className="progress-total"><strong>{completedTasks.length} of {tasks.length}</strong><span>tasks completed</span><div className="progress-track"><span style={{width:(tasks.length?completedTasks.length/tasks.length*100:0)+"%"}}/></div></div></section><section className="glass-panel session-history"><div className="section-heading"><div><h2>Recent study sessions</h2><p>Sessions you explicitly logged.</p></div><Clock3 size={20}/></div>{sessions.length?<div className="session-list">{sessions.slice(0,12).map(s=><div className="session-row" key={s.id}><div className="session-icon"><Clock3 size={16}/></div><div><strong>{subjectById.get(s.subjectId??-1)?.name??"General study"}</strong><span>{new Date(s.date).toLocaleString()}</span></div><b>{s.minutes} min</b></div>)}</div>:<p className="subtle-note">No study sessions logged yet. Log one from the Overview page.</p>}</section></>}
         {page==="Settings"&&<section className="settings-stack"><div className="glass-panel settings-card"><div className="section-heading"><div><h2>Appearance</h2><p>Choose the look that works best for you.</p></div><Sun size={20}/></div><div className="setting-row"><div><strong>Colour theme</strong><span>Switch between dark and light glass styles.</span></div><div className="theme-options"><button className={theme==="dark"?"chosen":""} onClick={()=>setTheme("dark")}><Moon size={15}/> Dark</button><button className={theme==="light"?"chosen":""} onClick={()=>setTheme("light")}><Sun size={15}/> Light</button></div></div><div className="setting-row"><div><strong>Weekly study goal</strong><span>Used to calculate your progress indicator.</span></div><label className="goal-input"><input type="number" min="1" max="168" value={goal} onChange={e=>{const n=Math.max(1,Math.min(168,Number(e.target.value)||1));setGoal(n);try{localStorage.setItem(studentStorageKey("studyspace-weekly-goal"),String(n));}catch{/* Goal still works for this session. */}}}/> hours</label></div></div>
+          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Cloud synchronisation</h2><p>Keep your planner consistent across devices. Offline changes are queued on this device and uploaded when your connection returns.</p></div><Cloud size={20}/></div><div className="setting-row"><div><strong>{syncStatus==="synced"?"Connected and synchronised":syncStatus==="syncing"?"Synchronising your workspace":syncStatus==="offline"?"Offline · safe to keep studying":syncStatus==="error"?"Synchronisation needs attention":"Checking your connection"}</strong><span>{syncMessage || "Studyspace is checking your student account and available cloud records."}{lastSyncAt ? " Last successful sync: " + new Date(lastSyncAt).toLocaleString() + "." : ""}</span></div><button className="secondary-button" onClick={()=>setSyncRequested(value=>value+1)} disabled={syncStatus==="syncing" || !navigator.onLine}><RefreshCw size={15}/>{syncStatus==="syncing"?"Syncing…":"Sync now"}</button></div></div>
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Backup &amp; restore</h2><p>Keep a copy before changing devices or clearing site data.</p></div><Download size={20}/></div><div className="setting-row"><div><strong>Export backup</strong><span>Downloads your profile, subjects, tasks, study sessions, calendar periods and personal events as a JSON file.</span></div><button className="secondary-button" onClick={()=>void exportData()}><Download size={15}/> Export data</button></div><div className="setting-row"><div><strong>Restore backup</strong><span>Replaces local data with a valid Studyspace backup file.</span></div><label className="secondary-button upload-button"><Upload size={15}/> Choose file<input type="file" accept="application/json,.json" onChange={importData}/></label></div>{importMessage&&<p className="inline-message" role="status">{importMessage}</p>}</div>
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Studyspace account</h2><p>Your student account is authenticated by Supabase. Sign out before handing this device to another learner.</p></div><LockKeyhole size={20}/></div><div className="setting-row"><div><strong>Sign out of this device</strong><span>Your study data remains in this student's separate local workspace and will be available after signing in again.</span></div><button className="secondary-button" onClick={()=>void signOutStudent()} disabled={signOutBusy}><LockKeyhole size={15}/>{signOutBusy?"Signing out…":"Sign out"}</button></div></div>
-          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Privacy &amp; local data</h2><p>Your Studyspace account is secured online. Planner tasks, sessions and calendar records are currently stored in this browser; shared cloud sync for those records is not enabled yet.</p></div><CircleHelp size={20}/></div><div className="privacy-list"><p><Check size={16}/> Subjects, tasks and sessions are stored in this browser on this device.</p><p><Check size={16}/> Each student's browser has its own separate data store.</p><p><Check size={16}/> Your account profile is saved to the Studyspace server after sign-in. Planner activity is currently stored locally in this browser.</p><p><CircleHelp size={16}/> Clearing browser/site data can erase your records. Export backups regularly.</p></div><div className="danger-row"><div><strong>Delete all local data</strong><span>Permanently removes your profile, subjects, tasks, sessions, calendar, personal library files, class-session notes, reminders and test progress on this device.</span></div><button className="danger-button" onClick={()=>void clearAll()}><Trash2 size={15}/> Delete data</button></div></div></section>}
+          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Privacy &amp; local data</h2><p>Your Studyspace account is secured online. Subjects, tasks, study sessions, calendar records and personal library files synchronise to your account; this browser keeps an offline copy.</p></div><CircleHelp size={20}/></div><div className="privacy-list"><p><Check size={16}/> Subjects, tasks and sessions are synchronised to your Studyspace account and cached on this device for offline use.</p><p><Check size={16}/> Each student has a separate cloud account and a separate local offline database.</p><p><Check size={16}/> Your profile and planner records synchronise with the signed-in student account when online.</p><p><CircleHelp size={16}/> Clearing browser/site data can erase your records. Export backups regularly.</p></div><div className="danger-row"><div><strong>Delete all local data</strong><span>Permanently removes your profile, subjects, tasks, sessions, calendar, personal library files, class-session notes, reminders and test progress on this device.</span></div><button className="danger-button" onClick={()=>void clearAll()}><Trash2 size={15}/> Delete data</button></div></div></section>}
         </>}
-        <footer className="page-footer"><span>STUDYSPACE <span className="footer-dot">●</span> BUILT FOR YOUR NEXT STEP</span><span><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":"Signed in · Local planner storage"}</span></footer>
+        <footer className="page-footer"><span>STUDYSPACE <span className="footer-dot">●</span> BUILT FOR YOUR NEXT STEP</span><span><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":syncStatus==="synced"?"Signed in · Cloud synced":syncStatus==="offline"?"Signed in · Offline cache":syncStatus==="syncing"?"Synchronising…":syncStatus==="error"?"Signed in · Sync needs attention":"Signed in · Connecting"}</span></footer>
       </div>
     </main>
     {taskOpen&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setTaskOpen(false);}}><section className="task-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-heading"><div><span className="eyebrow">YOUR NEXT STEP</span><h2 id="task-modal-title">{editingTask===null?"Add a study task":"Edit study task"}</h2></div><button className="icon-button" aria-label="Close form" onClick={()=>setTaskOpen(false)}><X size={19}/></button></div><form onSubmit={e=>void saveTask(e)}><label className="field-label">Task title<input autoFocus required maxLength={160} value={taskForm.title} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} placeholder="e.g. Revise chapter 3"/></label><div className="form-grid"><label className="field-label">Subject<select value={taskForm.subjectId} onChange={e=>setTaskForm({...taskForm,subjectId:e.target.value})}><option value="">No subject</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="field-label">Task type<select value={taskForm.kind} onChange={e=>setTaskForm({...taskForm,kind:e.target.value as PlannerTask["kind"]})}>{["Study","Assignment","Exam","Reading","Other"].map(v=><option key={v}>{v}</option>)}</select></label><label className="field-label">Deadline<input type="datetime-local" value={taskForm.dueAt} onChange={e=>setTaskForm({...taskForm,dueAt:e.target.value})}/></label><label className="field-label">Estimated minutes<input type="number" min="5" max="1440" step="5" value={taskForm.minutes} onChange={e=>setTaskForm({...taskForm,minutes:e.target.value})}/></label><label className="field-label">Priority<select value={taskForm.priority} onChange={e=>setTaskForm({...taskForm,priority:e.target.value as PlannerTask["priority"]})}>{["High","Medium","Low"].map(v=><option key={v}>{v}</option>)}</select></label></div><label className="field-label">Notes (optional)<textarea rows={3} maxLength={1500} value={taskForm.notes} onChange={e=>setTaskForm({...taskForm,notes:e.target.value})} placeholder="Add instructions or details"/></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={()=>setTaskOpen(false)}>Cancel</button><button type="submit" className="primary-button"><Check size={16}/>{editingTask===null?"Save task":"Save changes"}</button></div></form><p className="privacy-hint"><span className="status-dot"/> Saved only in this browser on this device.</p></section></div>}
