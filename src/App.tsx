@@ -104,23 +104,78 @@ export default function App() {
     return () => { alive = false; subscription.unsubscribe(); };
   }, []);
 
-  // Keep each student's profile separate on shared devices. Never reuse the
-  // old unscoped profile that could belong to a different offline user.
+  // Restore the cloud profile when a student signs in on a new device.
+  // The local profile remains a fast cache, not the only copy of account setup.
   useEffect(() => {
     if (!cloudUserId) {
       setProfile(null);
       setProfileOwnerId(null);
       return;
     }
+    let alive = true;
     setProfileOwnerId(null);
-    try {
-      const raw = localStorage.getItem("studyspace-profile:" + cloudUserId);
-      setProfile(raw ? JSON.parse(raw) as StudentProfile : null);
-      localStorage.removeItem("studyspace-profile");
-    } catch {
-      setProfile(null);
-    }
-    setProfileOwnerId(cloudUserId);
+    const loadProfile = async () => {
+      try {
+        const key = "studyspace-profile:" + cloudUserId;
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const cached = JSON.parse(raw) as StudentProfile;
+          if (alive && cached && typeof cached.fullName === "string" && typeof cached.preferredName === "string") {
+            setProfile(cached);
+            setProfileOwnerId(cloudUserId);
+            return;
+          }
+        }
+
+        if (!supabase) throw new Error("Studyspace is not connected.");
+        const [profileResult, goalResult, subjectsResult] = await Promise.all([
+          supabase.from("profiles").select("full_name,preferred_name,country,institution,education_level,grade,curriculum,academic_year").eq("id", cloudUserId).single(),
+          supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
+          supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
+        ]);
+        if (profileResult.error) throw profileResult.error;
+        if (subjectsResult.error) throw subjectsResult.error;
+        const cloud = profileResult.data;
+        const goalData = goalResult.data;
+        const fullName = String(cloud.full_name || "");
+        const preferredName = String(cloud.preferred_name || "");
+        if (!fullName.trim() && !preferredName.trim()) {
+          if (alive) {
+            setProfile(null);
+            setProfileOwnerId(cloudUserId);
+          }
+          return;
+        }
+        const restored: StudentProfile = {
+          fullName,
+          preferredName,
+          country: String(cloud.country || ""),
+          institution: String(cloud.institution || ""),
+          level: String(cloud.education_level || "Secondary school"),
+          grade: String(cloud.grade || ""),
+          curriculum: String(cloud.curriculum || "Other / Not sure"),
+          academicYear: String(cloud.academic_year || new Date().getFullYear()),
+          termCount: "3",
+          goals: String(goalData?.goal_text || "Improve my marks"),
+          targetMark: String(goalData?.target_mark ?? 75),
+          weeklyHours: String(goalData?.weekly_hours ?? 6),
+          preferredDays: Array.isArray(goalData?.preferred_days) ? goalData.preferred_days.filter((day: unknown): day is string => typeof day === "string") : ["Saturday", "Sunday"],
+          subjects: (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean),
+        };
+        if (alive) {
+          localStorage.setItem(key, JSON.stringify(restored));
+          setProfile(restored);
+          setProfileOwnerId(cloudUserId);
+        }
+      } catch (reason) {
+        if (!alive) return;
+        setProfile(null);
+        setProfileOwnerId(cloudUserId);
+        setError(reason instanceof Error ? "Your cloud profile could not be restored: " + reason.message : "Your cloud profile could not be restored. Check your connection.");
+      }
+    };
+    void loadProfile();
+    return () => { alive = false; };
   }, [cloudUserId]);
 
   useEffect(() => {
