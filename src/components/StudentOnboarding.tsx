@@ -143,7 +143,7 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
         {step > 0 && <button className="secondary-button" onClick={() => { setError(""); setStep(current => current - 1); }}><ArrowLeft size={15}/> Back</button>}
         <button className="primary-button onboarding-next" onClick={next}>{step === 2 ? <><BookOpen size={16}/> Create my study space</> : <>Continue <ArrowRight size={15}/></>}</button>
       </div>
-      <p className="onboarding-privacy">Your subject choices personalise your study space and practice activities. Profile storage is currently local to this browser.</p>
+      <p className="onboarding-privacy">Your account profile is saved securely to Studyspace. Planner activity is stored on this device in this release.</p>
     </section>
   </main>;
 }
