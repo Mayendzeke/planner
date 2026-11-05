@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { BookOpen, FileText, FolderOpen, Plus, Trash2, Upload, X, Eye, AlertCircle } from "lucide-react";
 import PdfViewer from "./PdfViewer";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
+import { supabase } from "../lib/supabase";
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".rtf"];
+type TeacherResource = { id: string; title: string; description: string; subject_name: string; storage_path: string; mime_type: string; file_size: number; created_at: string; topic?: string };
 
 function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB";
@@ -13,6 +15,9 @@ function formatSize(bytes: number) {
 
 export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[] }) {
   const [files, setFiles] = useState<StudentResource[]>([]);
+  const [teacherFiles, setTeacherFiles] = useState<TeacherResource[]>([]);
+  const [teacherLoading, setTeacherLoading] = useState(true);
+  const [teacherBusyId, setTeacherBusyId] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [subjectId, setSubjectId] = useState("");
@@ -26,7 +31,34 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
     setFiles(stored);
   }
 
-  useEffect(() => { void refresh(); }, []);
+  async function refreshTeacherFiles() {
+    if (!supabase) { setTeacherLoading(false); return; }
+    try {
+      const { data: authState, error: authError } = await supabase.auth.getUser();
+      if (authError || !authState.user) throw new Error("Sign in again to load your assigned resources.");
+      const { data: assignments, error: assignmentError } = await supabase
+        .from("resource_assignments").select("resource_id").eq("learner_id", authState.user.id);
+      if (assignmentError) throw assignmentError;
+      const ids = (assignments ?? []).map(row => row.resource_id).filter(Boolean);
+      if (!ids.length) { setTeacherFiles([]); setTeacherLoading(false); return; }
+      const { data, error } = await supabase.from("learning_resources")
+        .select("id,title,description,subject_name,storage_path,mime_type,file_size,created_at")
+        .in("id", ids).order("created_at", { ascending: false });
+      if (error) throw error;
+      setTeacherFiles((data ?? []) as TeacherResource[]);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Teacher resources could not be loaded.");
+    } finally { setTeacherLoading(false); }
+  }
+
+  useEffect(() => {
+    void refresh();
+    void refreshTeacherFiles();
+    const interval = window.setInterval(() => void refreshTeacherFiles(), 30000);
+    const onVisible = () => { if (document.visibilityState === "visible") void refreshTeacherFiles(); };
+    window.addEventListener("focus", onVisible);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", onVisible); };
+  }, []);
 
   useEffect(() => {
     if (!viewing) { setPreviewText(""); return; }
@@ -81,6 +113,26 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
     }
   }
 
+  async function viewTeacherFile(resource: TeacherResource) {
+    if (!supabase || teacherBusyId) return;
+    setTeacherBusyId(resource.id);
+    setMessage("");
+    try {
+      const { data, error } = await supabase.storage.from("studyspace-resources").download(resource.storage_path);
+      if (error) throw error;
+      setViewing({
+        id: Date.now(),
+        name: resource.title,
+        mimeType: resource.mime_type || "application/octet-stream",
+        size: Number(resource.file_size),
+        file: data,
+        createdAt: resource.created_at,
+      });
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "The teacher's file could not be opened.");
+    } finally { setTeacherBusyId(""); }
+  }
+
   async function removeFile(resource: StudentResource) {
     if (!window.confirm("Remove " + resource.name + " from this device?")) return;
     await plannerDb.resources.delete(resource.id);
@@ -94,9 +146,19 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
       <div className="library-upload-fields"><label>Subject<select value={subjectId} onChange={e=>setSubjectId(e.target.value)}><option value="">Personal / unassigned</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>Resource type<select value={resourceType} onChange={e=>setResourceType(e.target.value as "Study notes"|"Revision notes")}><option>Study notes</option><option>Revision notes</option></select></label><label>Topic (optional)<input value={topic} onChange={e=>setTopic(e.target.value)} placeholder="e.g. Algebra"/></label></div>
       <label className="primary-button library-upload"><Upload size={16}/> Add files<input type="file" multiple accept=".pdf,.txt,.rtf" onChange={event => void addFiles(event)} disabled={busy}/></label>
     </div>
-    <div className="library-privacy"><FolderOpen size={15}/><span>Private to this browser and device for now. These files are not sent to your teacher or synced to another device.</span></div>
-    <div className="library-privacy"><FolderOpen size={15}/><span>Files remain in this browser. View them inside Studyspace; no download action is provided.</span></div>
+    <div className="library-privacy"><FolderOpen size={15}/><span>Your personal files synchronise privately to your Studyspace account when online and remain cached on this device for offline viewing.</span></div>
+    <div className="library-privacy"><FolderOpen size={15}/><span>Teacher-assigned materials appear below. Only resources assigned to your student account can be opened.</span></div>
     {message && <p className="library-message" role="status">{message}</p>}
+    <div className="glass-panel library-list teacher-library-list">
+      <div className="section-heading"><div><h2>From your teacher</h2><p>Materials assigned to your Studyspace account.</p></div><BookOpen size={20}/></div>
+      {teacherLoading ? <div className="library-empty"><strong>Loading assigned resources…</strong></div> :
+        teacherFiles.length ? <div className="library-files">{teacherFiles.map(file => <article className="library-file" key={file.id}>
+          <span className="library-file-icon"><FileText size={18}/></span>
+          <div className="library-file-copy"><strong>{file.title}</strong><span>{file.subject_name || "General"} · {formatSize(Number(file.file_size))} · {new Date(file.created_at).toLocaleDateString()}</span>{file.description && <span>{file.description}</span>}</div>
+          <button className="icon-button" aria-label={"View " + file.title} title="Open teacher resource" disabled={teacherBusyId === file.id} onClick={() => void viewTeacherFile(file)}><Eye size={16}/></button>
+        </article>)}</div> :
+        <div className="library-empty"><div><BookOpen size={24}/></div><strong>No assigned resources yet</strong><p>Files your teacher assigns to you will appear here automatically.</p></div>}
+    </div>
     <div className="glass-panel library-list">
       <div className="section-heading"><div><h2>My resources</h2><p>{files.length} saved file(s) · up to 30 MB per file</p></div><FileText size={20}/></div>
       {files.length ? <div className="library-files">{files.map(file => <article className="library-file" key={file.id}>
