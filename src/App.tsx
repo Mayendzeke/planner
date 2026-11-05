@@ -49,6 +49,8 @@ const downloadJson = (filename: string, value: unknown) => {
 export default function App() {
   const [page, setPage] = useState<Page>("Overview");
   const [offlineSetup, setOfflineSetup] = useState(false);
+  const [cloudAuthReady, setCloudAuthReady] = useState(!supabase);
+  const [cloudAuthenticated, setCloudAuthenticated] = useState(false);
   const [profile, setProfile] = useState<StudentProfile | null>(() => { try { const raw = localStorage.getItem("studyspace-profile"); return raw ? JSON.parse(raw) as StudentProfile : null; } catch { return null; } });
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
@@ -78,6 +80,21 @@ export default function App() {
     document.querySelector<HTMLElement>(".main-area")?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
   }, [page]);
 
+
+  useEffect(() => {
+    if (!supabase) { setCloudAuthReady(true); return; }
+    let alive = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!alive) return;
+      setCloudAuthenticated(Boolean(data.session));
+      setCloudAuthReady(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCloudAuthenticated(Boolean(session));
+      setCloudAuthReady(true);
+    });
+    return () => { alive = false; subscription.unsubscribe(); };
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -245,7 +262,11 @@ export default function App() {
     await refresh();
   }
 
-  if (!profile && !offlineSetup) return <StudentAccess onContinueOffline={() => setOfflineSetup(true)} />;
+  if (supabase && (!cloudAuthReady || (!cloudAuthenticated && !offlineSetup))) {
+    if (!cloudAuthReady) return <main className="student-access-shell"><section className="student-access-card">Checking secure Studyspace access…</section></main>;
+    return <StudentAccess onContinueOffline={() => setOfflineSetup(true)} />;
+  }
+  if (!profile && !offlineSetup && !(supabase && cloudAuthenticated)) return <StudentAccess onContinueOffline={() => setOfflineSetup(true)} />;
   if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
 
   return <div className="app-shell" data-theme={theme}>
