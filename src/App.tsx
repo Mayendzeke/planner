@@ -62,7 +62,7 @@ export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     try { return localStorage.getItem("studyspace-theme") === "light" ? "light" : "dark"; } catch { return "dark"; }
   });
-  const [goal, setGoal] = useState(() => { try { const n = Number(localStorage.getItem("studyspace-weekly-goal")); return Number.isFinite(n) && n >= 1 && n <= 168 ? n : 8; } catch { return 8; } });
+  const [goal, setGoal] = useState(8);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [plannerMode, setPlannerMode] = useState<"list" | "week">("week");
@@ -75,6 +75,7 @@ export default function App() {
   const [subjectColor, setSubjectColor] = useState(colors[0]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  const [signOutBusy, setSignOutBusy] = useState(false);
   // Prevent mobile browsers from restoring a stale scroll offset above the dashboard.
   useLayoutEffect(() => {
     if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
@@ -156,6 +157,12 @@ export default function App() {
     setSessions([]);
     setPlannerDbUser(cloudUserId);
     setStudentStorageOwner(cloudUserId);
+    try {
+      const savedGoal = Number(localStorage.getItem(studentStorageKey("studyspace-weekly-goal")));
+      setGoal(Number.isFinite(savedGoal) && savedGoal >= 1 && savedGoal <= 168 ? savedGoal : 8);
+    } catch {
+      setGoal(8);
+    }
     if (!cloudUserId) {
       setReady(true);
       return;
@@ -253,26 +260,27 @@ export default function App() {
   async function exportData() {
     const [academicPeriods, events] = await Promise.all([plannerDb.academicPeriods.toArray(), plannerDb.events.toArray()]);
     const sessionWorkspace = (() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-current-session-v1")) || "null"); } catch { return null; } })();
-    const data = { format:"Studyspace backup", version:4, exportedAt:new Date().toISOString(), profile, subjects, tasks, sessions, academicPeriods, events, sessionWorkspace };
+    const data = { format:"Studyspace backup", version:5, exportedAt:new Date().toISOString(), profile, goal, subjects, tasks, sessions, academicPeriods, events, sessionWorkspace };
     downloadJson("studyspace-backup-" + today + ".json", data);
   }
   async function importData(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     try {
       const raw = JSON.parse(await file.text());
-      if (raw?.format !== "Studyspace backup" || ![1, 2, 3, 4].includes(raw?.version) || !Array.isArray(raw.subjects) || !Array.isArray(raw.tasks) || !Array.isArray(raw.sessions) || (raw.version >= 2 && !Array.isArray(raw.academicPeriods)) || (raw.version >= 3 && !Array.isArray(raw.events))) throw new Error("This is not a valid Studyspace backup.");
+      if (raw?.format !== "Studyspace backup" || ![1, 2, 3, 4, 5].includes(raw?.version) || !Array.isArray(raw.subjects) || !Array.isArray(raw.tasks) || !Array.isArray(raw.sessions) || (raw.version >= 2 && !Array.isArray(raw.academicPeriods)) || (raw.version >= 3 && !Array.isArray(raw.events))) throw new Error("This is not a valid Studyspace backup.");
       const validSubjects = raw.subjects.every((s: any) => Number.isSafeInteger(s?.id) && typeof s?.name === "string" && s.name.trim().length > 0 && typeof s?.color === "string" && typeof s?.createdAt === "string" && (s.code === undefined || (typeof s.code === "string" && s.code.length <= 20)) && (s.description === undefined || (typeof s.description === "string" && s.description.length <= 500)) && (s.category === undefined || (typeof s.category === "string" && ["Core","Elective","Language","Science","Humanities","Technical / Vocational","Other"].includes(s.category))) && (s.targetMark === undefined || (Number.isInteger(s.targetMark) && s.targetMark >= 0 && s.targetMark <= 100)) && (s.periodIds === undefined || (Array.isArray(s.periodIds) && s.periodIds.every((id: unknown) => Number.isSafeInteger(id)) && new Set(s.periodIds).size === s.periodIds.length)));
       const validTasks = raw.tasks.every((t: any) => Number.isFinite(t?.id) && typeof t?.title === "string" && (t?.subjectId === null || Number.isFinite(t?.subjectId)) && typeof t?.dueAt === "string" && Number.isFinite(t?.minutes) && ["High","Medium","Low"].includes(t?.priority) && ["Study","Assignment","Exam","Reading","Other"].includes(t?.kind) && typeof t?.notes === "string" && typeof t?.done === "boolean" && typeof t?.createdAt === "string" && (t?.completedAt === null || typeof t?.completedAt === "string"));
       const validSessions = raw.sessions.every((s: any) => Number.isFinite(s?.id) && (s?.subjectId === null || Number.isFinite(s?.subjectId)) && typeof s?.date === "string" && !Number.isNaN(Date.parse(s.date)) && Number.isFinite(s?.minutes) && s.minutes > 0 && typeof s?.notes === "string");
       const academicPeriods = raw.version >= 2 ? raw.academicPeriods : [];
       const events = raw.version >= 3 ? raw.events : [];
+      const validGoal = raw.version < 5 || (Number.isInteger(raw.goal) && raw.goal >= 1 && raw.goal <= 168);
       const validProfile = raw.profile === undefined || (raw.profile && typeof raw.profile.fullName === "string" && typeof raw.profile.preferredName === "string" && typeof raw.profile.country === "string" && typeof raw.profile.institution === "string" && typeof raw.profile.level === "string" && typeof raw.profile.grade === "string" && typeof raw.profile.curriculum === "string" && typeof raw.profile.academicYear === "string" && typeof raw.profile.termCount === "string" && typeof raw.profile.goals === "string" && typeof raw.profile.targetMark === "string" && typeof raw.profile.weeklyHours === "string" && Array.isArray(raw.profile.preferredDays) && raw.profile.preferredDays.every((day: unknown) => typeof day === "string") && Array.isArray(raw.profile.subjects) && raw.profile.subjects.every((subject: unknown) => typeof subject === "string"));
       const validEvents = events.every((event: any) => Number.isSafeInteger(event?.id) && typeof event?.title === "string" && event.title.trim().length > 0 && typeof event?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(event.date) && typeof event?.time === "string" && ["Test","School event","Personal","Other"].includes(event?.kind) && typeof event?.notes === "string" && typeof event?.createdAt === "string" && !Number.isNaN(Date.parse(event.createdAt)));
       const validAcademicPeriods = academicPeriods.every((p: any) => Number.isSafeInteger(p?.id) && typeof p?.title === "string" && p.title.trim().length > 0 && ["Term","Holiday","Examination","Other"].includes(p?.kind) && typeof p?.startDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.startDate) && typeof p?.endDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.endDate) && p.endDate >= p.startDate && typeof p?.notes === "string" && typeof p?.createdAt === "string" && !Number.isNaN(Date.parse(p.createdAt)));
       const subjectIds = new Set(raw.subjects.map((s: any) => s.id));
       const periodIds = new Set(academicPeriods.map((p: any) => p.id));
       const linkedRecordsValid = raw.tasks.every((t: any) => t.subjectId === null || subjectIds.has(t.subjectId)) && raw.sessions.every((s: any) => s.subjectId === null || subjectIds.has(s.subjectId)) && raw.subjects.every((s: any) => (s.periodIds ?? []).every((id: number) => periodIds.has(id)));
-      if (!validProfile || !validSubjects || !validTasks || !validSessions || !validAcademicPeriods || !validEvents || !linkedRecordsValid) throw new Error("The backup contains invalid, incomplete or incorrectly linked records. Nothing was changed.");
+      if (!validGoal || !validProfile || !validSubjects || !validTasks || !validSessions || !validAcademicPeriods || !validEvents || !linkedRecordsValid) throw new Error("The backup contains invalid, incomplete or incorrectly linked records. Nothing was changed.");
       if (!window.confirm("Import this backup and replace all Studyspace data on this device? Export a backup first if you need the current data.")) { e.target.value = ""; return; }
       await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, plannerDb.events, async () => {
         await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.events.clear()]);
@@ -291,6 +299,10 @@ export default function App() {
         setProfile(raw.profile as StudentProfile);
       }
       if (raw.version >= 4 && raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace)) localStorage.setItem(studentStorageKey("studyspace-current-session-v1"), JSON.stringify(raw.sessionWorkspace)); else localStorage.removeItem(studentStorageKey("studyspace-current-session-v1"));
+      if (raw.version >= 5) {
+        localStorage.setItem(studentStorageKey("studyspace-weekly-goal"), String(raw.goal));
+        setGoal(raw.goal);
+      }
       setImportMessage("Backup restored successfully."); await refresh();
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
     e.target.value = "";
@@ -310,6 +322,19 @@ export default function App() {
     localStorage.removeItem("studyspace-current-session-v1");
     setProfile(null);
     await refresh();
+  }
+  async function signOutStudent() {
+    if (!supabase || signOutBusy) return;
+    if (!window.confirm("Sign out of this Studyspace account on this device? Your locally saved study data will remain here for your next sign-in.")) return;
+    setSignOutBusy(true);
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not sign out. Try again.");
+    } finally {
+      setSignOutBusy(false);
+    }
   }
 
   if (!supabase) return <StudentAccess />;
@@ -349,8 +374,9 @@ export default function App() {
         {page==="Planner"&&<section className="glass-panel planner-panel"><div className="section-heading"><div><h2>Study calendar</h2><p>Plan around your deadlines. Select a day to add a task.</p></div><span className="count-chip">{visibleTasks.length} shown</span></div><div className="filter-row"><div className="filter-tabs">{["All","Open","Overdue","Completed"].map(v=><button key={v} className={filter===v?"selected":""} onClick={()=>setFilter(v)}>{v}</button>)}</div><div className="filter-tabs"><button className={plannerMode==="week"?"selected":""} onClick={()=>setPlannerMode("week")}>Week view</button><button className={plannerMode==="list"?"selected":""} onClick={()=>setPlannerMode("list")}>List view</button><button className="primary-button compact-button" onClick={()=>openNewTask()}><Plus size={15}/> Add task</button></div></div>{plannerMode==="week"&&<WeekCalendar tasks={visibleTasks} subjects={subjectById} offset={weekOffset} onOffset={setWeekOffset} onAdd={openNewTask} onEdit={openEditTask}/ >}{plannerMode==="list"&&(visibleTasks.length?<TaskList tasks={visibleTasks} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<CalendarDays size={22}/>} title={search||filter!=="All"?"No tasks match this view":"Your planner is ready"} text={search||filter!=="All"?"Try changing your search or filter.":"Add a task with a deadline, subject and priority to start planning."} action="Add a task" onAction={()=>openNewTask()}/>)}</section>}
         {page==="Academic Calendar"&&<><UpcomingCalendar tasks={tasks}/><AcademicCalendar/></>}
         {page==="Progress"&&<><section className="stats-grid"><Stat label="TOTAL STUDY TIME" value={Math.floor(totalMinutes/60)+"h "+totalMinutes%60+"m"} detail={sessions.length+" sessions logged"} icon={<Clock3 size={17}/>} tone="blue"/><Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={"of "+tasks.length+" total tasks"} icon={<Check size={17}/>} tone="mint"/><Stat label="SUBJECTS" value={String(subjects.length)} detail="In your workspace" icon={<BookOpen size={17}/>} tone="violet"/><Stat label="OVERDUE TASKS" value={String(overdue.length)} detail="Open tasks past their deadline" icon={<AlarmClock size={17}/>} tone="rose"/></section><section className="glass-panel progress-detail"><div className="section-heading"><div><h2>Subject progress</h2><p>Calculated from the tasks you have entered.</p></div><TrendingUp size={21}/></div>{subjects.length?<div className="progress-subject-list">{subjects.map(s=>{const ts=tasks.filter(t=>t.subjectId===s.id);const done=ts.filter(t=>t.done).length;const mins=sessions.filter(l=>l.subjectId===s.id).reduce((n,l)=>n+l.minutes,0);return <div className="progress-subject" key={s.id}><div className="progress-subject-heading"><span className="subject-dot" style={{background:s.color}}/><strong>{s.name}</strong><span>{done}/{ts.length} tasks · {Math.floor(mins/60)}h {mins%60}m</span></div><div className="progress-track"><span style={{width:(ts.length?done/ts.length*100:0)+"%",background:s.color}}/></div></div>})}</div>:<Empty icon={<TrendingUp size={22}/>} title="Progress starts with your data" text="Add subjects and complete tasks to see meaningful progress here." action="Add a subject" onAction={()=>setPage("Subjects")}/>}<div className="progress-total"><strong>{completedTasks.length} of {tasks.length}</strong><span>tasks completed</span><div className="progress-track"><span style={{width:(tasks.length?completedTasks.length/tasks.length*100:0)+"%"}}/></div></div></section><section className="glass-panel session-history"><div className="section-heading"><div><h2>Recent study sessions</h2><p>Sessions you explicitly logged.</p></div><Clock3 size={20}/></div>{sessions.length?<div className="session-list">{sessions.slice(0,12).map(s=><div className="session-row" key={s.id}><div className="session-icon"><Clock3 size={16}/></div><div><strong>{subjectById.get(s.subjectId??-1)?.name??"General study"}</strong><span>{new Date(s.date).toLocaleString()}</span></div><b>{s.minutes} min</b></div>)}</div>:<p className="subtle-note">No study sessions logged yet. Log one from the Overview page.</p>}</section></>}
-        {page==="Settings"&&<section className="settings-stack"><div className="glass-panel settings-card"><div className="section-heading"><div><h2>Appearance</h2><p>Choose the look that works best for you.</p></div><Sun size={20}/></div><div className="setting-row"><div><strong>Colour theme</strong><span>Switch between dark and light glass styles.</span></div><div className="theme-options"><button className={theme==="dark"?"chosen":""} onClick={()=>setTheme("dark")}><Moon size={15}/> Dark</button><button className={theme==="light"?"chosen":""} onClick={()=>setTheme("light")}><Sun size={15}/> Light</button></div></div><div className="setting-row"><div><strong>Weekly study goal</strong><span>Used to calculate your progress indicator.</span></div><label className="goal-input"><input type="number" min="1" max="168" value={goal} onChange={e=>{const n=Math.max(1,Math.min(168,Number(e.target.value)||1));setGoal(n);try{localStorage.setItem("studyspace-weekly-goal",String(n));}catch{/* Goal still works for this session. */}}}/> hours</label></div></div>
+        {page==="Settings"&&<section className="settings-stack"><div className="glass-panel settings-card"><div className="section-heading"><div><h2>Appearance</h2><p>Choose the look that works best for you.</p></div><Sun size={20}/></div><div className="setting-row"><div><strong>Colour theme</strong><span>Switch between dark and light glass styles.</span></div><div className="theme-options"><button className={theme==="dark"?"chosen":""} onClick={()=>setTheme("dark")}><Moon size={15}/> Dark</button><button className={theme==="light"?"chosen":""} onClick={()=>setTheme("light")}><Sun size={15}/> Light</button></div></div><div className="setting-row"><div><strong>Weekly study goal</strong><span>Used to calculate your progress indicator.</span></div><label className="goal-input"><input type="number" min="1" max="168" value={goal} onChange={e=>{const n=Math.max(1,Math.min(168,Number(e.target.value)||1));setGoal(n);try{localStorage.setItem(studentStorageKey("studyspace-weekly-goal"),String(n));}catch{/* Goal still works for this session. */}}}/> hours</label></div></div>
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Backup &amp; restore</h2><p>Keep a copy before changing devices or clearing site data.</p></div><Download size={20}/></div><div className="setting-row"><div><strong>Export backup</strong><span>Downloads your profile, subjects, tasks, study sessions, calendar periods and personal events as a JSON file.</span></div><button className="secondary-button" onClick={()=>void exportData()}><Download size={15}/> Export data</button></div><div className="setting-row"><div><strong>Restore backup</strong><span>Replaces local data with a valid Studyspace backup file.</span></div><label className="secondary-button upload-button"><Upload size={15}/> Choose file<input type="file" accept="application/json,.json" onChange={importData}/></label></div>{importMessage&&<p className="inline-message" role="status">{importMessage}</p>}</div>
+          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Studyspace account</h2><p>Your student account is authenticated by Supabase. Sign out before handing this device to another learner.</p></div><LockKeyhole size={20}/></div><div className="setting-row"><div><strong>Sign out of this device</strong><span>Your study data remains in this student's separate local workspace and will be available after signing in again.</span></div><button className="secondary-button" onClick={()=>void signOutStudent()} disabled={signOutBusy}><LockKeyhole size={15}/>{signOutBusy?"Signing out…":"Sign out"}</button></div></div>
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Privacy &amp; local data</h2><p>Your Studyspace account is secured online. Planner tasks, sessions and calendar records are currently stored in this browser; shared cloud sync for those records is not enabled yet.</p></div><CircleHelp size={20}/></div><div className="privacy-list"><p><Check size={16}/> Subjects, tasks and sessions are stored in this browser on this device.</p><p><Check size={16}/> Each student's browser has its own separate data store.</p><p><Check size={16}/> Your account profile is saved to the Studyspace server after sign-in. Planner activity is currently stored locally in this browser.</p><p><CircleHelp size={16}/> Clearing browser/site data can erase your records. Export backups regularly.</p></div><div className="danger-row"><div><strong>Delete all local data</strong><span>Permanently removes your profile, subjects, tasks, sessions, calendar, personal library files, class-session notes, reminders and test progress on this device.</span></div><button className="danger-button" onClick={()=>void clearAll()}><Trash2 size={15}/> Delete data</button></div></div></section>}
         </>}
         <footer className="page-footer"><span>STUDYSPACE <span className="footer-dot">●</span> BUILT FOR YOUR NEXT STEP</span><span><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":"Signed in · Local planner storage"}</span></footer>
