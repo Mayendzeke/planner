@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, LoaderCircle, Send, ShieldCheck, Trophy } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -74,7 +74,6 @@ export default function AssignedAssessments() {
   },[refresh]);
 
   const active=assignments.find(item=>item.id===activeId);
-  const totalPoints=useMemo(()=>active?.questions.reduce((sum,q)=>sum+Number(q.points||1),0)||0,[active]);
   const setAnswer=(id:string,value:unknown)=>setAnswers(current=>({...current,[id]:value}));
   const begin=(item:Assignment)=>{
     setActiveId(item.id);setAnswers({});setSubmission(null);
