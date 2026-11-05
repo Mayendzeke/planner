@@ -71,8 +71,8 @@ class PlannerDatabase extends Dexie {
   resources!: EntityTable<StudentResource, "id">;
   events!: EntityTable<CalendarEvent, "id">;
 
-  constructor() {
-    super("studyspace-local");
+  constructor(name: string) {
+    super(name);
     this.version(1).stores({ tasks: "id, subject, due, priority, done" });
     this.version(2).stores({
       tasks: "id, subjectId, dueAt, priority, kind, done, createdAt",
@@ -109,4 +109,28 @@ class PlannerDatabase extends Dexie {
   }
 }
 
-export const plannerDb = new PlannerDatabase();
+let activeOwnerId: string | null = null;
+let activeDatabase = new PlannerDatabase("studyspace-local-guest");
+
+// Route all database operations through the current authenticated student's
+// own IndexedDB database. This prevents shared-device accounts from reading
+// one another's offline planner records.
+export const plannerDb = new Proxy({} as PlannerDatabase, {
+  get(_target, property) {
+    const value = Reflect.get(activeDatabase, property, activeDatabase);
+    return typeof value === "function" ? value.bind(activeDatabase) : value;
+  },
+  set(_target, property, value) {
+    return Reflect.set(activeDatabase, property, value, activeDatabase);
+  },
+});
+
+export function setPlannerDbUser(userId: string | null) {
+  const normalized = userId && /^[a-zA-Z0-9_-]{1,128}$/.test(userId) ? userId : null;
+  const nextName = normalized ? "studyspace-local-user-" + normalized : "studyspace-local-guest";
+  if (activeOwnerId === normalized && activeDatabase.name === nextName) return;
+  const previous = activeDatabase;
+  activeOwnerId = normalized;
+  activeDatabase = new PlannerDatabase(nextName);
+  previous.close();
+}
