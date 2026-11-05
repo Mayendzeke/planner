@@ -100,17 +100,19 @@ async function reconcileCollection<T extends LocalCloudRow>(
   entity: CloudSyncEntity,
   table: any,
   remoteRows: CloudRow[],
+  userId: string,
   toCloud: (local: T, subjects: Subject[]) => CloudRow,
   fromCloud: (remote: CloudRow, localId: number, subjects: Subject[]) => T,
   subjects: Subject[],
   matchRemote?: (local: T, rows: CloudRow[]) => CloudRow | undefined,
 ): Promise<{ downloaded: number; uploaded: number }> {
   if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const pause = <T,>(work: () => Promise<T>) => withCloudSyncPaused(work, userId);
   let localRows = (await table.toArray()) as T[];
   const existingIds = localRows.map(row => row.id);
   for (const row of localRows) {
     if (!row.cloudId || !row.localUpdatedAt) {
-      await withCloudSyncPaused(() => table.update(row.id, {
+      await pause(() => table.update(row.id, {
         cloudId: row.cloudId || crypto.randomUUID(),
         localUpdatedAt: row.localUpdatedAt || new Date().toISOString(),
       }));
@@ -126,7 +128,7 @@ async function reconcileCollection<T extends LocalCloudRow>(
   const writeLocal = async (remote: CloudRow, localId: number) => {
     const stamp = String(remote.updated_at || remote.created_at || new Date().toISOString());
     const record = fromCloud(remote, localId, subjects);
-    await withCloudSyncPaused(() => table.put({
+    await pause(() => table.put({
       ...record,
       cloudId: String(remote.id),
       localUpdatedAt: stamp,
@@ -141,7 +143,7 @@ async function reconcileCollection<T extends LocalCloudRow>(
       .upsert(payload, { onConflict: "id" }).select("*").single();
     if (error) throw new Error("Could not upload " + entity + " to Studyspace: " + error.message);
     const stamp = String(data.updated_at || data.created_at || local.localUpdatedAt || new Date().toISOString());
-    await withCloudSyncPaused(() => table.update(local.id, {
+    await pause(() => table.update(local.id, {
       cloudId: String(data.id),
       localUpdatedAt: stamp,
       cloudUpdatedAt: stamp,
@@ -159,7 +161,7 @@ async function reconcileCollection<T extends LocalCloudRow>(
     }
     handledRemote.add(String(remote.id));
     if (local.cloudId !== String(remote.id)) {
-      await withCloudSyncPaused(() => table.update(local.id, {
+      await pause(() => table.update(local.id, {
         cloudId: String(remote.id),
         cloudUpdatedAt: String(remote.updated_at || remote.created_at || ""),
       }));
@@ -182,12 +184,13 @@ async function reconcileCollection<T extends LocalCloudRow>(
 
 async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseForUser>, userId: string, remoteRows: CloudRow[], subjects: Subject[]): Promise<{ downloaded: number; uploaded: number }> {
   if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const pause = <T,>(work: () => Promise<T>) => withCloudSyncPaused(work, userId);
   const table = db.resources;
   let localRows = await table.toArray();
   const localIds = localRows.map(row => row.id);
   for (const row of localRows) {
     if (!row.cloudId || !row.localUpdatedAt) {
-      await withCloudSyncPaused(() => table.update(row.id, {
+      await pause(() => table.update(row.id, {
         cloudId: row.cloudId || crypto.randomUUID(),
         localUpdatedAt: row.localUpdatedAt || new Date().toISOString(),
       }));
@@ -217,7 +220,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         topic: remote.topic || "",
         subjectId: subjects.find(subject => subject.name.toLocaleLowerCase() === String(remote.subject_name || "").toLocaleLowerCase())?.id,
       };
-      await withCloudSyncPaused(() => table.put(resource));
+      await pause(() => table.put(resource));
       downloaded += 1;
     } else {
       const remoteStamp = String(remote.updated_at || remote.created_at);
@@ -228,7 +231,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         if (error) throw new Error("Could not refresh your cloud file " + remote.title + ": " + error.message);
         filePatch = { file: data };
       }
-      await withCloudSyncPaused(() => table.update(existing.id, {
+      await pause(() => table.update(existing.id, {
         ...filePatch,
         name: remote.title,
         mimeType: remote.mime_type,
@@ -272,7 +275,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         }, { onConflict: "id" }).select("*").single();
         if (error) throw new Error("Could not save personal file details: " + error.message);
         const stamp = String(data.updated_at || data.created_at);
-        await withCloudSyncPaused(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
+        await pause(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
         uploaded += 1;
       } else {
         await persistRemote(remote, local.id, local);
@@ -303,7 +306,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
     }, { onConflict: "id" }).select("*").single();
     if (error) throw new Error("Could not save personal file details: " + error.message);
     const stamp = String(data.updated_at || data.created_at);
-    await withCloudSyncPaused(() => table.update(local.id, {
+    await pause(() => table.update(local.id, {
       cloudId,
       cloudUpdatedAt: stamp,
       localUpdatedAt: stamp,
@@ -427,7 +430,7 @@ export async function syncStudentWorkspace(
     const entity = tombstone.entity as CloudSyncEntity;
     if (!entityTables[entity] || !tombstone.cloud_id) continue;
     await removeCloudRecord(entity, String(tombstone.cloud_id), userId);
-    await withCloudSyncPaused(() => entityTables[entity].where("cloudId").equals(String(tombstone.cloud_id)).delete());
+    await withCloudSyncPaused(() => entityTables[entity].where("cloudId").equals(String(tombstone.cloud_id)).delete(), userId);
   }
 
   const [remoteSubjects, remoteTasks, remoteSessions, remotePeriods, remoteEvents, remoteResources, goalResult] = await Promise.all([
@@ -442,7 +445,7 @@ export async function syncStudentWorkspace(
   if (goalResult.error) throw new Error("Could not read your cloud study preferences: " + goalResult.error.message);
 
   const periodResult = await reconcileCollection<AcademicPeriod>(
-    "academicPeriods", db.academicPeriods, remotePeriods,
+    "academicPeriods", db.academicPeriods, remotePeriods, userId,
     (local) => ({
       id: local.cloudId, learner_id: userId,
       period_type: local.kind === "Term" ? "term" : local.kind === "Holiday" ? "holiday" : local.kind === "Examination" ? "exam" : "semester",
@@ -485,7 +488,7 @@ export async function syncStudentWorkspace(
     : [];
 
   const subjectResult = await reconcileCollection<Subject>(
-    "subjects", db.subjects, remoteSubjects,
+    "subjects", db.subjects, remoteSubjects, userId,
     (local) => ({
       id: local.cloudId, learner_id: userId, name: local.name, subject_code: local.code || null,
       category: local.category || "Core", color: local.color || "#8db9ff",
@@ -518,7 +521,7 @@ export async function syncStudentWorkspace(
   };
 
   const taskResult = await reconcileCollection<PlannerTask>(
-    "tasks", db.tasks, remoteTasks,
+    "tasks", db.tasks, remoteTasks, userId,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
       title: local.title, notes: local.notes || "", task_kind: local.kind || "Study",
@@ -543,7 +546,7 @@ export async function syncStudentWorkspace(
   );
 
   const sessionResult = await reconcileCollection<StudySession>(
-    "sessions", db.sessions, remoteSessions,
+    "sessions", db.sessions, remoteSessions, userId,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
       started_at: local.date, duration_minutes: local.minutes, reflection: local.notes || "",
@@ -562,7 +565,7 @@ export async function syncStudentWorkspace(
   );
 
   const eventResult = await reconcileCollection<CalendarEvent>(
-    "events", db.events, remoteEvents,
+    "events", db.events, remoteEvents, userId,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: null,
       title: local.title, event_type: local.kind, starts_at: fromLocalDateTime(local.date + "T" + (local.time || "00:00")),
