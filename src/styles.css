@@ -576,3 +576,10 @@ html{overflow-anchor:none}
 .session-exit-question{margin:12px 0;padding:13px 15px;border:1px solid rgba(107,140,210,.22);border-radius:11px;background:rgba(107,140,210,.08)}
 .session-exit-question strong{font-size:11px;color:var(--ink)}
 .session-exit-question p{margin:5px 0 0;font-size:12px;line-height:1.6;color:var(--muted)}
+
+.session-call-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:12px 0;padding:13px 15px;border:1px solid rgba(110,130,190,.25);border-radius:12px;background:rgba(110,130,190,.08)}
+.session-call-banner>div{display:flex;flex-direction:column;gap:4px}
+.session-call-banner strong{font-size:12px;color:var(--ink)}
+.session-call-banner p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+.session-call-banner a{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:9px 12px;border-radius:9px;background:var(--accent,#756bd5);color:#fff;text-decoration:none;font-size:10px;font-weight:700}
+@media(max-width:600px){.session-call-banner{align-items:flex-start;flex-direction:column}.session-call-banner a{width:100%;justify-content:center}}
