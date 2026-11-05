@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, ClipboardList, MessageCircle, PenLine, Video, Mic, Eraser, Send, Plus, Clock3, Sparkles, Paperclip, Users } from "lucide-react";
 import type { Subject } from "../data/db";
+import { supabase } from "../lib/supabase";
 
 type Tab = "Worksheet" | "Lesson notes" | "Class chat" | "Homework";
-type ChatMessage = { id: number; text: string; sender: "You" | "Teacher"; time: string };
-type Homework = { id: number; title: string; details: string; due: string; done: boolean };
+type ChatMessage = { id: string; text: string; sender: "You" | "Teacher"; time: string };
+type Homework = { id: string; title: string; details: string; due: string; done: boolean };
 const key = "studyspace-current-session-v1";
 
 export default function TodaySession({ subjects }: { subjects: Subject[] }) {
@@ -22,6 +23,9 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [hwDetails, setHwDetails] = useState("");
   const [hwDue, setHwDue] = useState("");
   const [saved, setSaved] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [cloudStatus, setCloudStatus] = useState("Offline workspace");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const [ink, setInk] = useState("#27324a");
@@ -49,6 +53,72 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       }
     } catch { /* Keep an empty session if stored data is invalid. */ }
   }, [subjects]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const loadSharedSession = async () => {
+      const { data: auth } = await supabase!.auth.getUser();
+      if (!auth.user || !alive) return;
+      setUserId(auth.user.id);
+      const { data: memberships, error: memberError } = await supabase!.from("class_session_members").select("session_id").eq("learner_id", auth.user.id);
+      if (memberError || !memberships?.length || !alive) return;
+      const ids = memberships.map(item => item.session_id);
+      const { data: sessions, error: sessionError } = await supabase!.from("class_sessions")
+        .select("id,title,subject_name,objectives,starts_at,status,duration_minutes")
+        .in("id", ids).in("status", ["scheduled","live"]).order("starts_at", { ascending: false }).limit(1);
+      if (sessionError || !sessions?.length || !alive) return;
+      const session = sessions[0];
+      setActiveSessionId(session.id); setLessonTitle(session.title); setSubject(session.subject_name);
+      setObjectives(session.objectives || "");
+      setCloudStatus(session.status === "live" ? "Live class connected" : "Assigned lesson connected");
+      const [messagesResult, notesResult, homeworkResult, boardResult] = await Promise.all([
+        supabase!.from("session_messages").select("id,sender_id,message,created_at").eq("session_id", session.id).order("created_at"),
+        supabase!.from("session_lesson_notes").select("summary,key_points,worked_example,recap_markdown").eq("session_id", session.id).maybeSingle(),
+        supabase!.from("session_homework").select("id,title,instructions,due_at").eq("session_id", session.id).order("created_at"),
+        supabase!.from("session_whiteboards").select("board_state").eq("session_id", session.id).maybeSingle()
+      ]);
+      if (!alive) return;
+      if (messagesResult.data) setChat(messagesResult.data.map(item => ({
+        id: item.id, text: item.message, sender: item.sender_id === auth.user.id ? "You" : "Teacher",
+        time: new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      })));
+      if (notesResult.data) {
+        setLessonSummary(notesResult.data.summary || "");
+        setKeyPoints(Array.isArray(notesResult.data.key_points) ? notesResult.data.key_points.slice(0,5) : []);
+        setNotes(notesResult.data.worked_example || "");
+      }
+      if (homeworkResult.data) setHomework(homeworkResult.data.map(item => ({
+        id: item.id, title: item.title, details: item.instructions || "",
+        due: item.due_at ? item.due_at.slice(0,10) : "", done: false
+      })));
+      const imageData = (boardResult.data?.board_state as { imageData?: string } | null)?.imageData;
+      if (imageData && canvasRef.current) {
+        const image = new Image();
+        image.onload = () => { if (alive && canvasRef.current) canvasRef.current.getContext("2d")?.drawImage(image,0,0,canvasRef.current.width,canvasRef.current.height); };
+        image.src = imageData;
+      }
+      channel = supabase!.channel("studyspace-session-" + session.id)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "session_messages", filter: "session_id=eq." + session.id }, payload => {
+          const row = payload.new as { id:string; sender_id:string; message:string; created_at:string };
+          if (!alive) return;
+          setChat(current => current.some(item => item.id === row.id) ? current : [...current, {
+            id: row.id, text: row.message, sender: row.sender_id === auth.user.id ? "You" : "Teacher",
+            time: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          }]);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "session_whiteboards", filter: "session_id=eq." + session.id }, payload => {
+          const imageData = (payload.new as { board_state?: { imageData?: string } }).board_state?.imageData;
+          if (!alive || !imageData || !canvasRef.current) return;
+          const picture = new Image();
+          picture.onload = () => { if (alive && canvasRef.current) canvasRef.current.getContext("2d")?.drawImage(picture,0,0,canvasRef.current.width,canvasRef.current.height); };
+          picture.src = imageData;
+        }).subscribe();
+    };
+    void loadSharedSession();
+    return () => { alive = false; if (channel && supabase) void supabase.removeChannel(channel); };
+  }, []);
 
   function persist(extra?: Record<string, unknown>) {
     try {
@@ -82,19 +152,40 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     const ctx = canvasRef.current?.getContext("2d"); if (!ctx) return;
     const p = point(event); ctx.lineTo(p.x, p.y); ctx.stroke();
   }
-  function stopDraw() { if (!drawing.current) return; drawing.current = false; persist(); }
+  function stopDraw() {
+    if (!drawing.current) return;
+    drawing.current = false; persist();
+    if (activeSessionId && userId && supabase && canvasRef.current) {
+      const imageData = canvasRef.current.toDataURL("image/jpeg", 0.55);
+      void supabase.from("session_whiteboards").upsert({
+        session_id: activeSessionId, board_state: { version: 1, imageData }, updated_by: userId,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "session_id" });
+    }
+  }
   function clearBoard() {
     const canvas = canvasRef.current; const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); persist(); }
+    if (canvas && ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); persist();
+      if (activeSessionId && userId && supabase) void supabase.from("session_whiteboards").upsert({
+        session_id: activeSessionId, board_state: { version: 1, imageData: canvas.toDataURL("image/jpeg", 0.55) },
+        updated_by: userId, updated_at: new Date().toISOString()
+      }, { onConflict: "session_id" });
+    }
   }
-  function sendMessage(event: React.FormEvent) {
+  async function sendMessage(event: React.FormEvent) {
     event.preventDefault(); const text = message.trim(); if (!text) return;
-    setChat(current => [...current, { id: Date.now(), text, sender: "You", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
+    if (activeSessionId && userId && supabase) {
+      const { error } = await supabase.from("session_messages").insert({ session_id: activeSessionId, sender_id: userId, message: text });
+      if (error) return;
+    } else {
+      setChat(current => [...current, { id: String(Date.now()), text, sender: "You", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
+    }
     setMessage("");
   }
   function addHomework(event: React.FormEvent) {
     event.preventDefault(); if (!hwTitle.trim()) return;
-    setHomework(current => [...current, { id: Date.now(), title: hwTitle.trim(), details: hwDetails.trim(), due: hwDue, done: false }]);
+    setHomework(current => [...current, { id: String(Date.now()), title: hwTitle.trim(), details: hwDetails.trim(), due: hwDue, done: false }]);
     setHwTitle(""); setHwDetails(""); setHwDue("");
   }
   const tabs: { name: Tab; icon: typeof PenLine; hint: string }[] = [
@@ -107,7 +198,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   return <section className="today-session">
     <div className="session-hero glass-panel">
       <div className="session-hero-top"><span className="session-live-dot"/><span>YOUR CLASSROOM</span><span className="session-date">{new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})}</span></div>
-      <div className="session-hero-main"><div><div className="eyebrow"><Sparkles size={14}/> LEARN TOGETHER</div><h2>Today's session</h2><p>A dedicated space for your lesson, practice, questions and follow-up work.</p></div><div className="session-status"><Clock3 size={16}/> Session workspace</div></div>
+      <div className="session-hero-main"><div><div className="eyebrow"><Sparkles size={14}/> LEARN TOGETHER</div><h2>Today's session</h2><p>A dedicated space for your lesson, practice, questions and follow-up work.</p></div><div className="session-status"><Clock3 size={16}/> {cloudStatus}</div></div>
       <div className="session-meta">
         <label>Subject<select value={subject} onChange={e=>setSubject(e.target.value)}><option value="">Choose a subject</option>{subjects.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}</select></label>
         <label>Lesson title<input value={lessonTitle} onChange={e=>setLessonTitle(e.target.value)} maxLength={100}/></label>
@@ -122,7 +213,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     {tab === "Worksheet" && <div className="glass-panel session-workspace">
       <div className="session-section-heading"><div><h3>Interactive worksheet</h3><p>Use the board for calculations, diagrams, sketches and rough work.</p></div><div className="board-tools"><button className={tool==="pen"?"selected":""} onClick={()=>setTool("pen")}><PenLine size={15}/> Pen</button><button className={tool==="eraser"?"selected":""} onClick={()=>setTool("eraser")}><Eraser size={15}/> Eraser</button><input aria-label="Pen colour" type="color" value={ink} onChange={e=>setInk(e.target.value)}/><button onClick={clearBoard}>Clear</button></div></div>
       <div className="worksheet-paper"><canvas ref={canvasRef} width={1200} height={680} onPointerDown={startDraw} onPointerMove={draw} onPointerUp={stopDraw} onPointerCancel={stopDraw} onPointerLeave={stopDraw} aria-label="Drawing worksheet"/></div>
-      <p className="session-footnote">Your working is saved locally in this browser. Shared live drawing will be enabled when Studyspace is connected to its classroom backend.</p>
+      <p className="session-footnote">{activeSessionId ? "Shared class board connected. Drawings sync to your teacher and assigned classmates." : "Your working is saved locally in this browser. Shared drawing appears when your teacher assigns a session."}</p>
     </div>}
 
     {tab === "Lesson notes" && <div className="glass-panel session-workspace">
@@ -140,7 +231,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
 
     {tab === "Class chat" && <div className="glass-panel session-workspace session-chat">
       <div className="session-section-heading"><div><h3>Class chat</h3><p>Questions and discussion attached to this session.</p></div><MessageCircle size={20}/></div>
-      <div className="session-chat-notice"><Users size={16}/><span>This is a local session draft for now. Messages will become shared between teacher and learner after secure sign-in and real-time sync are connected.</span></div>
+      <div className="session-chat-notice"><Users size={16}/><span>{activeSessionId ? "Messages are shared with your teacher and classmates in this assigned session." : "This is a local session draft. Your teacher’s published class session will appear here when you are assigned."}</span></div>
       <div className="session-chat-list">{chat.length ? chat.map(item=><article key={item.id} className="session-chat-message"><div><strong>{item.sender}</strong><time>{item.time}</time></div><p>{item.text}</p></article>) : <div className="session-chat-empty"><MessageCircle size={25}/><strong>Start the conversation</strong><span>Write down a question or a point you want to discuss.</span></div>}</div>
       <form className="session-chat-compose" onSubmit={sendMessage}><input value={message} onChange={e=>setMessage(e.target.value)} maxLength={2000} placeholder="Write a message or ask a question…" aria-label="Message" /><button className="primary-button" type="submit" disabled={!message.trim()}><Send size={16}/> Send</button></form>
     </div>}
