@@ -49,8 +49,10 @@ const downloadJson = (filename: string, value: unknown) => {
 export default function App() {
   const [page, setPage] = useState<Page>("Overview");
   const [cloudAuthReady, setCloudAuthReady] = useState(!supabase);
-  const [cloudAuthenticated, setCloudAuthenticated] = useState(false);
-  const [profile, setProfile] = useState<StudentProfile | null>(() => { try { const raw = localStorage.getItem("studyspace-profile"); return raw ? JSON.parse(raw) as StudentProfile : null; } catch { return null; } });
+  const [cloudUserId, setCloudUserId] = useState<string | null>(null);
+  const cloudAuthenticated = Boolean(cloudUserId);
+  const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
@@ -85,15 +87,35 @@ export default function App() {
     let alive = true;
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
-      setCloudAuthenticated(Boolean(data.session));
+      setCloudUserId(data.session?.user.id ?? null);
       setCloudAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCloudAuthenticated(Boolean(session));
+      setCloudUserId(session?.user.id ?? null);
       setCloudAuthReady(true);
     });
     return () => { alive = false; subscription.unsubscribe(); };
   }, []);
+
+  // Keep each student's profile separate on shared devices. Never reuse the
+  // old unscoped profile that could belong to a different offline user.
+  useEffect(() => {
+    if (!cloudUserId) {
+      setProfile(null);
+      setProfileOwnerId(null);
+      return;
+    }
+    setProfileOwnerId(null);
+    try {
+      const raw = localStorage.getItem("studyspace-profile:" + cloudUserId);
+      setProfile(raw ? JSON.parse(raw) as StudentProfile : null);
+      if (cloudUserId) localStorage.removeItem("studyspace-profile:" + cloudUserId);
+    localStorage.removeItem("studyspace-profile");
+    } catch {
+      setProfile(null);
+    }
+    setProfileOwnerId(cloudUserId);
+  }, [cloudUserId]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -153,7 +175,7 @@ export default function App() {
             if (subjectsError) throw new Error("Your cloud profile was saved, but subjects could not be synced: " + subjectsError.message);
           }
       }
-      localStorage.setItem("studyspace-profile", JSON.stringify(nextProfile));
+      localStorage.setItem("studyspace-profile:" + authState.session.user.id, JSON.stringify(nextProfile));
       setProfile(nextProfile);
       const existing = await plannerDb.subjects.toArray();
       const names = new Set(existing.map(subject => subject.name.toLocaleLowerCase()));
@@ -246,7 +268,14 @@ export default function App() {
         if (academicPeriods.length) await plannerDb.academicPeriods.bulkPut(academicPeriods);
         if (events.length) await plannerDb.events.bulkPut(events);
       });
-      if (raw.profile) { localStorage.setItem("studyspace-profile", JSON.stringify(raw.profile)); setProfile(raw.profile as StudentProfile); }
+      if (raw.profile) {
+        if (!supabase) throw new Error("Studyspace is not connected. Sign in again before restoring a profile.");
+        const { data: sessionState, error: sessionError } = await supabase.auth.getSession();
+        const userId = sessionState.session?.user.id;
+        if (sessionError || !userId) throw new Error("Your secure session has expired. Sign in again before restoring this profile.");
+        localStorage.setItem("studyspace-profile:" + userId, JSON.stringify(raw.profile));
+        setProfile(raw.profile as StudentProfile);
+      }
       if (raw.version >= 4 && raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace)) localStorage.setItem("studyspace-current-session-v1", JSON.stringify(raw.sessionWorkspace)); else localStorage.removeItem("studyspace-current-session-v1");
       setImportMessage("Backup restored successfully."); await refresh();
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
@@ -264,6 +293,7 @@ export default function App() {
   if (!supabase) return <StudentAccess />;
   if (!cloudAuthReady) return <main className="student-access-shell"><section className="student-access-card">Checking secure Studyspace access…</section></main>;
   if (!cloudAuthenticated) return <StudentAccess />;
+  if (profileOwnerId !== cloudUserId) return <main className="student-access-shell"><section className="student-access-card">Loading your secure student profile…</section></main>;
   if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
 
   return <div className="app-shell" data-theme={theme}>
