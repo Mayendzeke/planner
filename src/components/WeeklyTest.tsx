@@ -209,6 +209,18 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [knownCards, setKnownCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"); } catch { return []; } });
   const [reviewCards, setReviewCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"); } catch { return []; } });
   useEffect(() => {
+    const refreshPracticeState = () => {
+      setAttempts(readAttempts());
+      try {
+        setKnownCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"));
+        setReviewCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"));
+      } catch { setKnownCards([]); setReviewCards([]); }
+    };
+    window.addEventListener("studyspace-cloud-practice-updated", refreshPracticeState);
+    return () => window.removeEventListener("studyspace-cloud-practice-updated", refreshPracticeState);
+  }, [subjectId]);
+
+  useEffect(() => {
     try {
       setKnownCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"));
       setReviewCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"));
