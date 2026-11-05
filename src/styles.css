@@ -572,3 +572,7 @@ html{overflow-anchor:none}
 .library-viewer-content:has(.pdf-viewer){padding:0;overflow:hidden}
 .library-viewer-content:has(.pdf-viewer) .pdf-viewer{min-height:0}
 @media(max-width:600px){.pdf-viewer-toolbar{padding:7px}.pdf-viewer-stage{padding:8px}.pdf-page-controls,.pdf-zoom-controls{gap:5px}}
+
+.session-exit-question{margin:12px 0;padding:13px 15px;border:1px solid rgba(107,140,210,.22);border-radius:11px;background:rgba(107,140,210,.08)}
+.session-exit-question strong{font-size:11px;color:var(--ink)}
+.session-exit-question p{margin:5px 0 0;font-size:12px;line-height:1.6;color:var(--muted)}
