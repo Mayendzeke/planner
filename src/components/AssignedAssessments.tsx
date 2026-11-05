@@ -131,7 +131,7 @@ export default function AssignedAssessments() {
       assignments.length?<div className="assigned-assessment-list">{assignments.map(item=><article className="assigned-assessment-card" key={item.id}>
         <div className="assigned-assessment-icon"><BookOpen size={19}/></div>
         <div className="assigned-assessment-copy"><strong>{item.set.title}</strong><span>{item.set.subject_name} · {item.questions.length} questions · {item.set.duration_minutes} min</span><small>{item.due_at?"Due "+new Date(item.due_at).toLocaleDateString():"No due date"}{attempted.includes(item.id)?" · Completed in this session":""}</small></div>
-        <button type="button" className="primary-button" onClick={()=>begin(item)}>Open <ChevronRight size={15}/></button>
+        {item.due_at&&new Date(item.due_at).getTime()<Date.now()?<button type="button" className="secondary-button" disabled>Deadline passed</button>:<button type="button" className="primary-button" onClick={()=>begin(item)}>Open <ChevronRight size={15}/></button>}
       </article>)}</div>:
       <div className="assigned-assessment-empty"><ShieldCheck size={27}/><strong>No assigned assessments</strong><span>When your teacher publishes a test or assignment to your account, it will appear here.</span></div>}
   </section>;
