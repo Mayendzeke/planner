@@ -3,10 +3,13 @@ import Dexie, { type EntityTable } from "dexie";
 export type CloudSyncEntity = "subjects" | "tasks" | "sessions" | "academicPeriods" | "events" | "resources";
 export type CloudTombstone = { entity: CloudSyncEntity; cloudId: string; deletedAt: string };
 let activeOwnerId: string | null = null;
-let cloudSyncPaused = false;
+const cloudSyncPauseCounts = new Map<string, number>();
 const accountDatabases = new Map<string, PlannerDatabase>();
 
 function tombstoneStorageKey(ownerId: string | null = activeOwnerId) { return ownerId ? "studyspace:user-" + ownerId + ":cloud-deletions" : "studyspace:guest:cloud-deletions"; }
+function ownerPauseKey(ownerId: string | null) { return ownerId || "guest"; }
+function isCloudSyncPaused(ownerId: string | null) { return (cloudSyncPauseCounts.get(ownerPauseKey(ownerId)) || 0) > 0; }
+
 function recordTombstone(entity: CloudSyncEntity, cloudId: string, ownerId: string | null) {
   try {
     const key = tombstoneStorageKey(ownerId);
@@ -33,9 +36,15 @@ export function clearCloudTombstones(completed: CloudTombstone[], ownerId: strin
   } catch { /* Retain pending deletions for the next sync attempt. */ }
 }
 
-export async function withCloudSyncPaused<T>(work: () => Promise<T>): Promise<T> {
-  cloudSyncPaused = true;
-  try { return await work(); } finally { cloudSyncPaused = false; }
+export async function withCloudSyncPaused<T>(work: () => Promise<T>, ownerId: string | null = activeOwnerId): Promise<T> {
+  const key = ownerPauseKey(ownerId);
+  cloudSyncPauseCounts.set(key, (cloudSyncPauseCounts.get(key) || 0) + 1);
+  try { return await work(); }
+  finally {
+    const remaining = (cloudSyncPauseCounts.get(key) || 1) - 1;
+    if (remaining > 0) cloudSyncPauseCounts.set(key, remaining);
+    else cloudSyncPauseCounts.delete(key);
+  }
 }
 
 export type Subject = {
@@ -176,17 +185,17 @@ class PlannerDatabase extends Dexie {
     for (const entity of entities) {
       const table = this.table(entity) as any;
       table.hook("creating").subscribe((_key: unknown, obj: Record<string, unknown>) => {
-        if (cloudSyncPaused) return;
+        if (isCloudSyncPaused(this.ownerId)) return;
         obj.cloudId = typeof obj.cloudId === "string" ? obj.cloudId : crypto.randomUUID();
         obj.localUpdatedAt = new Date().toISOString();
       });
       table.hook("updating").subscribe((changes: Record<string, unknown>, _key: unknown, obj: Record<string, unknown>) => {
-        if (cloudSyncPaused) return;
+        if (isCloudSyncPaused(this.ownerId)) return;
         changes.cloudId = typeof obj.cloudId === "string" ? obj.cloudId : crypto.randomUUID();
         changes.localUpdatedAt = new Date().toISOString();
       });
       table.hook("deleting").subscribe((_key: unknown, obj: Record<string, unknown>) => {
-        if (cloudSyncPaused || typeof obj.cloudId !== "string") return;
+        if (isCloudSyncPaused(this.ownerId) || typeof obj.cloudId !== "string") return;
         recordTombstone(entity, obj.cloudId, this.ownerId);
       });
     }
