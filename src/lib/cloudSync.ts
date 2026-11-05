@@ -405,7 +405,7 @@ export async function syncStudentWorkspace(
   const completedDeletes: typeof deletionQueue = [];
   let deleted = 0;
   for (const item of deletionQueue) {
-    const { error: ledgerError } = await supabase.from("student_sync_deletions").insert({
+    const { error: ledgerError } = await supabase.from("student_sync_deletions").upsert({
       learner_id: userId, entity: item.entity, cloud_id: item.cloudId,
     }, { onConflict: "learner_id,entity,cloud_id", ignoreDuplicates: true });
     if (ledgerError) throw new Error("Could not record an offline deletion for other devices: " + ledgerError.message);
