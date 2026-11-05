@@ -109,8 +109,7 @@ export default function App() {
     try {
       const raw = localStorage.getItem("studyspace-profile:" + cloudUserId);
       setProfile(raw ? JSON.parse(raw) as StudentProfile : null);
-      if (cloudUserId) localStorage.removeItem("studyspace-profile:" + cloudUserId);
-    localStorage.removeItem("studyspace-profile");
+      localStorage.removeItem("studyspace-profile");
     } catch {
       setProfile(null);
     }
@@ -284,6 +283,7 @@ export default function App() {
   async function clearAll() {
     if (!window.confirm("This permanently deletes your profile, subjects, tasks, study sessions, academic calendar and personal library files stored on this device. Export a backup first if you need it.")) return;
     await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
+    if (cloudUserId) localStorage.removeItem("studyspace-profile:" + cloudUserId);
     localStorage.removeItem("studyspace-profile");
     localStorage.removeItem("studyspace-current-session-v1");
     setProfile(null);
