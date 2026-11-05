@@ -2,6 +2,28 @@ import { useState } from "react";
 import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
+
+async function describeAccessError(reason: unknown): Promise<string> {
+  const context = reason && typeof reason === "object" && "context" in reason
+    ? (reason as { context?: unknown }).context
+    : undefined;
+  if (context instanceof Response) {
+    const status = context.status;
+    try {
+      const payload = await context.clone().json() as { error?: unknown; message?: unknown; msg?: unknown };
+      const detail = [payload.error, payload.message, payload.msg].find(value => typeof value === "string") as string | undefined;
+      if (detail) return detail + " (HTTP " + status + ")";
+    } catch {
+      try {
+        const detail = (await context.clone().text()).trim().slice(0, 240);
+        if (detail) return detail + " (HTTP " + status + ")";
+      } catch { /* Keep the status below. */ }
+    }
+    return "The Studyspace server rejected the request (HTTP " + status + ").";
+  }
+  return reason instanceof Error ? reason.message : "Studyspace could not complete that request. Try again.";
+}
+
 export default function StudentAccess({ onContinueOffline }: { onContinueOffline: () => void }) {
   const [mode, setMode] = useState<"signin" | "enrol">("signin");
   const [studentId, setStudentId] = useState("");
@@ -46,7 +68,7 @@ export default function StudentAccess({ onContinueOffline }: { onContinueOffline
         onContinueOffline();
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Studyspace could not complete that request. Try again.");
+      setError(await describeAccessError(reason));
     } finally { setBusy(false); }
   }
 
