@@ -76,11 +76,11 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [signOutBusy, setSignOutBusy] = useState(false);
-  // Prevent mobile browsers from restoring a stale scroll offset above the dashboard.
+  // The fixed app shell owns its scroll position. Reset only that surface when
+  // changing tabs; do not alter document scroll restoration or window scroll.
   useLayoutEffect(() => {
-    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
-    window.scrollTo(0, 0);
-    document.querySelector<HTMLElement>(".main-area")?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    const main = document.querySelector<HTMLElement>(".app-shell > .main-area");
+    if (main) main.scrollTop = 0;
   }, [page]);
 
 
