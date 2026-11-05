@@ -8,3 +8,5 @@ export function studentStorageKey(key: string): string {
   const owner = activeStudentId ? "user-" + activeStudentId : "guest";
   return "studyspace:" + owner + ":" + key;
 }
+
+export function getStudentStorageOwner(): string | null { return activeStudentId; }
