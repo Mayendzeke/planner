@@ -100,7 +100,6 @@ async function reconcileCollection<T extends LocalCloudRow>(
   entity: CloudSyncEntity,
   table: any,
   remoteRows: CloudRow[],
-  userId: string,
   toCloud: (local: T, subjects: Subject[]) => CloudRow,
   fromCloud: (remote: CloudRow, localId: number, subjects: Subject[]) => T,
   subjects: Subject[],
@@ -120,7 +119,6 @@ async function reconcileCollection<T extends LocalCloudRow>(
   localRows = (await table.toArray()) as T[];
 
   const remoteById = new Map(remoteRows.map(row => [String(row.id), row]));
-  const localByCloudId = new Map(localRows.filter(row => row.cloudId).map(row => [String(row.cloudId), row]));
   const handledRemote = new Set<string>();
   let downloaded = 0;
   let uploaded = 0;
@@ -137,7 +135,7 @@ async function reconcileCollection<T extends LocalCloudRow>(
     downloaded += 1;
   };
 
-  const pushLocal = async (local: T, remote?: CloudRow) => {
+  const pushLocal = async (local: T) => {
     const payload = toCloud(local, subjects);
     const { data, error } = await supabase!.from(remoteTableFor[entity])
       .upsert(payload, { onConflict: "id" }).select("*").single();
@@ -167,7 +165,7 @@ async function reconcileCollection<T extends LocalCloudRow>(
       }));
     }
     if (timestamp(local.localUpdatedAt) > timestamp(remote.updated_at)) {
-      await pushLocal({ ...local, cloudId: String(remote.id) }, remote);
+      await pushLocal({ ...local, cloudId: String(remote.id) });
     } else {
       await writeLocal(remote, local.id);
     }
@@ -346,7 +344,7 @@ export async function syncStudentWorkspace(
   if (goalResult.error) throw new Error("Could not read your cloud study preferences: " + goalResult.error.message);
 
   const subjectResult = await reconcileCollection<Subject>(
-    "subjects", plannerDb.subjects, remoteSubjects, userId,
+    "subjects", plannerDb.subjects, remoteSubjects,
     (local) => ({
       id: local.cloudId, learner_id: userId, name: local.name, subject_code: local.code || null,
       category: local.category || "Core", color: local.color || "#8db9ff",
@@ -379,7 +377,7 @@ export async function syncStudentWorkspace(
   };
 
   const taskResult = await reconcileCollection<PlannerTask>(
-    "tasks", plannerDb.tasks, remoteTasks, userId,
+    "tasks", plannerDb.tasks, remoteTasks,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
       title: local.title, notes: local.notes || "", task_kind: local.kind || "Study",
@@ -398,7 +396,7 @@ export async function syncStudentWorkspace(
   );
 
   const sessionResult = await reconcileCollection<StudySession>(
-    "sessions", plannerDb.sessions, remoteSessions, userId,
+    "sessions", plannerDb.sessions, remoteSessions,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
       started_at: local.date, duration_minutes: local.minutes, reflection: local.notes || "",
@@ -412,7 +410,7 @@ export async function syncStudentWorkspace(
   );
 
   const periodResult = await reconcileCollection<AcademicPeriod>(
-    "academicPeriods", plannerDb.academicPeriods, remotePeriods, userId,
+    "academicPeriods", plannerDb.academicPeriods, remotePeriods,
     (local) => ({
       id: local.cloudId, learner_id: userId,
       period_type: local.kind === "Term" ? "term" : local.kind === "Holiday" ? "holiday" : local.kind === "Examination" ? "exam" : "semester",
@@ -430,7 +428,7 @@ export async function syncStudentWorkspace(
   );
 
   const eventResult = await reconcileCollection<CalendarEvent>(
-    "events", plannerDb.events, remoteEvents, userId,
+    "events", plannerDb.events, remoteEvents,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: null,
       title: local.title, event_type: local.kind, starts_at: fromLocalDateTime(local.date + "T" + (local.time || "00:00")),
