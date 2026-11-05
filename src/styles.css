@@ -396,8 +396,7 @@ html{overflow-anchor:none}
   right:0;
   bottom:0;
   left:284px;
-  height:100vh;
-  height:100dvh;
+  height:auto;
   min-height:0;
   margin:0;
   overflow-x:hidden;
@@ -621,8 +620,7 @@ html{overflow-anchor:none}
 }
 @media (max-width: 760px) {
   .app-shell > .main-area {
-    height: 100dvh;
-    height: 100svh;
+    height: auto;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     overscroll-behavior-y: contain;
   }
@@ -696,4 +694,25 @@ html{overflow-anchor:none}
   .assigned-question-options { grid-template-columns:1fr; }
   .assigned-matching-list label { grid-template-columns:1fr; }
   .assigned-submit-row .primary-button { width:100%; }
+}
+
+
+/* Fully opaque account settings: the previous glass layer retained alpha even
+   after backdrop blur was removed, which allowed dashboard colours to bleed
+   through on Android browsers. */
+:root[data-theme="dark"] .app-shell .settings-stack > .settings-card {
+  background: #121e33 !important;
+  background-color: #121e33 !important;
+}
+:root[data-theme="light"] .app-shell .settings-stack > .settings-card {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+.app-shell .settings-stack > .settings-card::before {
+  display: none !important;
+  content: none !important;
+}
+.app-shell .settings-stack > .settings-card > * {
+  position: relative;
+  z-index: 1;
 }
