@@ -73,11 +73,12 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       setActiveSessionId(session.id); setLessonTitle(session.title); setSubject(session.subject_name);
       setObjectives(session.objectives || "");
       setCloudStatus(session.status === "live" ? "Live class connected" : "Assigned lesson connected");
-      const [messagesResult, notesResult, homeworkResult, boardResult] = await Promise.all([
+      const [messagesResult, notesResult, homeworkResult, boardResult, submissionsResult] = await Promise.all([
         supabase!.from("session_messages").select("id,sender_id,message,created_at").eq("session_id", session.id).order("created_at"),
         supabase!.from("session_lesson_notes").select("summary,key_points,worked_example,recap_markdown").eq("session_id", session.id).maybeSingle(),
         supabase!.from("session_homework").select("id,title,instructions,due_at").eq("session_id", session.id).order("created_at"),
-        supabase!.from("session_whiteboards").select("board_state").eq("session_id", session.id).maybeSingle()
+        supabase!.from("session_whiteboards").select("board_state").eq("session_id", session.id).maybeSingle(),
+        supabase!.from("session_homework_submissions").select("homework_id,completed_at").eq("learner_id", auth.user.id)
       ]);
       if (!alive) return;
       if (messagesResult.data) setChat(messagesResult.data.map(item => ({
@@ -89,9 +90,10 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         setKeyPoints(Array.isArray(notesResult.data.key_points) ? notesResult.data.key_points.slice(0,5) : []);
         setNotes(notesResult.data.worked_example || "");
       }
+      const completedIds = new Set((submissionsResult.data || []).filter(item => item.completed_at).map(item => item.homework_id));
       if (homeworkResult.data) setHomework(homeworkResult.data.map(item => ({
         id: item.id, title: item.title, details: item.instructions || "",
-        due: item.due_at ? item.due_at.slice(0,10) : "", done: false
+        due: item.due_at ? item.due_at.slice(0,10) : "", done: completedIds.has(item.id)
       })));
       const imageData = (boardResult.data?.board_state as { imageData?: string } | null)?.imageData;
       if (imageData && canvasRef.current) {
@@ -239,7 +241,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     {tab === "Homework" && <div className="glass-panel session-workspace">
       <div className="session-section-heading"><div><h3>Homework &amp; follow-up</h3><p>Keep assignments, due dates and teacher guidance in one place.</p></div><ClipboardList size={20}/></div>
       <form className="session-homework-form" onSubmit={addHomework}><label className="session-field">Homework title<input value={hwTitle} onChange={e=>setHwTitle(e.target.value)} required maxLength={140} placeholder="e.g. Complete questions 1–8"/></label><label className="session-field">Instructions<textarea value={hwDetails} onChange={e=>setHwDetails(e.target.value)} rows={3} placeholder="Add steps, pages, resources or guidance…"/></label><label className="session-field">Due date<input type="date" value={hwDue} onChange={e=>setHwDue(e.target.value)}/></label><button className="primary-button" type="submit"><Plus size={16}/> Add homework</button></form>
-      <div className="session-homework-list">{homework.length ? homework.map(item=><article key={item.id} className={item.done?"homework-done":""}><label><input type="checkbox" checked={item.done} onChange={e=>setHomework(current=>current.map(h=>h.id===item.id?{...h,done:e.target.checked}:h))}/><span><strong>{item.title}</strong><small>{item.due ? "Due "+new Date(item.due+"T00:00:00").toLocaleDateString() : "No due date"}</small>{item.details&&<p>{item.details}</p>}</span></label><button className="text-button" onClick={()=>setHomework(current=>current.filter(h=>h.id!==item.id))}>Remove</button></article>) : <div className="session-chat-empty"><ClipboardList size={25}/><strong>No homework added yet</strong><span>Follow-up tasks from this lesson will appear here.</span></div>}</div>
+      <div className="session-homework-list">{homework.length ? homework.map(item=><article key={item.id} className={item.done?"homework-done":""}><label><input type="checkbox" checked={item.done} onChange={e=>{const done=e.target.checked;setHomework(current=>current.map(h=>h.id===item.id?{...h,done}:h));if(activeSessionId&&userId&&supabase){void supabase.from("session_homework_submissions").upsert({homework_id:item.id,learner_id:userId,completed_at:done?new Date().toISOString():null},{onConflict:"homework_id,learner_id"});}}}/><span><strong>{item.title}</strong><small>{item.due ? "Due "+new Date(item.due+"T00:00:00").toLocaleDateString() : "No due date"}</small>{item.details&&<p>{item.details}</p>}</span></label><button className="text-button" onClick={()=>setHomework(current=>current.filter(h=>h.id!==item.id))}>Remove</button></article>) : <div className="session-chat-empty"><ClipboardList size={25}/><strong>No homework added yet</strong><span>Follow-up tasks from this lesson will appear here.</span></div>}</div>
     </div>}
 
     <div className="session-tools-row"><div><span className="eyebrow">CLASSROOM TOOLS</span><strong>More ways to learn together</strong><p>These tools are prepared for the connected classroom phase.</p></div><div className="session-tool-cards"><div><Video size={18}/><span><strong>Video classroom</strong><small>Connect a live video provider</small></span><em>Backend phase</em></div><div><Mic size={18}/><span><strong>Audio room</strong><small>Voice discussion and help</small></span><em>Backend phase</em></div><div><Paperclip size={18}/><span><strong>Shared resources</strong><small>Lesson files and guided activities</small></span><em>Backend phase</em></div></div></div>
