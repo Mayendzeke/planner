@@ -593,24 +593,73 @@ export async function syncStudentWorkspace(
 
   const remoteGoal = goalResult.data as CloudRow | null;
   const localGoalKey = studentStorageKeyForUser(userId,"studyspace-weekly-goal");
+  const localGoalEditedKey = studentStorageKeyForUser(userId,"studyspace-weekly-goal-updated-at");
+  const reminderKey = studentStorageKeyForUser(userId,"studyspace-study-reminders");
+  const reminderEditedKey = studentStorageKeyForUser(userId,"studyspace-study-reminders-updated-at");
+  const baselineKey = studentStorageKeyForUser(userId,"studyspace-cloud-preferences-baseline");
+
+  let baseline: { weeklyHours: number; reminderSettings: CloudRow; syncedAt: string } | null = null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(baselineKey) || "null");
+    if (parsed && Number.isFinite(Number(parsed.weeklyHours)) && parsed.reminderSettings && typeof parsed.reminderSettings === "object" && typeof parsed.syncedAt === "string") {
+      baseline = parsed;
+    }
+  } catch { baseline = null; }
+
   const hasLocalGoal = localStorage.getItem(localGoalKey) !== null;
-  let resolvedWeeklyHours = weeklyHours;
-  if (!hasLocalGoal && remoteGoal && Number.isFinite(Number(remoteGoal.weekly_hours))) {
-    resolvedWeeklyHours = Math.max(1, Math.min(168, Number(remoteGoal.weekly_hours)));
+  const localGoalValue = hasLocalGoal ? Number(localStorage.getItem(localGoalKey)) : NaN;
+  const localGoalEditedAt = timestamp(localStorage.getItem(localGoalEditedKey));
+  const remoteWeeklyHours = remoteGoal && Number.isFinite(Number(remoteGoal.weekly_hours))
+    ? Math.max(1, Math.min(168, Number(remoteGoal.weekly_hours)))
+    : null;
+  let resolvedWeeklyHours = Number.isFinite(localGoalValue) && localGoalValue >= 1 && localGoalValue <= 168 ? localGoalValue : weeklyHours;
+  let localGoalWins = !remoteGoal || remoteWeeklyHours === null;
+
+  if (remoteWeeklyHours !== null) {
+    if (!baseline) {
+      // First sync migrates this device's existing setting to the cloud.
+      localGoalWins = hasLocalGoal && Number.isFinite(localGoalValue) && localGoalValue >= 1 && localGoalValue <= 168;
+      if (!localGoalWins) resolvedWeeklyHours = remoteWeeklyHours;
+    } else {
+      const localChanged = hasLocalGoal && resolvedWeeklyHours !== baseline.weeklyHours;
+      const cloudChanged = remoteWeeklyHours !== baseline.weeklyHours;
+      if (localChanged && cloudChanged) localGoalWins = localGoalEditedAt > timestamp(remoteGoal?.updated_at) && localGoalEditedAt > timestamp(baseline.syncedAt);
+      else localGoalWins = localChanged;
+      if (!localGoalWins) resolvedWeeklyHours = remoteWeeklyHours;
+    }
+  }
+  if (!localStorage.getItem(localGoalKey) || resolvedWeeklyHours !== localGoalValue) {
     localStorage.setItem(localGoalKey, String(resolvedWeeklyHours));
+    if (!localGoalWins && remoteGoal?.updated_at) localStorage.setItem(localGoalEditedKey, String(remoteGoal.updated_at));
   }
 
-  const reminderKey = studentStorageKeyForUser(userId,"studyspace-study-reminders");
   const hasLocalReminders = localStorage.getItem(reminderKey) !== null;
-  let reminderSettings: CloudRow = { enabled: false, time: "16:00", days: profile.preferredDays || [] };
-  if (!hasLocalReminders && remoteGoal?.reminder_settings && typeof remoteGoal.reminder_settings === "object") {
-    reminderSettings = remoteGoal.reminder_settings;
+  let localReminderSettings: CloudRow = { enabled: false, time: "16:00", days: profile.preferredDays || [] };
+  try {
+    const parsed = JSON.parse(localStorage.getItem(reminderKey) || "null");
+    if (parsed && typeof parsed === "object") localReminderSettings = parsed;
+  } catch { /* Use defaults if local preferences are malformed. */ }
+  const remoteReminderSettings = remoteGoal?.reminder_settings && typeof remoteGoal.reminder_settings === "object"
+    ? remoteGoal.reminder_settings as CloudRow
+    : null;
+  const localReminderEditedAt = timestamp(localStorage.getItem(reminderEditedKey));
+  let reminderSettings: CloudRow = localReminderSettings;
+  let localReminderWins = !remoteGoal || !remoteReminderSettings;
+  if (remoteReminderSettings) {
+    if (!baseline) {
+      localReminderWins = hasLocalReminders;
+      if (!localReminderWins) reminderSettings = remoteReminderSettings;
+    } else {
+      const localChanged = hasLocalReminders && JSON.stringify(localReminderSettings) !== JSON.stringify(baseline.reminderSettings);
+      const cloudChanged = JSON.stringify(remoteReminderSettings) !== JSON.stringify(baseline.reminderSettings);
+      if (localChanged && cloudChanged) localReminderWins = localReminderEditedAt > timestamp(remoteGoal?.updated_at) && localReminderEditedAt > timestamp(baseline.syncedAt);
+      else localReminderWins = localChanged;
+      if (!localReminderWins) reminderSettings = remoteReminderSettings;
+    }
+  }
+  if (!hasLocalReminders || JSON.stringify(localReminderSettings) !== JSON.stringify(reminderSettings)) {
     localStorage.setItem(reminderKey, JSON.stringify(reminderSettings));
-  } else {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(reminderKey) || "null");
-      if (parsed && typeof parsed === "object") reminderSettings = parsed;
-    } catch { /* Use the profile defaults. */ }
+    if (!localReminderWins && remoteGoal?.updated_at) localStorage.setItem(reminderEditedKey, String(remoteGoal.updated_at));
   }
 
   const preferredDays = profile.preferredDays || (Array.isArray(remoteGoal?.preferred_days) ? remoteGoal!.preferred_days : []);
@@ -623,21 +672,32 @@ export async function syncStudentWorkspace(
     reminder_settings: reminderSettings,
     updated_at: remoteGoal?.updated_at || new Date().toISOString(),
   };
-  const localGoalChanged = hasLocalGoal && Number(remoteGoal?.weekly_hours || 0) !== Number(resolvedWeeklyHours);
-  const localReminderChanged = hasLocalReminders && JSON.stringify(remoteGoal?.reminder_settings || {}) !== JSON.stringify(reminderSettings);
+  const localGoalChanged = localGoalWins && hasLocalGoal && remoteWeeklyHours !== Number(resolvedWeeklyHours);
+  const localReminderChanged = localReminderWins && hasLocalReminders && JSON.stringify(remoteReminderSettings || {}) !== JSON.stringify(reminderSettings);
   const needsGoalWrite = !remoteGoal
     || localGoalChanged
     || localReminderChanged
     || String(remoteGoal.goal_text || "") !== goalPayload.goal_text
     || Number(remoteGoal.target_mark || 0) !== Number(goalPayload.target_mark || 0)
     || JSON.stringify(remoteGoal.preferred_days || []) !== JSON.stringify(preferredDays);
+  let cloudGoalAfter = remoteGoal;
   if (needsGoalWrite) {
-    const { error } = await supabase.from("student_goals").upsert(goalPayload, { onConflict: "learner_id" });
+    const { data, error } = await supabase.from("student_goals").upsert(goalPayload, { onConflict: "learner_id" }).select("*").single();
     if (error) throw new Error("Could not sync your study goals: " + error.message);
+    cloudGoalAfter = data as CloudRow;
   }
+  const syncedAt = new Date().toISOString();
+  localStorage.setItem(baselineKey, JSON.stringify({
+    weeklyHours: resolvedWeeklyHours,
+    reminderSettings,
+    syncedAt,
+  }));
+  if (localGoalWins && !localStorage.getItem(localGoalEditedKey)) localStorage.setItem(localGoalEditedKey, syncedAt);
+  if (localReminderWins && !localStorage.getItem(reminderEditedKey)) localStorage.setItem(reminderEditedKey, syncedAt);
+
 
   return {
-    syncedAt: new Date().toISOString(),
+    syncedAt,
     weeklyHours: resolvedWeeklyHours,
     downloaded: subjectResult.downloaded + taskResult.downloaded + sessionResult.downloaded + periodResult.downloaded + eventResult.downloaded + resourceResult.downloaded + practiceResult.downloaded,
     uploaded: subjectResult.uploaded + taskResult.uploaded + sessionResult.uploaded + periodResult.uploaded + eventResult.uploaded + resourceResult.uploaded + practiceResult.uploaded,
