@@ -277,7 +277,7 @@ export default function App() {
       }
     };
     void runSync();
-    const interval = window.setInterval(() => void runSync(), 20000);
+    const interval = window.setInterval(() => void runSync(), 60000);
     const onOnline = () => void runSync();
     const onVisibility = () => { if (document.visibilityState === "visible") void runSync(); };
     window.addEventListener("online", onOnline);
