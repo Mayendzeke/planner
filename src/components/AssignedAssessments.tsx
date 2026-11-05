@@ -7,7 +7,6 @@ type Question = {
   question_type: string;
   prompt: string;
   points: number;
-  explanation: string;
   content: { options?: string[]; pairs?: { left: string; right: string }[]; topic?: string; difficulty?: string };
 };
 type Assignment = {
@@ -17,7 +16,7 @@ type Assignment = {
   set: { id: string; title: string; subject_name: string; instructions: string; duration_minutes: number; grade: string; curriculum: string };
   questions: Question[];
 };
-type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; results: Record<string,{correct:boolean|null;points:number;awarded:number}> };
+type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string}> };
 
 export default function AssignedAssessments() {
   const [assignments,setAssignments] = useState<Assignment[]>([]);
@@ -45,7 +44,7 @@ export default function AssignedAssessments() {
       const ids=[...new Set(rows.map(row=>row.exercise_set_id))];
       const [{data:sets,error:setError},{data:questions,error:questionError}]=await Promise.all([
         supabase.from("exercise_sets").select("id,title,subject_name,instructions,duration_minutes,grade,curriculum").in("id",ids).eq("is_published",true),
-        supabase.from("exercise_questions").select("id,exercise_set_id,position,question_type,prompt,points,explanation,content").in("exercise_set_id",ids).order("position"),
+        supabase.from("exercise_questions").select("id,exercise_set_id,position,question_type,prompt,points,content").in("exercise_set_id",ids).order("position"),
       ]);
       if(setError) throw setError;
       if(questionError) throw questionError;
@@ -122,7 +121,7 @@ export default function AssignedAssessments() {
               {result?.correct===true?<CheckCircle2 size={15}/>:result?.correct===false?<AlertCircle size={15}/>:<Clock3 size={15}/>}
               <span>{result?.correct===true?"Correct · "+result.awarded+"/"+result.points+" marks":result?.correct===false?"Not correct · 0/"+result.points+" marks":"Sent to your teacher for review"}</span>
             </div>}
-            {submission&&question.explanation&&<p className="assigned-explanation">{question.explanation}</p>}
+            {submission&&result?.explanation&&<p className="assigned-explanation">{result.explanation}</p>}
           </article>;
         })}
         {submission?<div className="assigned-submission-result"><Trophy size={24}/><div><strong>{submission.score} / {submission.totalPoints} marks · {submission.percentage}%</strong><span>{submission.manualReview?submission.manualReview+" written response(s) require teacher marking.":"Your result has been saved to Studyspace."}</span></div><button type="button" className="secondary-button" onClick={back}>Close</button></div>:
