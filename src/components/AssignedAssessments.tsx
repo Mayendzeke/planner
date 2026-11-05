@@ -17,6 +17,7 @@ type Assignment = {
   questions: Question[];
 };
 type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string}> };
+type StoredAttempt = { score:number; total_points:number; submitted_at:string; marked_at:string|null; teacher_feedback:string };
 
 export default function AssignedAssessments() {
   const [assignments,setAssignments] = useState<Assignment[]>([]);
@@ -26,7 +27,7 @@ export default function AssignedAssessments() {
   const [answers,setAnswers] = useState<Record<string,unknown>>({});
   const [busy,setBusy] = useState(false);
   const [submission,setSubmission] = useState<Submission|null>(null);
-  const [attempted,setAttempted] = useState<string[]>([]);
+  const [attemptsByAssignment,setAttemptsByAssignment] = useState<Record<string,StoredAttempt>>({});
 
   const refresh = useCallback(async () => {
     if(!supabase){setError("Studyspace cloud access is not configured.");setLoading(false);return;}
@@ -40,14 +41,20 @@ export default function AssignedAssessments() {
         .order("available_at",{ascending:true});
       if(assignmentError) throw assignmentError;
       const rows=assigned||[];
-      if(!rows.length){setAssignments([]);setLoading(false);return;}
+      if(!rows.length){setAssignments([]);setAttemptsByAssignment({});setLoading(false);return;}
       const ids=[...new Set(rows.map(row=>row.exercise_set_id))];
-      const [{data:sets,error:setError},{data:questions,error:questionError}]=await Promise.all([
+      const [{data:sets,error:setError},{data:questions,error:questionError},{data:attemptRows,error:attemptError}]=await Promise.all([
         supabase.from("exercise_sets").select("id,title,subject_name,instructions,duration_minutes,grade,curriculum").in("id",ids).eq("is_published",true),
         supabase.from("exercise_questions").select("id,exercise_set_id,position,question_type,prompt,points,content").in("exercise_set_id",ids).order("position"),
+        supabase.from("exercise_attempts").select("assignment_id,score,total_points,submitted_at,marked_at,teacher_feedback")
+          .eq("learner_id",authState.user.id).in("assignment_id",rows.map(row=>row.id)).order("submitted_at",{ascending:false}),
       ]);
       if(setError) throw setError;
       if(questionError) throw questionError;
+      if(attemptError) throw attemptError;
+      const latestAttempts:Record<string,StoredAttempt>={};
+      for(const attempt of attemptRows||[]) if(!latestAttempts[attempt.assignment_id]) latestAttempts[attempt.assignment_id]=attempt as StoredAttempt;
+      setAttemptsByAssignment(latestAttempts);
       const setMap=new Map((sets||[]).map(set=>[set.id,set]));
       const next:Assignment[]=[];
       for(const row of rows){
@@ -88,7 +95,10 @@ export default function AssignedAssessments() {
       if(invokeError) throw invokeError;
       if(!data?.success) throw new Error(data?.error||"Your answers could not be submitted.");
       setSubmission({score:Number(data.score||0),totalPoints:Number(data.totalPoints||0),percentage:Number(data.percentage||0),manualReview:Number(data.manualReview||0),results:data.results||{}});
-      setAttempted(current=>current.includes(active.id)?current:[...current,active.id]);
+      setAttemptsByAssignment(current=>({...current,[active.id]:{
+        score:Number(data.score||0),total_points:Number(data.totalPoints||0),
+        submitted_at:String(data.submittedAt||new Date().toISOString()),marked_at:null,teacher_feedback:""
+      }}));
     }catch(reason){setError(reason instanceof Error?reason.message:"Your answers could not be submitted. Try again.");}
     finally{setBusy(false);}
   };
@@ -129,7 +139,7 @@ export default function AssignedAssessments() {
       </div>:
       assignments.length?<div className="assigned-assessment-list">{assignments.map(item=><article className="assigned-assessment-card" key={item.id}>
         <div className="assigned-assessment-icon"><BookOpen size={19}/></div>
-        <div className="assigned-assessment-copy"><strong>{item.set.title}</strong><span>{item.set.subject_name} · {item.questions.length} questions · {item.set.duration_minutes} min</span><small>{item.due_at?"Due "+new Date(item.due_at).toLocaleDateString():"No due date"}{attempted.includes(item.id)?" · Completed in this session":""}</small></div>
+        <div className="assigned-assessment-copy"><strong>{item.set.title}</strong><span>{item.set.subject_name} · {item.questions.length} questions · {item.set.duration_minutes} min</span><small>{item.due_at?"Due "+new Date(item.due_at).toLocaleDateString():"No due date"}</small>{attemptsByAssignment[item.id]&&<small>Last submitted: {Number(attemptsByAssignment[item.id].score)} / {Number(attemptsByAssignment[item.id].total_points)} · {attemptsByAssignment[item.id].marked_at?"Teacher marked":"Awaiting teacher marking"}</small>}{attemptsByAssignment[item.id]?.teacher_feedback&&<small>Teacher feedback: {attemptsByAssignment[item.id].teacher_feedback}</small>}</div>
         {item.due_at&&new Date(item.due_at).getTime()<Date.now()?<button type="button" className="secondary-button" disabled>Deadline passed</button>:<button type="button" className="primary-button" onClick={()=>begin(item)}>Open <ChevronRight size={15}/></button>}
       </article>)}</div>:
       <div className="assigned-assessment-empty"><ShieldCheck size={27}/><strong>No assigned assessments</strong><span>When your teacher publishes a test or assignment to your account, it will appear here.</span></div>}
