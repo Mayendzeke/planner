@@ -1,6 +1,6 @@
 import type { StudentProfile } from "../components/StudentOnboarding";
 import {
-  plannerDb,
+  getPlannerDatabaseForUser,
   readCloudTombstones,
   clearCloudTombstones,
   withCloudSyncPaused,
@@ -12,7 +12,7 @@ import {
   type CalendarEvent,
   type StudentResource,
 } from "../data/db";
-import { getStudentStorageOwner, studentStorageKey } from "./studentStorage";
+import { getStudentStorageOwner, studentStorageKeyForUser } from "./studentStorage";
 import { supabase } from "./supabase";
 
 type CloudRow = Record<string, any>;
@@ -180,9 +180,9 @@ async function reconcileCollection<T extends LocalCloudRow>(
   return { downloaded, uploaded };
 }
 
-async function syncPersonalResources(userId: string, remoteRows: CloudRow[], subjects: Subject[]): Promise<{ downloaded: number; uploaded: number }> {
+async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseForUser>, userId: string, remoteRows: CloudRow[], subjects: Subject[]): Promise<{ downloaded: number; uploaded: number }> {
   if (!supabase) throw new Error("Studyspace cloud services are not configured.");
-  const table = plannerDb.resources;
+  const table = db.resources;
   let localRows = await table.toArray();
   const localIds = localRows.map(row => row.id);
   for (const row of localRows) {
@@ -330,7 +330,7 @@ async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{
   const rows=remote||[];
   let downloaded=0, uploaded=0;
 
-  const attemptsKey=studentStorageKey("studyspace-weekly-test-attempts");
+  const attemptsKey=studentStorageKeyForUser(userId,"studyspace-weekly-test-attempts");
   let attempts:any[]=[];
   try { const parsed=JSON.parse(localStorage.getItem(attemptsKey)||"[]"); if(Array.isArray(parsed)) attempts=parsed; } catch {}
   const remoteAttempts=rows.filter(row=>row.event_type==="weekly_test_attempt");
@@ -362,8 +362,8 @@ async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{
   const remoteStates=new Map(rows.filter(row=>row.event_type==="flashcard_state").map(row=>[String(row.metadata?.local_event_id||""),row]));
   for(const subject of subjects){
     if(!subject.cloudId) continue;
-    const knownKey=studentStorageKey("studyspace-known-cards-"+subject.id);
-    const reviewKey=studentStorageKey("studyspace-review-cards-"+subject.id);
+    const knownKey=studentStorageKeyForUser(userId,"studyspace-known-cards-"+subject.id);
+    const reviewKey=studentStorageKeyForUser(userId,"studyspace-review-cards-"+subject.id);
     const hasLocal=localStorage.getItem(knownKey)!==null || localStorage.getItem(reviewKey)!==null;
     let known:string[]=[], review:string[]=[];
     try { const v=JSON.parse(localStorage.getItem(knownKey)||"[]"); if(Array.isArray(v)) known=v.filter((x:unknown)=>typeof x==="string"); } catch {}
@@ -397,11 +397,12 @@ export async function syncStudentWorkspace(
   if (!supabase) throw new Error("Studyspace cloud services are not configured.");
   if (!navigator.onLine) throw new Error("You are offline. Your changes are saved on this device and will sync when you reconnect.");
   if (getStudentStorageOwner() !== userId) throw new Error("The active local workspace does not match the signed-in student.");
+  const db = getPlannerDatabaseForUser(userId);
 
   const { data: authState, error: authError } = await supabase.auth.getUser();
   if (authError || authState.user?.id !== userId) throw new Error("Your Studyspace session needs to be refreshed before syncing.");
 
-  const deletionQueue = readCloudTombstones();
+  const deletionQueue = readCloudTombstones(userId);
   const completedDeletes: typeof deletionQueue = [];
   let deleted = 0;
   for (const item of deletionQueue) {
@@ -413,14 +414,14 @@ export async function syncStudentWorkspace(
     completedDeletes.push(item);
     deleted += 1;
   }
-  clearCloudTombstones(completedDeletes);
+  clearCloudTombstones(completedDeletes,userId);
 
   const { data: serverTombstones, error: tombstoneReadError } = await supabase.from("student_sync_deletions")
     .select("entity,cloud_id").eq("learner_id", userId);
   if (tombstoneReadError) throw new Error("Could not retrieve cross-device deletion records: " + tombstoneReadError.message);
   const entityTables: Record<CloudSyncEntity, any> = {
-    subjects: plannerDb.subjects, tasks: plannerDb.tasks, sessions: plannerDb.sessions,
-    academicPeriods: plannerDb.academicPeriods, events: plannerDb.events, resources: plannerDb.resources,
+    subjects: db.subjects, tasks: db.tasks, sessions: db.sessions,
+    academicPeriods: db.academicPeriods, events: db.events, resources: db.resources,
   };
   for (const tombstone of serverTombstones || []) {
     const entity = tombstone.entity as CloudSyncEntity;
@@ -441,7 +442,7 @@ export async function syncStudentWorkspace(
   if (goalResult.error) throw new Error("Could not read your cloud study preferences: " + goalResult.error.message);
 
   const periodResult = await reconcileCollection<AcademicPeriod>(
-    "academicPeriods", plannerDb.academicPeriods, remotePeriods,
+    "academicPeriods", db.academicPeriods, remotePeriods,
     (local) => ({
       id: local.cloudId, learner_id: userId,
       period_type: local.kind === "Term" ? "term" : local.kind === "Holiday" ? "holiday" : local.kind === "Examination" ? "exam" : "semester",
@@ -466,7 +467,7 @@ export async function syncStudentWorkspace(
 
   // Academic period IDs are device-local numbers. Persist stable cloud UUIDs
   // in student_subjects.period_ids and map them back to each device's local IDs.
-  const localPeriods = await plannerDb.academicPeriods.toArray();
+  const localPeriods = await db.academicPeriods.toArray();
   const periodCloudIdByLocalId = new Map<number, string>(
     localPeriods.filter(period => period.cloudId).map(period => [period.id, String(period.cloudId)] as [number, string])
   );
@@ -484,7 +485,7 @@ export async function syncStudentWorkspace(
     : [];
 
   const subjectResult = await reconcileCollection<Subject>(
-    "subjects", plannerDb.subjects, remoteSubjects,
+    "subjects", db.subjects, remoteSubjects,
     (local) => ({
       id: local.cloudId, learner_id: userId, name: local.name, subject_code: local.code || null,
       category: local.category || "Core", color: local.color || "#8db9ff",
@@ -504,7 +505,7 @@ export async function syncStudentWorkspace(
   );
   void subjectResult;
 
-  const subjects = await plannerDb.subjects.toArray();
+  const subjects = await db.subjects.toArray();
   const subjectByLocalId = new Map(subjects.map(subject => [subject.id, subject]));
   const subjectByCloudId = new Map(subjects.filter(subject => subject.cloudId).map(subject => [String(subject.cloudId), subject]));
   const cloudSubjectId = (localId: number | null) => {
@@ -517,7 +518,7 @@ export async function syncStudentWorkspace(
   };
 
   const taskResult = await reconcileCollection<PlannerTask>(
-    "tasks", plannerDb.tasks, remoteTasks,
+    "tasks", db.tasks, remoteTasks,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
       title: local.title, notes: local.notes || "", task_kind: local.kind || "Study",
@@ -542,7 +543,7 @@ export async function syncStudentWorkspace(
   );
 
   const sessionResult = await reconcileCollection<StudySession>(
-    "sessions", plannerDb.sessions, remoteSessions,
+    "sessions", db.sessions, remoteSessions,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: cloudSubjectId(local.subjectId),
       started_at: local.date, duration_minutes: local.minutes, reflection: local.notes || "",
@@ -561,7 +562,7 @@ export async function syncStudentWorkspace(
   );
 
   const eventResult = await reconcileCollection<CalendarEvent>(
-    "events", plannerDb.events, remoteEvents,
+    "events", db.events, remoteEvents,
     (local) => ({
       id: local.cloudId, learner_id: userId, subject_id: null,
       title: local.title, event_type: local.kind, starts_at: fromLocalDateTime(local.date + "T" + (local.time || "00:00")),
@@ -584,11 +585,11 @@ export async function syncStudentWorkspace(
     ),
   );
 
-  const resourceResult = await syncPersonalResources(userId, remoteResources, subjects);
+  const resourceResult = await syncPersonalResources(db, userId, remoteResources, subjects);
   const practiceResult = await syncPracticeProgress(userId, subjects);
 
   const remoteGoal = goalResult.data as CloudRow | null;
-  const localGoalKey = studentStorageKey("studyspace-weekly-goal");
+  const localGoalKey = studentStorageKeyForUser(userId,"studyspace-weekly-goal");
   const hasLocalGoal = localStorage.getItem(localGoalKey) !== null;
   let resolvedWeeklyHours = weeklyHours;
   if (!hasLocalGoal && remoteGoal && Number.isFinite(Number(remoteGoal.weekly_hours))) {
@@ -596,7 +597,7 @@ export async function syncStudentWorkspace(
     localStorage.setItem(localGoalKey, String(resolvedWeeklyHours));
   }
 
-  const reminderKey = studentStorageKey("studyspace-study-reminders");
+  const reminderKey = studentStorageKeyForUser(userId,"studyspace-study-reminders");
   const hasLocalReminders = localStorage.getItem(reminderKey) !== null;
   let reminderSettings: CloudRow = { enabled: false, time: "16:00", days: profile.preferredDays || [] };
   if (!hasLocalReminders && remoteGoal?.reminder_settings && typeof remoteGoal.reminder_settings === "object") {
