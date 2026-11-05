@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, ChevronRight, RotateCcw, Trophy, Puzzle, ListChecks, PenLine, ToggleLeft, FileText, Target, CalendarDays, GraduationCap, Sparkles, Upload, FolderOpen, X } from "lucide-react";
 import type { Subject } from "../data/db";
+import PdfViewer from "./PdfViewer";
 
 type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false";
 type Exercise = { prompt: string; answer: string; options?: string[]; clue?: string; scramble?: string };
@@ -200,7 +201,6 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [noteTopic, setNoteTopic] = useState("");
   const [noteError, setNoteError] = useState("");
   const [viewingNote, setViewingNote] = useState<(typeof notes)[number] | null>(null);
-  const [notePreviewUrl, setNotePreviewUrl] = useState("");
   const [notePreviewText, setNotePreviewText] = useState("");
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
@@ -258,11 +258,10 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const visibleNotes = notes.filter(item => item.subjectId === activeSubject?.id && item.resourceType === path && (path !== "Revision notes" || item.resourceType === "Revision notes"));
   function openResource(resource: typeof notes[number]) { setViewingNote(resource); }
   useEffect(() => {
-    if (!viewingNote) { setNotePreviewUrl(""); setNotePreviewText(""); return; }
-    const url = URL.createObjectURL(viewingNote.file); setNotePreviewUrl(url);
+    if (!viewingNote) { setNotePreviewText(""); return; }
+    setNotePreviewText("");
     const ext = viewingNote.name.toLowerCase();
     if (ext.endsWith(".txt") || ext.endsWith(".rtf")) void viewingNote.file.text().then(setNotePreviewText).catch(() => setNotePreviewText("Unable to read this file."));
-    return () => URL.revokeObjectURL(url);
   }, [viewingNote]);
   async function addNoteFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []); event.target.value = "";
@@ -308,6 +307,6 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       {!activePool.length?<div className="weekly-test-unavailable"><BookOpen size={28}/><h2>Questions not available yet</h2><p>No verified questions are currently mapped to {topicName||subject}. The question bank needs to be authored for this area before a test can run.</p></div>:finished?<div className="weekly-test-result"><div className="weekly-test-result-icon"><Trophy size={30}/></div><span className="eyebrow">ASSESSMENT COMPLETE</span><h2>{percent>=80?"Excellent work.":percent>=60?"Good progress.":"Keep practising."}</h2><div className="weekly-test-score">{score}<small> / {activePool.length}</small></div><p>{percent}% correct · {subject}{topicName?" · "+topicName:""} · {path}</p><div className="weekly-test-result-actions"><button className="primary-button" onClick={restart}><RotateCcw size={16}/> Retake</button><button className="secondary-button" onClick={()=>setPath(null)}>Back to subject</button></div></div>:<><div className="weekly-test-progress"><div><span>{subject}{topicName?" · "+topicName:""}</span><strong>QUESTION {questionIndex+1} / {activePool.length}</strong></div><div className="weekly-test-progress-track"><span style={{width:((questionIndex+1)/activePool.length*100)+"%"}}/></div></div><div className="weekly-test-question"><span className="weekly-test-type">{path==="Examination"?"SECTION "+sectionLetter+" · "+questionMode:path==="Weekly test"?"WEEKLY · "+questionMode:"TOPIC · "+questionMode}</span><h2>Question {questionIndex+1}</h2><p>{question.prompt}</p></div>{question.options?<div className="weekly-test-options">{question.options.map(option=><button key={option} disabled={submitted} className={submitted&&option===question.answer?"answer-correct":submitted&&option===response?"answer-wrong":response===option?"answer-selected":""} onClick={()=>setResponse(option)}>{option}{submitted&&option===question.answer&&<CheckCircle2 size={16}/>}</button>)}</div>:<label className="weekly-test-answer"><span>{question.clue??"Your answer"}</span><input value={response} onChange={e=>setResponse(e.target.value)} disabled={submitted} onKeyDown={e=>{if(e.key==="Enter"&&response.trim()&&!submitted)setSubmitted(true);}} placeholder="Type your answer…"/></label>}{submitted&&<p className={correct?"weekly-test-feedback good":"weekly-test-feedback bad"}>{correct?"Correct — well done.":"Not quite. Correct answer: "+question.answer}</p>}<div className="weekly-test-controls"><span>{score} correct so far</span>{!submitted?<button className="primary-button" disabled={!response.trim()} onClick={()=>setSubmitted(true)}>Check answer <ChevronRight size={16}/></button>:<button className="primary-button" onClick={advance}>{questionIndex===activePool.length-1?"See results":"Next question"} <ChevronRight size={16}/></button>}</div></>}
     </section>}
     <section className="weekly-test-history glass-panel"><div className="section-heading"><div><h2>Recent attempts</h2><p>Results saved on this device.</p></div></div>{attempts.length?<div className="weekly-test-history-list">{attempts.slice(0,6).map(item=><div className="weekly-test-history-row" key={item.id}><div><strong>{item.subject} · {item.mode}</strong><span>{new Date(item.completedAt).toLocaleString()}</span></div><b>{item.score}/{item.total}</b></div>)}</div>:<p className="weekly-test-empty">Completed tests and examinations will appear here.</p>}</section>
-    {viewingNote && <div className="modal-backdrop library-viewer-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setViewingNote(null);}}><section className="library-viewer" role="dialog" aria-modal="true" aria-label={"Viewing "+viewingNote.name}><header className="library-viewer-header"><div><span>STUDYSPACE VIEWER</span><strong>{viewingNote.name}</strong></div><button className="icon-button" onClick={()=>setViewingNote(null)} aria-label="Close viewer"><X size={19}/></button></header><div className="library-viewer-content">{notePreviewUrl&&viewingNote.name.toLowerCase().endsWith(".pdf")&&<iframe title={viewingNote.name} src={notePreviewUrl+"#toolbar=0&navpanes=0"}/>}{(viewingNote.name.toLowerCase().endsWith(".txt")||viewingNote.name.toLowerCase().endsWith(".rtf"))&&<pre>{notePreviewText||"Loading preview…"}</pre>}</div><footer className="library-viewer-footer">In-app viewing only · No external app or download action</footer></section></div>}
+    {viewingNote && <div className="modal-backdrop library-viewer-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setViewingNote(null);}}><section className="library-viewer" role="dialog" aria-modal="true" aria-label={"Viewing "+viewingNote.name}><header className="library-viewer-header"><div><span>STUDYSPACE VIEWER</span><strong>{viewingNote.name}</strong></div><button className="icon-button" onClick={()=>setViewingNote(null)} aria-label="Close viewer"><X size={19}/></button></header><div className="library-viewer-content">{viewingNote.name.toLowerCase().endsWith(".pdf")&&<PdfViewer file={viewingNote.file} fileName={viewingNote.name}/>}{(viewingNote.name.toLowerCase().endsWith(".txt")||viewingNote.name.toLowerCase().endsWith(".rtf"))&&<pre>{notePreviewText||"Loading preview…"}</pre>}</div><footer className="library-viewer-footer">In-app viewing only · No external app or download action</footer></section></div>}
   </div>;
 }
