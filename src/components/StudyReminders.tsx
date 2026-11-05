@@ -26,6 +26,12 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    const hydrate = () => setSettings(readSettings());
+    window.addEventListener("studyspace-cloud-preferences-updated", hydrate);
+    return () => window.removeEventListener("studyspace-cloud-preferences-updated", hydrate);
+  }, []);
+
+  useEffect(() => {
     if (!settings.enabled || permission !== "granted") return;
     const check = () => {
       const now = new Date();
