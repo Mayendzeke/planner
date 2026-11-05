@@ -15,6 +15,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [objectives, setObjectives] = useState("");
   const [notes, setNotes] = useState("");
   const [lessonSummary, setLessonSummary] = useState("");
+  const [exitQuestion, setExitQuestion] = useState("");
   const [keyPoints, setKeyPoints] = useState<string[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
@@ -75,7 +76,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       setCloudStatus(session.status === "live" ? "Live class connected" : "Assigned lesson connected");
       const [messagesResult, notesResult, homeworkResult, boardResult, submissionsResult] = await Promise.all([
         supabase!.from("session_messages").select("id,sender_id,message,created_at").eq("session_id", session.id).order("created_at"),
-        supabase!.from("session_lesson_notes").select("summary,key_points,worked_example,recap_markdown").eq("session_id", session.id).maybeSingle(),
+        supabase!.from("session_lesson_notes").select("summary,key_points,worked_example,exit_question,recap_markdown").eq("session_id", session.id).maybeSingle(),
         supabase!.from("session_homework").select("id,title,instructions,due_at").eq("session_id", session.id).order("created_at"),
         supabase!.from("session_whiteboards").select("board_state").eq("session_id", session.id).maybeSingle(),
         supabase!.from("session_homework_submissions").select("homework_id,completed_at").eq("learner_id", auth.user.id)
@@ -89,6 +90,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         setLessonSummary(notesResult.data.summary || "");
         setKeyPoints(Array.isArray(notesResult.data.key_points) ? notesResult.data.key_points.slice(0,5) : []);
         setNotes(notesResult.data.worked_example || "");
+        setExitQuestion(notesResult.data.exit_question || "");
       }
       const completedIds = new Set((submissionsResult.data || []).filter(item => item.completed_at).map(item => item.homework_id));
       if (homeworkResult.data) setHomework(homeworkResult.data.map(item => ({
