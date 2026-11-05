@@ -176,19 +176,20 @@ export default function App() {
   }
   async function exportData() {
     const [academicPeriods, events] = await Promise.all([plannerDb.academicPeriods.toArray(), plannerDb.events.toArray()]);
-    const data = { format:"Studyspace backup", version:3, exportedAt:new Date().toISOString(), profile, subjects, tasks, sessions, academicPeriods, events };
+    const sessionWorkspace = (() => { try { return JSON.parse(localStorage.getItem("studyspace-current-session-v1") || "null"); } catch { return null; } })();
+    const data = { format:"Studyspace backup", version:4, exportedAt:new Date().toISOString(), profile, subjects, tasks, sessions, academicPeriods, events, sessionWorkspace };
     downloadJson("studyspace-backup-" + today + ".json", data);
   }
   async function importData(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
     try {
       const raw = JSON.parse(await file.text());
-      if (raw?.format !== "Studyspace backup" || ![1, 2, 3].includes(raw?.version) || !Array.isArray(raw.subjects) || !Array.isArray(raw.tasks) || !Array.isArray(raw.sessions) || (raw.version >= 2 && !Array.isArray(raw.academicPeriods)) || (raw.version === 3 && !Array.isArray(raw.events))) throw new Error("This is not a valid Studyspace backup.");
+      if (raw?.format !== "Studyspace backup" || ![1, 2, 3, 4].includes(raw?.version) || !Array.isArray(raw.subjects) || !Array.isArray(raw.tasks) || !Array.isArray(raw.sessions) || (raw.version >= 2 && !Array.isArray(raw.academicPeriods)) || (raw.version >= 3 && !Array.isArray(raw.events))) throw new Error("This is not a valid Studyspace backup.");
       const validSubjects = raw.subjects.every((s: any) => Number.isSafeInteger(s?.id) && typeof s?.name === "string" && s.name.trim().length > 0 && typeof s?.color === "string" && typeof s?.createdAt === "string" && (s.code === undefined || (typeof s.code === "string" && s.code.length <= 20)) && (s.description === undefined || (typeof s.description === "string" && s.description.length <= 500)) && (s.category === undefined || (typeof s.category === "string" && ["Core","Elective","Language","Science","Humanities","Technical / Vocational","Other"].includes(s.category))) && (s.targetMark === undefined || (Number.isInteger(s.targetMark) && s.targetMark >= 0 && s.targetMark <= 100)) && (s.periodIds === undefined || (Array.isArray(s.periodIds) && s.periodIds.every((id: unknown) => Number.isSafeInteger(id)) && new Set(s.periodIds).size === s.periodIds.length)));
       const validTasks = raw.tasks.every((t: any) => Number.isFinite(t?.id) && typeof t?.title === "string" && (t?.subjectId === null || Number.isFinite(t?.subjectId)) && typeof t?.dueAt === "string" && Number.isFinite(t?.minutes) && ["High","Medium","Low"].includes(t?.priority) && ["Study","Assignment","Exam","Reading","Other"].includes(t?.kind) && typeof t?.notes === "string" && typeof t?.done === "boolean" && typeof t?.createdAt === "string" && (t?.completedAt === null || typeof t?.completedAt === "string"));
       const validSessions = raw.sessions.every((s: any) => Number.isFinite(s?.id) && (s?.subjectId === null || Number.isFinite(s?.subjectId)) && typeof s?.date === "string" && !Number.isNaN(Date.parse(s.date)) && Number.isFinite(s?.minutes) && s.minutes > 0 && typeof s?.notes === "string");
       const academicPeriods = raw.version >= 2 ? raw.academicPeriods : [];
-      const events = raw.version === 3 ? raw.events : [];
+      const events = raw.version >= 3 ? raw.events : [];
       const validProfile = raw.profile === undefined || (raw.profile && typeof raw.profile.fullName === "string" && typeof raw.profile.preferredName === "string" && typeof raw.profile.country === "string" && typeof raw.profile.institution === "string" && typeof raw.profile.level === "string" && typeof raw.profile.grade === "string" && typeof raw.profile.curriculum === "string" && typeof raw.profile.academicYear === "string" && typeof raw.profile.termCount === "string" && typeof raw.profile.goals === "string" && typeof raw.profile.targetMark === "string" && typeof raw.profile.weeklyHours === "string" && Array.isArray(raw.profile.preferredDays) && raw.profile.preferredDays.every((day: unknown) => typeof day === "string") && Array.isArray(raw.profile.subjects) && raw.profile.subjects.every((subject: unknown) => typeof subject === "string"));
       const validEvents = events.every((event: any) => Number.isSafeInteger(event?.id) && typeof event?.title === "string" && event.title.trim().length > 0 && typeof event?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(event.date) && typeof event?.time === "string" && ["Test","School event","Personal","Other"].includes(event?.kind) && typeof event?.notes === "string" && typeof event?.createdAt === "string" && !Number.isNaN(Date.parse(event.createdAt)));
       const validAcademicPeriods = academicPeriods.every((p: any) => Number.isSafeInteger(p?.id) && typeof p?.title === "string" && p.title.trim().length > 0 && ["Term","Holiday","Examination","Other"].includes(p?.kind) && typeof p?.startDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.startDate) && typeof p?.endDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.endDate) && p.endDate >= p.startDate && typeof p?.notes === "string" && typeof p?.createdAt === "string" && !Number.isNaN(Date.parse(p.createdAt)));
@@ -206,6 +207,7 @@ export default function App() {
         if (events.length) await plannerDb.events.bulkPut(events);
       });
       if (raw.profile) { localStorage.setItem("studyspace-profile", JSON.stringify(raw.profile)); setProfile(raw.profile as StudentProfile); }
+      if (raw.version >= 4 && raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace)) localStorage.setItem("studyspace-current-session-v1", JSON.stringify(raw.sessionWorkspace)); else localStorage.removeItem("studyspace-current-session-v1");
       setImportMessage("Backup restored successfully."); await refresh();
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
     e.target.value = "";
@@ -214,6 +216,7 @@ export default function App() {
     if (!window.confirm("This permanently deletes your profile, subjects, tasks, study sessions, academic calendar and personal library files stored on this device. Export a backup first if you need it.")) return;
     await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
     localStorage.removeItem("studyspace-profile");
+    localStorage.removeItem("studyspace-current-session-v1");
     setProfile(null);
     await refresh();
   }
