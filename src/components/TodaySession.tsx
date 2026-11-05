@@ -130,7 +130,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       <label className="session-field">Lesson objectives<textarea value={objectives} onChange={e=>setObjectives(e.target.value)} rows={2} placeholder="What should the learner be able to do by the end? Keep it to 1–3 outcomes."/></label>
       <div className="session-ai-guide">
         <div><span className="eyebrow">SHORT LESSON RECAP</span><strong>AI lesson notes</strong><p>When the secure Studyspace AI service is connected, it will use today's subject, lesson topic, objectives and class material to prepare a concise recap with no more than five key points.</p></div>
-        <span className="session-ai-status">AI service · pending backend</span>
+        <div className="session-ai-actions"><span className="session-ai-status">AI service · pending backend</span><button type="button" className="secondary-button" disabled title="Connect the secure AI service during the Supabase phase">Generate recap</button></div>
       </div>
       <label className="session-field">Lesson summary<textarea value={lessonSummary} onChange={e=>setLessonSummary(e.target.value)} rows={3} placeholder="A short, student-friendly explanation of what today's lesson is about."/></label>
       <label className="session-field">Key points to cover <small className="session-field-hint">Keep this to a handful. One idea per line; aim for 3–5.</small><textarea value={keyPoints.join("\n")} onChange={e=>setKeyPoints(e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean).slice(0,5))} rows={5} placeholder={"1. First essential idea\n2. Second essential idea\n3. Worked example\n4. Common mistake to avoid\n5. Quick understanding check"}/></label>
