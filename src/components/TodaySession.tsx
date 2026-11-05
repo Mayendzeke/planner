@@ -27,6 +27,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState("Offline workspace");
+  const [meetingUrl, setMeetingUrl] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const [ink, setInk] = useState("#27324a");
@@ -67,12 +68,13 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       if (memberError || !memberships?.length || !alive) return;
       const ids = memberships.map(item => item.session_id);
       const { data: sessions, error: sessionError } = await supabase!.from("class_sessions")
-        .select("id,title,subject_name,objectives,starts_at,status,duration_minutes")
+        .select("id,title,subject_name,objectives,starts_at,status,duration_minutes,meeting_url")
         .in("id", ids).in("status", ["scheduled","live"]).order("starts_at", { ascending: false }).limit(1);
       if (sessionError || !sessions?.length || !alive) return;
       const session = sessions[0];
       setActiveSessionId(session.id); setLessonTitle(session.title); setSubject(session.subject_name);
       setObjectives(session.objectives || "");
+      setMeetingUrl(session.meeting_url || "");
       setCloudStatus(session.status === "live" ? "Live class connected" : "Assigned lesson connected");
       const [messagesResult, notesResult, homeworkResult, boardResult, submissionsResult] = await Promise.all([
         supabase!.from("session_messages").select("id,sender_id,message,created_at").eq("session_id", session.id).order("created_at"),
@@ -209,6 +211,8 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         <span className="session-save-state">{saved ? "Saved on this device" : "Storage unavailable"}</span>
       </div>
     </div>
+
+    {meetingUrl && <div className="session-call-banner"><div><strong>Video &amp; audio classroom</strong><p>Join the teacher's live room. Your browser will ask for microphone or camera permission.</p></div><a href={meetingUrl} target="_blank" rel="noreferrer">Join class call <Video size={15}/></a></div>}
 
     <div className="session-tabs" role="tablist" aria-label="Session workspaces">
       {tabs.map(item=><button key={item.name} role="tab" aria-selected={tab===item.name} className={tab===item.name?"active":""} onClick={()=>setTab(item.name)}><item.icon size={17}/><span>{item.name}</span><small>{item.hint}</small></button>)}
