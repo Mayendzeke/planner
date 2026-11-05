@@ -123,7 +123,7 @@ export default function AssignedAssessments() {
             {question.content?.topic&&<small className="assigned-question-topic">{question.content.topic}</small>}
             <p>{question.prompt}</p>
             {question.question_type==="multiple_choice"||question.question_type==="true_false"?
-              <div className="assigned-question-options">{(question.content?.options?.length?question.content.options:question.question_type==="true_false"?["True","False"]:[]).map(option=><button type="button" key={option} disabled={!!submission} className={value===option?"selected":""} onClick={()=>setAnswer(question.id,option)}>{option}</button>)}</div>:
+              <div className="assigned-question-options">{(question.question_type==="true_false"?["True","False"]:(question.content?.options||[]).filter(option=>String(option).trim().length>0)).map(option=><button type="button" key={option} disabled={!!submission} className={value===option?"selected":""} onClick={()=>setAnswer(question.id,option)}>{option}</button>)}</div>:
               question.question_type==="matching"?
                 <div className="assigned-matching-list">{(question.content?.pairs||[]).map((pair,i)=><label key={i}><span>{pair.left}</span><select disabled={!!submission} value={String((value as Record<string,unknown>|undefined)?.[pair.left]||"")} onChange={e=>setAnswer(question.id,{...(value as Record<string,unknown>||{}),[pair.left]:e.target.value})}><option value="">Choose a match</option>{(question.content?.pairs||[]).map(item=><option key={item.right} value={item.right}>{item.right}</option>)}</select></label>)}</div>:
                 <>
