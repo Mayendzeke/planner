@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Download, FileText, FolderOpen, Plus, Trash2, Upload } from "lucide-react";
+import { BookOpen, FileText, FolderOpen, Plus, Trash2, Upload, X, Eye, AlertCircle } from "lucide-react";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
@@ -17,6 +17,9 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
   const [subjectId, setSubjectId] = useState("");
   const [resourceType, setResourceType] = useState<"Study notes" | "Revision notes">("Study notes");
   const [topic, setTopic] = useState("");
+  const [viewing, setViewing] = useState<StudentResource | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewText, setPreviewText] = useState("");
 
   async function refresh() {
     const stored = await plannerDb.resources.orderBy("createdAt").reverse().toArray();
@@ -24,6 +27,19 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
   }
 
   useEffect(() => { void refresh(); }, []);
+
+  useEffect(() => {
+    if (!viewing) { setPreviewUrl(""); return; }
+    const url = URL.createObjectURL(viewing.file); setPreviewUrl(url); setPreviewText("");
+    const ext = viewing.name.toLowerCase().slice(viewing.name.lastIndexOf("."));
+    if (ext === ".txt" || ext === ".rtf") void viewing.file.text().then(setPreviewText).catch(() => setPreviewText("Unable to read this file."));
+    return () => URL.revokeObjectURL(url);
+  }, [viewing]);
+  useEffect(() => {
+    if (!viewing) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setViewing(null); };
+    window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close);
+  }, [viewing]);
 
   async function addFiles(event: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(event.target.files ?? []);
@@ -66,17 +82,6 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
     }
   }
 
-  function openFile(resource: StudentResource, download = false) {
-    const url = URL.createObjectURL(resource.file);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    if (download) anchor.download = resource.name;
-    else anchor.target = "_blank";
-    anchor.rel = "noopener noreferrer";
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }
-
   async function removeFile(resource: StudentResource) {
     if (!window.confirm("Remove " + resource.name + " from this device?")) return;
     await plannerDb.resources.delete(resource.id);
@@ -91,16 +96,26 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
       <label className="primary-button library-upload"><Upload size={16}/> Add files<input type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.epub,.txt,.rtf" onChange={event => void addFiles(event)} disabled={busy}/></label>
     </div>
     <div className="library-privacy"><FolderOpen size={15}/><span>Private to this browser and device for now. These files are not sent to your teacher or synced to another device.</span></div>
+    <div className="library-privacy"><FolderOpen size={15}/><span>Files remain in this browser. View them inside Studyspace; no download action is provided.</span></div>
     {message && <p className="library-message" role="status">{message}</p>}
     <div className="glass-panel library-list">
       <div className="section-heading"><div><h2>My resources</h2><p>{files.length} saved file(s) · up to 30 MB per file</p></div><FileText size={20}/></div>
       {files.length ? <div className="library-files">{files.map(file => <article className="library-file" key={file.id}>
         <span className="library-file-icon"><FileText size={18}/></span>
         <div className="library-file-copy"><strong>{file.name}</strong><span>{formatSize(file.size)} · {new Date(file.createdAt).toLocaleDateString()}</span></div>
-        <button className="icon-button" aria-label={"Open " + file.name} title="Open" onClick={() => openFile(file)}><FolderOpen size={16}/></button>
-        <button className="icon-button" aria-label={"Download " + file.name} title="Download" onClick={() => openFile(file, true)}><Download size={16}/></button>
+        <button className="icon-button" aria-label={"View " + file.name} title="View in Studyspace" onClick={() => setViewing(file)}><Eye size={16}/></button>
         <button className="icon-button" aria-label={"Remove " + file.name} title="Remove" onClick={() => void removeFile(file)}><Trash2 size={16}/></button>
       </article>)}</div> : <div className="library-empty"><div><BookOpen size={24}/></div><strong>Your library is ready</strong><p>Add your own textbooks, PDFs, class notes or worksheets. They will be kept on this device for offline access.</p><label className="secondary-button library-upload"><Plus size={15}/> Choose your first files<input type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.epub,.txt,.rtf" onChange={event => void addFiles(event)} disabled={busy}/></label></div>}
     </div>
+    {viewing && <div className="modal-backdrop library-viewer-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setViewing(null); }}>
+      <section className="library-viewer" role="dialog" aria-modal="true" aria-label={"Viewing " + viewing.name}>
+        <header className="library-viewer-header"><div><span>STUDYSPACE VIEWER</span><strong>{viewing.name}</strong></div><button className="icon-button" onClick={() => setViewing(null)} aria-label="Close viewer"><X size={19}/></button></header>
+        <div className="library-viewer-content">
+          {previewUrl && viewing.name.toLowerCase().endsWith(".pdf") && <iframe title={viewing.name} src={previewUrl + "#toolbar=0&navpanes=0"} />}
+          {(viewing.name.toLowerCase().endsWith(".txt") || viewing.name.toLowerCase().endsWith(".rtf")) && <pre>{previewText || "Loading preview…"}</pre>}
+          {![".pdf",".txt",".rtf"].some(ext => viewing.name.toLowerCase().endsWith(ext)) && <div className="library-viewer-unsupported"><AlertCircle size={28}/><strong>This format is not yet supported by the in-app preview.</strong><p>The file stays here. Studyspace will not open it in another app or offer it for download.</p></div>}
+        </div><footer className="library-viewer-footer">In-app viewing only · No download option</footer>
+      </section>
+    </div>}
   </section>;
 }
