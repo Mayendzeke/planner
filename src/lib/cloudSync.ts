@@ -440,20 +440,63 @@ export async function syncStudentWorkspace(
   ]);
   if (goalResult.error) throw new Error("Could not read your cloud study preferences: " + goalResult.error.message);
 
+  const periodResult = await reconcileCollection<AcademicPeriod>(
+    "academicPeriods", plannerDb.academicPeriods, remotePeriods,
+    (local) => ({
+      id: local.cloudId, learner_id: userId,
+      period_type: local.kind === "Term" ? "term" : local.kind === "Holiday" ? "holiday" : local.kind === "Examination" ? "exam" : "semester",
+      display_kind: local.kind, title: local.title, starts_on: local.startDate,
+      ends_on: local.endDate, notes: local.notes || "", created_at: local.createdAt,
+      updated_at: local.localUpdatedAt || new Date().toISOString(),
+    }),
+    (remote, id) => ({
+      id, cloudId: String(remote.id), title: String(remote.title),
+      kind: remote.display_kind || (remote.period_type === "holiday" ? "Holiday" : remote.period_type === "exam" ? "Examination" : "Term"),
+      startDate: String(remote.starts_on), endDate: String(remote.ends_on),
+      notes: String(remote.notes || ""), createdAt: String(remote.created_at),
+    }),
+    [],
+    (local, rows) => rows.find(row =>
+      String(row.title).trim().toLocaleLowerCase() === local.title.trim().toLocaleLowerCase()
+      && String(row.starts_on) === local.startDate
+      && String(row.ends_on) === local.endDate
+    ),
+  );
+
+
+  // Academic period IDs are device-local numbers. Persist stable cloud UUIDs
+  // in student_subjects.period_ids and map them back to each device's local IDs.
+  const localPeriods = await plannerDb.academicPeriods.toArray();
+  const periodCloudIdByLocalId = new Map<number, string>(
+    localPeriods.filter(period => period.cloudId).map(period => [period.id, String(period.cloudId)] as [number, string])
+  );
+  const periodLocalIdByCloudId = new Map<string, number>(
+    localPeriods.filter(period => period.cloudId).map(period => [String(period.cloudId), period.id] as [string, number])
+  );
+  const localPeriodIds = new Set(localPeriods.map(period => period.id));
+  const restorePeriodIds = (values: unknown): number[] => Array.isArray(values)
+    ? values.map(value => {
+        const cloudMatch = periodLocalIdByCloudId.get(String(value));
+        if (cloudMatch !== undefined) return cloudMatch;
+        const legacyId = Number(value);
+        return Number.isSafeInteger(legacyId) && localPeriodIds.has(legacyId) ? legacyId : null;
+      }).filter((id): id is number => id !== null)
+    : [];
+
   const subjectResult = await reconcileCollection<Subject>(
     "subjects", plannerDb.subjects, remoteSubjects,
     (local) => ({
       id: local.cloudId, learner_id: userId, name: local.name, subject_code: local.code || null,
       category: local.category || "Core", color: local.color || "#8db9ff",
       description: local.description || "", target_mark: local.targetMark ?? null,
-      period_ids: local.periodIds || [], created_at: local.createdAt,
+      period_ids: (local.periodIds || []).map(id => periodCloudIdByLocalId.get(id)).filter((id): id is string => Boolean(id)), created_at: local.createdAt,
       updated_at: local.localUpdatedAt || new Date().toISOString(),
     }),
     (remote, id) => ({
       id, name: String(remote.name), color: String(remote.color || "#8db9ff"),
       code: remote.subject_code || undefined, description: String(remote.description || ""),
       category: String(remote.category || "Core"), targetMark: remote.target_mark == null ? undefined : Number(remote.target_mark),
-      periodIds: Array.isArray(remote.period_ids) ? remote.period_ids.map(Number) : [],
+      periodIds: restorePeriodIds(remote.period_ids),
       createdAt: String(remote.created_at),
     }),
     [],
@@ -514,29 +557,6 @@ export async function syncStudentWorkspace(
       String(row.started_at) === local.date
       && Number(row.duration_minutes) === local.minutes
       && String(row.subject_id || "") === String(cloudSubjectId(local.subjectId) || "")
-    ),
-  );
-
-  const periodResult = await reconcileCollection<AcademicPeriod>(
-    "academicPeriods", plannerDb.academicPeriods, remotePeriods,
-    (local) => ({
-      id: local.cloudId, learner_id: userId,
-      period_type: local.kind === "Term" ? "term" : local.kind === "Holiday" ? "holiday" : local.kind === "Examination" ? "exam" : "semester",
-      display_kind: local.kind, title: local.title, starts_on: local.startDate,
-      ends_on: local.endDate, notes: local.notes || "", created_at: local.createdAt,
-      updated_at: local.localUpdatedAt || new Date().toISOString(),
-    }),
-    (remote, id) => ({
-      id, cloudId: String(remote.id), title: String(remote.title),
-      kind: remote.display_kind || (remote.period_type === "holiday" ? "Holiday" : remote.period_type === "exam" ? "Examination" : "Term"),
-      startDate: String(remote.starts_on), endDate: String(remote.ends_on),
-      notes: String(remote.notes || ""), createdAt: String(remote.created_at),
-    }),
-    subjects,
-    (local, rows) => rows.find(row =>
-      String(row.title).trim().toLocaleLowerCase() === local.title.trim().toLocaleLowerCase()
-      && String(row.starts_on) === local.startDate
-      && String(row.ends_on) === local.endDate
     ),
   );
 
