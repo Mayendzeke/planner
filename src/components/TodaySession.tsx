@@ -13,6 +13,8 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [lessonTitle, setLessonTitle] = useState("Today's lesson");
   const [objectives, setObjectives] = useState("");
   const [notes, setNotes] = useState("");
+  const [lessonSummary, setLessonSummary] = useState("");
+  const [keyPoints, setKeyPoints] = useState<string[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const [homework, setHomework] = useState<Homework[]>([]);
@@ -34,6 +36,8 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       setLessonTitle(data.lessonTitle ?? "Today's lesson");
       setObjectives(data.objectives ?? "");
       setNotes(data.notes ?? "");
+      setLessonSummary(data.lessonSummary ?? "");
+      setKeyPoints(Array.isArray(data.keyPoints) ? data.keyPoints.slice(0, 5) : []);
       setChat(Array.isArray(data.chat) ? data.chat : []);
       setHomework(Array.isArray(data.homework) ? data.homework : []);
       const image = data.worksheet;
@@ -49,7 +53,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   function persist(extra?: Record<string, unknown>) {
     try {
       localStorage.setItem(key, JSON.stringify({
-        subject, lessonTitle, objectives, notes, chat, homework,
+        subject, lessonTitle, objectives, notes, lessonSummary, keyPoints, chat, homework,
         worksheet: canvasRef.current?.toDataURL("image/png") ?? "",
         ...extra
       }));
@@ -59,7 +63,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   useEffect(() => {
     const id = window.setTimeout(() => persist(), 450);
     return () => window.clearTimeout(id);
-  }, [subject, lessonTitle, objectives, notes, chat, homework]);
+  }, [subject, lessonTitle, objectives, notes, lessonSummary, keyPoints, chat, homework]);
 
   function point(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!;
@@ -123,9 +127,15 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
 
     {tab === "Lesson notes" && <div className="glass-panel session-workspace">
       <div className="session-section-heading"><div><h3>Lesson guide &amp; notes</h3><p>Keep the lesson outline, key concepts and worked examples together.</p></div><BookOpen size={20}/></div>
-      <label className="session-field">Lesson objectives<textarea value={objectives} onChange={e=>setObjectives(e.target.value)} rows={3} placeholder="What should you understand by the end of this lesson?"/></label>
-      <label className="session-field">Today's notes<textarea className="session-notes-editor" value={notes} onChange={e=>setNotes(e.target.value)} rows={15} placeholder={"Lesson summary…\n\nKey definitions…\n\nWorked examples…\n\nRemember…"} /></label>
-      <div className="session-note-footer"><span>Autosaved locally as you type</span><button className="secondary-button" onClick={()=>{setObjectives("");setNotes("");}}>Clear notes</button></div>
+      <label className="session-field">Lesson objectives<textarea value={objectives} onChange={e=>setObjectives(e.target.value)} rows={2} placeholder="What should the learner be able to do by the end? Keep it to 1–3 outcomes."/></label>
+      <div className="session-ai-guide">
+        <div><span className="eyebrow">SHORT LESSON RECAP</span><strong>AI lesson notes</strong><p>When the secure Studyspace AI service is connected, it will use today's subject, lesson topic, objectives and class material to prepare a concise recap with no more than five key points.</p></div>
+        <span className="session-ai-status">AI service · pending backend</span>
+      </div>
+      <label className="session-field">Lesson summary<textarea value={lessonSummary} onChange={e=>setLessonSummary(e.target.value)} rows={3} placeholder="A short, student-friendly explanation of what today's lesson is about."/></label>
+      <label className="session-field">Key points to cover <small className="session-field-hint">Keep this to a handful. One idea per line; aim for 3–5.</small><textarea value={keyPoints.join("\n")} onChange={e=>setKeyPoints(e.target.value.split("\n").map((v:string)=>v.trim()).filter(Boolean).slice(0,5))} rows={5} placeholder={"1. First essential idea\n2. Second essential idea\n3. Worked example\n4. Common mistake to avoid\n5. Quick understanding check"}/></label>
+      <label className="session-field">Worked example / today's notes<textarea className="session-notes-editor" value={notes} onChange={e=>setNotes(e.target.value)} rows={9} placeholder={"One clear worked example…\n\nImportant definitions…\n\nA question to check understanding…"} /></label>
+      <div className="session-note-footer"><span>Autosaved locally on this device</span><button className="secondary-button" onClick={()=>{setObjectives("");setLessonSummary("");setKeyPoints([]);setNotes("");}}>Clear lesson notes</button></div>
     </div>}
 
     {tab === "Class chat" && <div className="glass-panel session-workspace session-chat">
