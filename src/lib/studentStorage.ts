@@ -10,3 +10,7 @@ export function studentStorageKey(key: string): string {
 }
 
 export function getStudentStorageOwner(): string | null { return activeStudentId; }
+
+export function studentStorageKeyForUser(userId: string, key: string): string {
+  return "studyspace:user-" + userId + ":" + key;
+}
