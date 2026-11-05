@@ -5,7 +5,8 @@ import {
   Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
   Trash2, TrendingUp, Upload, X, Flame
 } from "lucide-react";
-import { plannerDb, type PlannerTask, type Subject, type StudySession } from "./data/db";
+import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
+import { setStudentStorageOwner } from "./lib/studentStorage";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentAccess from "./components/StudentAccess";
 import StudentLibrary from "./components/StudentLibrary";
@@ -146,7 +147,21 @@ export default function App() {
     } catch { setError("Your browser could not open local storage. Try a current browser with site storage enabled."); }
     finally { setReady(true); }
   }
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    // Switch storage before loading records. Both IndexedDB and localStorage
+    // are partitioned by the authenticated student on shared devices.
+    setReady(false);
+    setSubjects([]);
+    setTasks([]);
+    setSessions([]);
+    setPlannerDbUser(cloudUserId);
+    setStudentStorageOwner(cloudUserId);
+    if (!cloudUserId) {
+      setReady(true);
+      return;
+    }
+    void refresh();
+  }, [cloudUserId]);
 
 
   async function finishOnboarding(nextProfile: StudentProfile) {
