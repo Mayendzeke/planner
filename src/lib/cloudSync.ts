@@ -376,6 +376,7 @@ async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{
       }
     }
   }
+  if(downloaded>0) window.dispatchEvent(new Event("studyspace-cloud-practice-updated"));
   return {downloaded,uploaded};
 }
 
