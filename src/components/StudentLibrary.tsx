@@ -3,7 +3,7 @@ import { BookOpen, FileText, FolderOpen, Plus, Trash2, Upload, X, Eye, AlertCirc
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".epub", ".txt", ".rtf"];
+const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".rtf"];
 
 function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB";
@@ -50,7 +50,7 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
     for (const file of selected) {
       const lower = file.name.toLowerCase();
       if (!ALLOWED_EXTENSIONS.some(ext => lower.endsWith(ext))) {
-        setMessage(file.name + " was skipped. Choose a PDF, Word, PowerPoint, EPUB, TXT or RTF file.");
+        setMessage(file.name + " was skipped. Choose a PDF, TXT or RTF file. Other document formats will be enabled when their in-app viewers are ready.");
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
@@ -93,7 +93,7 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
       <div className="library-intro-icon"><BookOpen size={22}/></div>
       <div><h2>Your personal learning library</h2><p>Organise notes by subject and learning purpose so they appear in the correct Study &amp; Exams section.</p></div>
       <div className="library-upload-fields"><label>Subject<select value={subjectId} onChange={e=>setSubjectId(e.target.value)}><option value="">Personal / unassigned</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>Resource type<select value={resourceType} onChange={e=>setResourceType(e.target.value as "Study notes"|"Revision notes")}><option>Study notes</option><option>Revision notes</option></select></label><label>Topic (optional)<input value={topic} onChange={e=>setTopic(e.target.value)} placeholder="e.g. Algebra"/></label></div>
-      <label className="primary-button library-upload"><Upload size={16}/> Add files<input type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.epub,.txt,.rtf" onChange={event => void addFiles(event)} disabled={busy}/></label>
+      <label className="primary-button library-upload"><Upload size={16}/> Add files<input type="file" multiple accept=".pdf,.txt,.rtf" onChange={event => void addFiles(event)} disabled={busy}/></label>
     </div>
     <div className="library-privacy"><FolderOpen size={15}/><span>Private to this browser and device for now. These files are not sent to your teacher or synced to another device.</span></div>
     <div className="library-privacy"><FolderOpen size={15}/><span>Files remain in this browser. View them inside Studyspace; no download action is provided.</span></div>
