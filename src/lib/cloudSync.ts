@@ -312,6 +312,73 @@ async function syncPersonalResources(userId: string, remoteRows: CloudRow[], sub
   return { downloaded, uploaded };
 }
 
+async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{downloaded:number;uploaded:number}> {
+  if(!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const {data:remote,error}=await supabase.from("progress_events")
+    .select("id,event_type,score,max_score,metadata,created_at")
+    .eq("learner_id",userId).in("event_type",["weekly_test_attempt","flashcard_state"]);
+  if(error) throw new Error("Could not synchronise revision history: "+error.message);
+  const rows=remote||[];
+  let downloaded=0, uploaded=0;
+
+  const attemptsKey=studentStorageKey("studyspace-weekly-test-attempts");
+  let attempts:any[]=[];
+  try { const parsed=JSON.parse(localStorage.getItem(attemptsKey)||"[]"); if(Array.isArray(parsed)) attempts=parsed; } catch {}
+  const remoteAttempts=rows.filter(row=>row.event_type==="weekly_test_attempt");
+  const knownAttemptIds=new Set(remoteAttempts.map(row=>String(row.metadata?.local_event_id||"")).filter(Boolean));
+  const localIds=new Set(attempts.map(item=>String(item.id)));
+  for(const item of attempts){
+    const id=String(item?.id||"");
+    if(!id||knownAttemptIds.has(id)) continue;
+    const linked=subjects.find(subject=>subject.name.toLocaleLowerCase()===String(item.subject||"").toLocaleLowerCase());
+    const {error:insertError}=await supabase.from("progress_events").insert({
+      learner_id:userId,subject_id:linked?.cloudId||null,event_type:"weekly_test_attempt",
+      score:Number(item.score)||0,max_score:Number(item.total)||1,
+      metadata:{local_event_id:id,subject:String(item.subject||"General"),mode:String(item.mode||"Weekly test"),completed_at:String(item.completedAt||new Date().toISOString())}
+    });
+    if(insertError) throw new Error("Could not upload a study result: "+insertError.message);
+    uploaded++;
+  }
+  const merged=[...attempts];
+  for(const row of remoteAttempts){
+    const meta=row.metadata||{}, id=String(meta.local_event_id||row.id);
+    if(localIds.has(id)) continue;
+    merged.unshift({id,subject:String(meta.subject||"General"),mode:String(meta.mode||"Weekly test"),score:Number(row.score||0),total:Number(row.max_score||0),completedAt:String(meta.completed_at||row.created_at)});
+    localIds.add(id); downloaded++;
+  }
+  if(merged.length!==attempts.length || merged.some((item,index)=>item.id!==attempts[index]?.id)){
+    localStorage.setItem(attemptsKey,JSON.stringify(merged.slice(0,100)));
+  }
+
+  const remoteStates=new Map(rows.filter(row=>row.event_type==="flashcard_state").map(row=>[String(row.metadata?.local_event_id||""),row]));
+  for(const subject of subjects){
+    if(!subject.cloudId) continue;
+    const knownKey=studentStorageKey("studyspace-known-cards-"+subject.id);
+    const reviewKey=studentStorageKey("studyspace-review-cards-"+subject.id);
+    const hasLocal=localStorage.getItem(knownKey)!==null || localStorage.getItem(reviewKey)!==null;
+    let known:string[]=[], review:string[]=[];
+    try { const v=JSON.parse(localStorage.getItem(knownKey)||"[]"); if(Array.isArray(v)) known=v.filter((x:unknown)=>typeof x==="string"); } catch {}
+    try { const v=JSON.parse(localStorage.getItem(reviewKey)||"[]"); if(Array.isArray(v)) review=v.filter((x:unknown)=>typeof x==="string"); } catch {}
+    const key="flashcard-state:"+subject.cloudId, cloud=remoteStates.get(key) as any;
+    if(!hasLocal && cloud){
+      localStorage.setItem(knownKey,JSON.stringify(Array.isArray(cloud.metadata?.known_cards)?cloud.metadata.known_cards:[]));
+      localStorage.setItem(reviewKey,JSON.stringify(Array.isArray(cloud.metadata?.review_cards)?cloud.metadata.review_cards:[]));
+      downloaded++;
+    } else if(hasLocal){
+      const metadata={local_event_id:key,subject_name:subject.name,known_cards:known,review_cards:review};
+      const same=cloud && JSON.stringify(cloud.metadata?.known_cards||[])===JSON.stringify(known) && JSON.stringify(cloud.metadata?.review_cards||[])===JSON.stringify(review);
+      if(!same){
+        const result=cloud
+          ? await supabase.from("progress_events").update({metadata}).eq("id",cloud.id)
+          : await supabase.from("progress_events").insert({learner_id:userId,subject_id:subject.cloudId,event_type:"flashcard_state",metadata});
+        if(result.error) throw new Error("Could not upload flashcard progress: "+result.error.message);
+        uploaded++;
+      }
+    }
+  }
+  return {downloaded,uploaded};
+}
+
 export async function syncStudentWorkspace(
   userId: string,
   profile: StudentProfile,
@@ -450,6 +517,7 @@ export async function syncStudentWorkspace(
   );
 
   const resourceResult = await syncPersonalResources(userId, remoteResources, subjects);
+  const practiceResult = await syncPracticeProgress(userId, subjects);
 
   const remoteGoal = goalResult.data as CloudRow | null;
   const localGoalKey = studentStorageKey("studyspace-weekly-goal");
@@ -499,8 +567,8 @@ export async function syncStudentWorkspace(
   return {
     syncedAt: new Date().toISOString(),
     weeklyHours: resolvedWeeklyHours,
-    downloaded: subjectResult.downloaded + taskResult.downloaded + sessionResult.downloaded + periodResult.downloaded + eventResult.downloaded + resourceResult.downloaded,
-    uploaded: subjectResult.uploaded + taskResult.uploaded + sessionResult.uploaded + periodResult.uploaded + eventResult.uploaded + resourceResult.uploaded,
+    downloaded: subjectResult.downloaded + taskResult.downloaded + sessionResult.downloaded + periodResult.downloaded + eventResult.downloaded + resourceResult.downloaded + practiceResult.downloaded,
+    uploaded: subjectResult.uploaded + taskResult.uploaded + sessionResult.uploaded + periodResult.uploaded + eventResult.uploaded + resourceResult.uploaded + practiceResult.uploaded,
     deleted,
     reminderSettings,
   };
