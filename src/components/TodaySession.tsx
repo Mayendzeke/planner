@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, ClipboardList, MessageCircle, PenLine, Video, Mic, Eraser, Send, Plus, Clock3, Sparkles, Paperclip, Users } from "lucide-react";
 import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
+import { studentStorageKey } from "../lib/studentStorage";
 
 type Tab = "Worksheet" | "Lesson notes" | "Class chat" | "Homework";
 type ChatMessage = { id: string; text: string; sender: "You" | "Teacher"; time: string };
@@ -35,7 +36,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = localStorage.getItem(studentStorageKey(key));
       if (!raw) return;
       const data = JSON.parse(raw);
       setSubject(data.subject ?? subjects[0]?.name ?? "");
@@ -134,7 +135,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
 
   function persist(extra?: Record<string, unknown>) {
     try {
-      localStorage.setItem(key, JSON.stringify({
+      localStorage.setItem(studentStorageKey(key), JSON.stringify({
         subject, lessonTitle, objectives, notes, lessonSummary, keyPoints, chat, homework,
         worksheet: canvasRef.current?.toDataURL("image/png") ?? "",
         ...extra
