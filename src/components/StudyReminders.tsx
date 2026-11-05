@@ -58,7 +58,7 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
 
   function update(next: ReminderSettings) {
     setSettings(next);
-    try { localStorage.setItem(studentStorageKey(STORAGE_KEY), JSON.stringify(next)); } catch { setMessage("Your browser could not save reminder preferences."); }
+    try { localStorage.setItem(studentStorageKey(STORAGE_KEY), JSON.stringify(next)); localStorage.setItem(studentStorageKey(STORAGE_KEY + "-updated-at"), new Date().toISOString()); } catch { setMessage("Your browser could not save reminder preferences."); }
   }
 
   async function enableReminders() {
