@@ -49,6 +49,28 @@ jobs:
             process.exit(1);
           }
           console.log("Studyspace Supabase project and public API key validated.");
+          const checks = [
+            ["enrol-learner", { studentId: "INVALID", pin: "00000000", password: "validation-only", fullName: "Student", preferredName: "Student" }],
+            ["student-sign-in", { studentId: "INVALID", password: "validation-only" }],
+          ];
+          for (const [name, payload] of checks) {
+            const response = await fetch(url + "/functions/v1/" + name, {
+              method: "POST",
+              headers: {
+                apikey: key,
+                authorization: "Bearer " + key,
+                "Content-Type": "application/json",
+                Origin: "https://mayendzeke.github.io",
+              },
+              body: JSON.stringify(payload),
+            });
+            const detail = (await response.text()).slice(0, 200);
+            if (response.status !== 400) {
+              console.error("Edge Function " + name + " did not return its expected input-validation response (HTTP " + response.status + "): " + detail);
+              process.exit(1);
+            }
+            console.log("Edge Function " + name + " is deployed and responding to the Studyspace app origin.");
+          }
           NODE
       - name: Build app
         env:
