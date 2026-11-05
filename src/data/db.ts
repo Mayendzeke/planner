@@ -4,30 +4,31 @@ export type CloudSyncEntity = "subjects" | "tasks" | "sessions" | "academicPerio
 export type CloudTombstone = { entity: CloudSyncEntity; cloudId: string; deletedAt: string };
 let activeOwnerId: string | null = null;
 let cloudSyncPaused = false;
+const accountDatabases = new Map<string, PlannerDatabase>();
 
-function tombstoneStorageKey() { return activeOwnerId ? "studyspace:user-" + activeOwnerId + ":cloud-deletions" : "studyspace:guest:cloud-deletions"; }
-function recordTombstone(entity: CloudSyncEntity, cloudId: string) {
+function tombstoneStorageKey(ownerId: string | null = activeOwnerId) { return ownerId ? "studyspace:user-" + ownerId + ":cloud-deletions" : "studyspace:guest:cloud-deletions"; }
+function recordTombstone(entity: CloudSyncEntity, cloudId: string, ownerId: string | null) {
   try {
-    const key = tombstoneStorageKey();
+    const key = tombstoneStorageKey(ownerId);
     const current = JSON.parse(localStorage.getItem(key) || "[]") as CloudTombstone[];
     if (!current.some(item => item.entity === entity && item.cloudId === cloudId)) current.push({ entity, cloudId, deletedAt: new Date().toISOString() });
     localStorage.setItem(key, JSON.stringify(current));
   } catch { /* The next full reconciliation still preserves all undeleted rows. */ }
 }
 
-export function readCloudTombstones(): CloudTombstone[] {
+export function readCloudTombstones(ownerId: string | null = activeOwnerId): CloudTombstone[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(tombstoneStorageKey()) || "[]");
+    const raw = JSON.parse(localStorage.getItem(tombstoneStorageKey(ownerId)) || "[]");
     return Array.isArray(raw) ? raw.filter((item): item is CloudTombstone => item && typeof item.cloudId === "string" && ["subjects","tasks","sessions","academicPeriods","events","resources"].includes(item.entity)) : [];
   } catch { return []; }
 }
 
-export function clearCloudTombstones(completed: CloudTombstone[]) {
+export function clearCloudTombstones(completed: CloudTombstone[], ownerId: string | null = activeOwnerId) {
   if (!completed.length) return;
-  const key = tombstoneStorageKey();
+  const key = tombstoneStorageKey(ownerId);
   const done = new Set(completed.map(item => item.entity + ":" + item.cloudId));
   try {
-    const current = readCloudTombstones();
+    const current = readCloudTombstones(ownerId);
     localStorage.setItem(key, JSON.stringify(current.filter(item => !done.has(item.entity + ":" + item.cloudId))));
   } catch { /* Retain pending deletions for the next sync attempt. */ }
 }
@@ -126,7 +127,7 @@ class PlannerDatabase extends Dexie {
   resources!: EntityTable<StudentResource, "id">;
   events!: EntityTable<CalendarEvent, "id">;
 
-  constructor(name: string) {
+  constructor(name: string, private readonly ownerId: string | null) {
     super(name);
     this.version(1).stores({ tasks: "id, subject, due, priority, done" });
     this.version(2).stores({
@@ -186,13 +187,14 @@ class PlannerDatabase extends Dexie {
       });
       table.hook("deleting").subscribe((_key: unknown, obj: Record<string, unknown>) => {
         if (cloudSyncPaused || typeof obj.cloudId !== "string") return;
-        recordTombstone(entity, obj.cloudId);
+        recordTombstone(entity, obj.cloudId, this.ownerId);
       });
     }
   }
 }
 
-let activeDatabase = new PlannerDatabase("studyspace-local-guest");
+let activeDatabase = new PlannerDatabase("studyspace-local-guest", null);
+accountDatabases.set("guest", activeDatabase);
 
 // Route all database operations through the current authenticated student's
 // own IndexedDB database. This prevents shared-device accounts from reading
@@ -209,10 +211,21 @@ export const plannerDb = new Proxy({} as PlannerDatabase, {
 
 export function setPlannerDbUser(userId: string | null) {
   const normalized = userId && /^[a-zA-Z0-9_-]{1,128}$/.test(userId) ? userId : null;
-  const nextName = normalized ? "studyspace-local-user-" + normalized : "studyspace-local-guest";
-  if (activeOwnerId === normalized && activeDatabase.name === nextName) return;
-  const previous = activeDatabase;
+  const cacheKey = normalized || "guest";
+  if (activeOwnerId === normalized && accountDatabases.has(cacheKey)) return;
+  let next = accountDatabases.get(cacheKey);
+  if (!next) {
+    const nextName = normalized ? "studyspace-local-user-" + normalized : "studyspace-local-guest";
+    next = new PlannerDatabase(nextName, normalized);
+    accountDatabases.set(cacheKey, next);
+  }
+  // Keep the previous account's Dexie connection alive for any in-flight
+  // operation that captured it. Never redirect that operation to the new user.
   activeOwnerId = normalized;
-  activeDatabase = new PlannerDatabase(nextName);
-  previous.close();
+  activeDatabase = next;
+}
+
+export function getPlannerDatabaseForUser(userId: string): PlannerDatabase {
+  if (activeOwnerId !== userId) throw new Error("The signed-in student changed before the workspace sync started.");
+  return activeDatabase;
 }
