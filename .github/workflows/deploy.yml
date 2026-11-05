@@ -27,9 +27,32 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Validate Studyspace Supabase connection
+        env:
+          VITE_SUPABASE_URL: https://tibcoottzstnqkfpwabk.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          const url = process.env.VITE_SUPABASE_URL?.trim();
+          const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+          if (url !== "https://tibcoottzstnqkfpwabk.supabase.co") {
+            console.error("The student app is not configured for the Studyspace production project.");
+            process.exit(1);
+          }
+          if (!key || !(key.startsWith("sb_publishable_") || key.startsWith("eyJ"))) {
+            console.error("Missing or invalid-format publishable key. Add VITE_SUPABASE_PUBLISHABLE_KEY to the planner repository's Actions variables or secrets.");
+            process.exit(1);
+          }
+          const response = await fetch(url + "/auth/v1/settings", { headers: { apikey: key } });
+          if (!response.ok) {
+            console.error("Supabase rejected the student app's public API key (HTTP " + response.status + "). Update VITE_SUPABASE_PUBLISHABLE_KEY in the planner repository using the publishable key from the Studyspace Supabase project.");
+            process.exit(1);
+          }
+          console.log("Studyspace Supabase project and public API key validated.");
+          NODE
       - name: Build app
         env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_URL: https://tibcoottzstnqkfpwabk.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
       - name: Configure Pages
