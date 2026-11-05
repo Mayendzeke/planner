@@ -680,11 +680,9 @@ export async function syncStudentWorkspace(
     || String(remoteGoal.goal_text || "") !== goalPayload.goal_text
     || Number(remoteGoal.target_mark || 0) !== Number(goalPayload.target_mark || 0)
     || JSON.stringify(remoteGoal.preferred_days || []) !== JSON.stringify(preferredDays);
-  let cloudGoalAfter = remoteGoal;
   if (needsGoalWrite) {
     const { data, error } = await supabase.from("student_goals").upsert(goalPayload, { onConflict: "learner_id" }).select("*").single();
     if (error) throw new Error("Could not sync your study goals: " + error.message);
-    cloudGoalAfter = data as CloudRow;
   }
   const syncedAt = new Date().toISOString();
   localStorage.setItem(baselineKey, JSON.stringify({
