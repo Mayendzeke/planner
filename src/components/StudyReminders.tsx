@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { studentStorageKey } from "../lib/studentStorage";
 import { Bell, BellRing, Clock3, ShieldCheck } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -8,7 +9,7 @@ const defaultSettings: ReminderSettings = { enabled: false, time: "16:00", days:
 
 function readSettings(): ReminderSettings {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(studentStorageKey(STORAGE_KEY));
     if (!raw) return defaultSettings;
     const parsed = JSON.parse(raw) as ReminderSettings;
     if (typeof parsed.enabled !== "boolean" || typeof parsed.time !== "string" || !Array.isArray(parsed.days)) return defaultSettings;
@@ -19,7 +20,7 @@ function readSettings(): ReminderSettings {
 export default function StudyReminders({ preferredDays = [], showSettings = true }: { preferredDays?: string[]; showSettings?: boolean }) {
   const [settings, setSettings] = useState<ReminderSettings>(() => {
     const saved = readSettings();
-    return localStorage.getItem(STORAGE_KEY) ? saved : { ...defaultSettings, days: preferredDays.length ? preferredDays.filter(day => DAYS.includes(day)) : defaultSettings.days };
+    return localStorage.getItem(studentStorageKey(STORAGE_KEY)) ? saved : { ...defaultSettings, days: preferredDays.length ? preferredDays.filter(day => DAYS.includes(day)) : defaultSettings.days };
   });
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported");
   const [message, setMessage] = useState("");
@@ -35,8 +36,8 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
       const delta = now.getTime() - target.getTime();
       if (!settings.days.includes(day) || delta < 0 || delta > 5 * 60 * 1000) return;
       const key = "studyspace-reminder-fired-" + now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
-      if (localStorage.getItem(key) === settings.time) return;
-      localStorage.setItem(key, settings.time);
+      if (localStorage.getItem(studentStorageKey(key)) === settings.time) return;
+      localStorage.setItem(studentStorageKey(key), settings.time);
       const notification = new Notification("Your Studyspace session is ready", {
         body: "It's your planned study time. Open your study space and take one small step.",
         icon: "/planner/icon-192.png",
@@ -51,7 +52,7 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
 
   function update(next: ReminderSettings) {
     setSettings(next);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { setMessage("Your browser could not save reminder preferences."); }
+    try { localStorage.setItem(studentStorageKey(STORAGE_KEY), JSON.stringify(next)); } catch { setMessage("Your browser could not save reminder preferences."); }
   }
 
   async function enableReminders() {
