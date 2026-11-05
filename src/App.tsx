@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check,
-  ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard,
+  ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
   Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
   Trash2, TrendingUp, Upload, X, Flame
 } from "lucide-react";
