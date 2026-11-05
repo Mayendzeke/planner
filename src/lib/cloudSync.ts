@@ -220,7 +220,16 @@ async function syncPersonalResources(userId: string, remoteRows: CloudRow[], sub
       await withCloudSyncPaused(() => table.put(resource));
       downloaded += 1;
     } else {
+      const remoteStamp = String(remote.updated_at || remote.created_at);
+      const needsFileRefresh = timestamp(remoteStamp) > timestamp(existing.cloudUpdatedAt || existing.localUpdatedAt);
+      let filePatch: Partial<StudentResource> = {};
+      if (needsFileRefresh) {
+        const { data, error } = await supabase!.storage.from("studyspace-resources").download(remote.storage_path);
+        if (error) throw new Error("Could not refresh your cloud file " + remote.title + ": " + error.message);
+        filePatch = { file: data };
+      }
       await withCloudSyncPaused(() => table.update(existing.id, {
+        ...filePatch,
         name: remote.title,
         mimeType: remote.mime_type,
         size: Number(remote.file_size),
@@ -229,8 +238,8 @@ async function syncPersonalResources(userId: string, remoteRows: CloudRow[], sub
         subjectId: subjects.find(subject => subject.name.toLocaleLowerCase() === String(remote.subject_name || "").toLocaleLowerCase())?.id,
         resourceType: remote.resource_type === "Revision notes" ? "Revision notes" : "Study notes",
         cloudId: String(remote.id),
-        localUpdatedAt: String(remote.updated_at || remote.created_at),
-        cloudUpdatedAt: String(remote.updated_at || remote.created_at),
+        localUpdatedAt: remoteStamp,
+        cloudUpdatedAt: remoteStamp,
       }));
       downloaded += 1;
     }
@@ -396,11 +405,29 @@ export async function syncStudentWorkspace(
   const completedDeletes: typeof deletionQueue = [];
   let deleted = 0;
   for (const item of deletionQueue) {
+    const { error: ledgerError } = await supabase.from("student_sync_deletions").insert({
+      learner_id: userId, entity: item.entity, cloud_id: item.cloudId,
+    }, { onConflict: "learner_id,entity,cloud_id", ignoreDuplicates: true });
+    if (ledgerError) throw new Error("Could not record an offline deletion for other devices: " + ledgerError.message);
     await removeCloudRecord(item.entity, item.cloudId, userId);
     completedDeletes.push(item);
     deleted += 1;
   }
   clearCloudTombstones(completedDeletes);
+
+  const { data: serverTombstones, error: tombstoneReadError } = await supabase.from("student_sync_deletions")
+    .select("entity,cloud_id").eq("learner_id", userId);
+  if (tombstoneReadError) throw new Error("Could not retrieve cross-device deletion records: " + tombstoneReadError.message);
+  const entityTables: Record<CloudSyncEntity, any> = {
+    subjects: plannerDb.subjects, tasks: plannerDb.tasks, sessions: plannerDb.sessions,
+    academicPeriods: plannerDb.academicPeriods, events: plannerDb.events, resources: plannerDb.resources,
+  };
+  for (const tombstone of serverTombstones || []) {
+    const entity = tombstone.entity as CloudSyncEntity;
+    if (!entityTables[entity] || !tombstone.cloud_id) continue;
+    await removeCloudRecord(entity, String(tombstone.cloud_id), userId);
+    await withCloudSyncPaused(() => entityTables[entity].where("cloudId").equals(String(tombstone.cloud_id)).delete());
+  }
 
   const [remoteSubjects, remoteTasks, remoteSessions, remotePeriods, remoteEvents, remoteResources, goalResult] = await Promise.all([
     fetchRows("student_subjects", userId),
@@ -463,6 +490,12 @@ export async function syncStudentWorkspace(
       completedAt: remote.completed_at || null,
     }),
     subjects,
+    (local, rows) => rows.find(row =>
+      String(row.title).trim().toLocaleLowerCase() === local.title.trim().toLocaleLowerCase()
+      && String(row.created_at) === local.createdAt
+      && String(row.subject_id || "") === String(cloudSubjectId(local.subjectId) || "")
+      && String(row.due_at || "") === String(fromLocalDateTime(local.dueAt) || "")
+    ),
   );
 
   const sessionResult = await reconcileCollection<StudySession>(
@@ -477,6 +510,11 @@ export async function syncStudentWorkspace(
       date: String(remote.started_at), minutes: Number(remote.duration_minutes), notes: String(remote.reflection || ""),
     }),
     subjects,
+    (local, rows) => rows.find(row =>
+      String(row.started_at) === local.date
+      && Number(row.duration_minutes) === local.minutes
+      && String(row.subject_id || "") === String(cloudSubjectId(local.subjectId) || "")
+    ),
   );
 
   const periodResult = await reconcileCollection<AcademicPeriod>(
@@ -495,6 +533,11 @@ export async function syncStudentWorkspace(
       notes: String(remote.notes || ""), createdAt: String(remote.created_at),
     }),
     subjects,
+    (local, rows) => rows.find(row =>
+      String(row.title).trim().toLocaleLowerCase() === local.title.trim().toLocaleLowerCase()
+      && String(row.starts_on) === local.startDate
+      && String(row.ends_on) === local.endDate
+    ),
   );
 
   const eventResult = await reconcileCollection<CalendarEvent>(
@@ -515,6 +558,10 @@ export async function syncStudentWorkspace(
       };
     },
     subjects,
+    (local, rows) => rows.find(row =>
+      String(row.title).trim().toLocaleLowerCase() === local.title.trim().toLocaleLowerCase()
+      && String(row.starts_at) === String(fromLocalDateTime(local.date + "T" + (local.time || "00:00")) || "")
+    ),
   );
 
   const resourceResult = await syncPersonalResources(userId, remoteResources, subjects);
