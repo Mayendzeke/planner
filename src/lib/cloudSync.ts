@@ -29,6 +29,7 @@ export type StudentSyncResult = {
   downloaded: number;
   uploaded: number;
   deleted: number;
+  reminderSettings?: Record<string, unknown>;
 };
 
 const remoteTableFor: Record<CloudSyncEntity, string> = {
@@ -460,13 +461,19 @@ export async function syncStudentWorkspace(
   }
 
   const reminderKey = studentStorageKey("studyspace-study-reminders");
+  const hasLocalReminders = localStorage.getItem(reminderKey) !== null;
   let reminderSettings: CloudRow = { enabled: false, time: "16:00", days: profile.preferredDays || [] };
-  try {
-    const parsed = JSON.parse(localStorage.getItem(reminderKey) || "null");
-    if (parsed && typeof parsed === "object") reminderSettings = parsed;
-  } catch { /* Use the profile defaults. */ }
+  if (!hasLocalReminders && remoteGoal?.reminder_settings && typeof remoteGoal.reminder_settings === "object") {
+    reminderSettings = remoteGoal.reminder_settings;
+    localStorage.setItem(reminderKey, JSON.stringify(reminderSettings));
+  } else {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(reminderKey) || "null");
+      if (parsed && typeof parsed === "object") reminderSettings = parsed;
+    } catch { /* Use the profile defaults. */ }
+  }
 
-  const preferredDays = Array.isArray(remoteGoal?.preferred_days) ? remoteGoal!.preferred_days : (profile.preferredDays || []);
+  const preferredDays = profile.preferredDays || (Array.isArray(remoteGoal?.preferred_days) ? remoteGoal!.preferred_days : []);
   const goalPayload = {
     learner_id: userId,
     goal_text: profile.goals || "",
@@ -476,12 +483,14 @@ export async function syncStudentWorkspace(
     reminder_settings: reminderSettings,
     updated_at: remoteGoal?.updated_at || new Date().toISOString(),
   };
+  const localGoalChanged = hasLocalGoal && Number(remoteGoal?.weekly_hours || 0) !== Number(resolvedWeeklyHours);
+  const localReminderChanged = hasLocalReminders && JSON.stringify(remoteGoal?.reminder_settings || {}) !== JSON.stringify(reminderSettings);
   const needsGoalWrite = !remoteGoal
-    || hasLocalGoal
+    || localGoalChanged
+    || localReminderChanged
     || String(remoteGoal.goal_text || "") !== goalPayload.goal_text
     || Number(remoteGoal.target_mark || 0) !== Number(goalPayload.target_mark || 0)
-    || Number(remoteGoal.weekly_hours || 0) !== Number(goalPayload.weekly_hours || 0)
-    || JSON.stringify(remoteGoal.reminder_settings || {}) !== JSON.stringify(reminderSettings);
+    || JSON.stringify(remoteGoal.preferred_days || []) !== JSON.stringify(preferredDays);
   if (needsGoalWrite) {
     const { error } = await supabase.from("student_goals").upsert(goalPayload, { onConflict: "learner_id" });
     if (error) throw new Error("Could not sync your study goals: " + error.message);
@@ -493,5 +502,6 @@ export async function syncStudentWorkspace(
     downloaded: subjectResult.downloaded + taskResult.downloaded + sessionResult.downloaded + periodResult.downloaded + eventResult.downloaded + resourceResult.downloaded,
     uploaded: subjectResult.uploaded + taskResult.uploaded + sessionResult.uploaded + periodResult.uploaded + eventResult.uploaded + resourceResult.uploaded,
     deleted,
+    reminderSettings,
   };
 }
