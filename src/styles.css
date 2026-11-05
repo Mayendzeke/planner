@@ -583,3 +583,55 @@ html{overflow-anchor:none}
 .session-call-banner p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
 .session-call-banner a{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:9px 12px;border-radius:9px;background:var(--accent,#756bd5);color:#fff;text-decoration:none;font-size:10px;font-weight:700}
 @media(max-width:600px){.session-call-banner{align-items:flex-start;flex-direction:column}.session-call-banner a{width:100%;justify-content:center}}
+
+
+/* Stable, opaque Settings surfaces and a single, predictable app scroll surface. */
+.app-shell .main-area > .topbar {
+  background: var(--bg) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.app-shell .settings-stack > .settings-card {
+  background: var(--panel-strong) !important;
+  background-color: var(--panel-strong) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  opacity: 1;
+  isolation: isolate;
+}
+.app-shell .settings-stack > .settings-card .setting-row,
+.app-shell .settings-stack > .settings-card .danger-row {
+  background: transparent;
+}
+.app-shell > .main-area {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  overflow-anchor: none;
+  scroll-behavior: auto;
+}
+.app-shell .page-content {
+  min-width: 0;
+  width: 100%;
+}
+.app-shell .settings-stack,
+.app-shell .settings-stack > .settings-card {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .app-shell > .main-area {
+    height: 100dvh;
+    height: 100svh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overscroll-behavior-y: contain;
+  }
+  .app-shell .settings-stack > .settings-card {
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  }
+  .app-shell .settings-stack .setting-row,
+  .app-shell .settings-stack .danger-row {
+    gap: 12px;
+  }
+}
