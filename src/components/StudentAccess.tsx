@@ -47,7 +47,9 @@ export default function StudentAccess() {
     try {
       if (mode === "enrol") {
         const { data, error: invokeError } = await supabase.functions.invoke("enrol-learner", {
-          body: { studentId: studentId.trim().toUpperCase(), pin, password }
+          // Compatibility fields let an older deployed Edge Function accept the request;
+          // the authenticated onboarding step immediately replaces these placeholders.
+          body: { studentId: studentId.trim().toUpperCase(), pin, password, fullName: "Student", preferredName: "Student" }
         });
         if (invokeError) throw invokeError;
         if (!data?.success) throw new Error(data?.error || "The account could not be created.");
