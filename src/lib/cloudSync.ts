@@ -180,7 +180,7 @@ async function reconcileCollection<T extends LocalCloudRow>(
   return { downloaded, uploaded };
 }
 
-async function syncPersonalResources(userId: string, remoteRows: CloudRow[]): Promise<{ downloaded: number; uploaded: number }> {
+async function syncPersonalResources(userId: string, remoteRows: CloudRow[], subjects: Subject[]): Promise<{ downloaded: number; uploaded: number }> {
   if (!supabase) throw new Error("Studyspace cloud services are not configured.");
   const table = plannerDb.resources;
   let localRows = await table.toArray();
@@ -215,6 +215,7 @@ async function syncPersonalResources(userId: string, remoteRows: CloudRow[]): Pr
         createdAt: String(remote.created_at),
         resourceType: remote.resource_type === "Revision notes" ? "Revision notes" : "Study notes",
         topic: remote.topic || "",
+        subjectId: subjects.find(subject => subject.name.toLocaleLowerCase() === String(remote.subject_name || "").toLocaleLowerCase())?.id,
       };
       await withCloudSyncPaused(() => table.put(resource));
       downloaded += 1;
@@ -225,6 +226,7 @@ async function syncPersonalResources(userId: string, remoteRows: CloudRow[]): Pr
         size: Number(remote.file_size),
         createdAt: String(remote.created_at),
         topic: remote.topic || "",
+        subjectId: subjects.find(subject => subject.name.toLocaleLowerCase() === String(remote.subject_name || "").toLocaleLowerCase())?.id,
         resourceType: remote.resource_type === "Revision notes" ? "Revision notes" : "Study notes",
         cloudId: String(remote.id),
         localUpdatedAt: String(remote.updated_at || remote.created_at),
@@ -249,7 +251,7 @@ async function syncPersonalResources(userId: string, remoteRows: CloudRow[]): Pr
           id: local.cloudId,
           learner_id: userId,
           title: local.name,
-          subject_name: "",
+          subject_name: local.subjectId == null ? "" : (subjects.find(subject => subject.id === local.subjectId)?.name || ""),
           topic: local.topic || "",
           resource_type: local.resourceType || "Personal",
           description: "",
@@ -280,7 +282,7 @@ async function syncPersonalResources(userId: string, remoteRows: CloudRow[]): Pr
       id: cloudId,
       learner_id: userId,
       title: local.name,
-      subject_name: "",
+      subject_name: local.subjectId == null ? "" : (subjects.find(subject => subject.id === local.subjectId)?.name || ""),
       topic: local.topic || "",
       resource_type: local.resourceType || "Personal",
       description: "",
@@ -447,7 +449,7 @@ export async function syncStudentWorkspace(
     subjects,
   );
 
-  const resourceResult = await syncPersonalResources(userId, remoteResources);
+  const resourceResult = await syncPersonalResources(userId, remoteResources, subjects);
 
   const remoteGoal = goalResult.data as CloudRow | null;
   const localGoalKey = studentStorageKey("studyspace-weekly-goal");
