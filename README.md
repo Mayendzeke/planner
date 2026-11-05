@@ -1,35 +1,48 @@
-# Studyspace — Student Academic Planner
+# Studyspace Student Planner
 
-Studyspace is an offline-first academic planner designed for learners from primary school through university. It is built as a local, single-device application: each browser profile has its own records, and no account or server is configured.
+Studyspace is an offline-first academic planner for learners from primary school through university. It combines a local IndexedDB workspace with a shared Supabase account so a learner can continue working offline and synchronise their planner when connected.
 
-## Current capabilities
+## Student features
 
-- Create, edit, complete and delete study tasks, assignments, exams, reading and other work.
-- Add and remove custom subjects, choose subject colours, and link tasks to subjects.
-- Set deadlines, estimated minutes, priority and notes; search tasks and filter open, overdue and completed work.
-- Review dashboard totals, subject completion rates and study time calculated from records entered in the app.
-- Explicitly log study sessions and set a weekly study-time goal.
-- Switch between dark and light glass-inspired themes.
-- Export a JSON backup and validate/restore a compatible backup.
-- Delete all local records with a confirmation.
-- Install as a PWA and cache the application shell for offline use after a successful first load.
+- Personal profile with institution, country, level, grade, curriculum and academic year.
+- Subjects, targets, study tasks, due dates, priorities and notes.
+- Academic periods, terms, exams, holidays and calendar events.
+- Study-session logging, weekly goals, progress summaries and flashcard practice.
+- Teacher-assigned resources stored in a private bucket and personal file storage.
+- Teacher-assigned assessments: multiple choice, true/false, fill-in answers, matching and written responses.
+- Secure server-side assessment marking, deadlines and teacher feedback for written answers.
+- Light/dark appearance, responsive layout, installable PWA and offline application-shell caching.
 
-## Privacy and data safety
+## Data and synchronisation
 
-- Subject, task and study-session records are stored in the browser's IndexedDB database on the current device.
-- The application has no sign-in, cloud sync, analytics service or remote database.
-- Records are not automatically shared between students, devices or browsers.
-- Clearing site/browser storage, uninstalling the browser, or losing the device can erase records. Export backups regularly and keep backup files private.
-- A backup contains the records you entered. Anyone with that file may be able to read its contents.
-- The app does not provide multi-device synchronisation, account recovery, notifications or a background study timer in this release.
+- Dexie / IndexedDB is the local working cache.
+- Supabase Auth identifies the learner; database records are scoped to that learner's Auth user ID.
+- Planner records, goals, reminders, calendar data, practice progress and personal resources synchronise through Supabase.
+- Local edits are retained for offline use and reconciled with cloud records on sync/reconnect.
+- Deletion tombstones prevent previously deleted records from being restored by a later sync.
+- Personal files and teacher resources use the private `studyspace-resources` Storage bucket with database-backed access policies.
+- The browser database is not a substitute for a separate backup. Export and store backups securely.
+
+Browser study reminders use local notifications. The browser must be open for the reminder check to run; this release does not promise background push notifications, SMS or notifications while the browser is closed.
+
+## Shared backend
+
+Both Studyspace applications use the same Supabase project:
+
+- Project URL: `https://tibcoottzstnqkfpwabk.supabase.co`
+- Backend and migration source: [Mayendzeke/studyspace-monitor](https://github.com/Mayendzeke/studyspace-monitor)
+- Production setup and migration instructions: [SUPABASE_SETUP.md](https://github.com/Mayendzeke/studyspace-monitor/blob/main/SUPABASE_SETUP.md)
+
+The student client uses only the public Supabase publishable key. Never add a secret/service-role key, database password, student password, enrolment PIN, personal file or other private learner data to this repository or its browser build.
 
 ## Technology
 
-- React + TypeScript + Vite
-- Dexie / IndexedDB with a versioned schema migration
+- React, TypeScript and Vite
+- Dexie / IndexedDB
+- Supabase Auth, PostgreSQL, Row Level Security and private Storage
+- Supabase Edge Functions for privileged assessment operations
 - vite-plugin-pwa / Workbox
-- Lucide icons
-- Static hosting; no backend required
+- GitHub Pages
 
 ## Local development
 
@@ -42,21 +55,26 @@ npm run build
 npm run preview
 ```
 
-## GitHub Pages
+Configure the public frontend environment values in GitHub Actions Variables (or a local `.env.local` file):
 
-The Vite base path is configured for the repository path `/planner/`. The Pages deployment workflow builds `dist` and deploys it when Pages is enabled for the repository. A successful workflow run is required before treating the site as ready.
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-On GitHub Free, GitHub Pages requires the repository to be public. A public repository exposes source files, commit history, documentation and workflow definitions. Keep secrets, personal student records and backup files out of the repository.
+Only public client values belong in the frontend. Never use a Supabase secret key in a `VITE_*` variable.
 
-## Release verification checklist
+## Deployment
 
-- [ ] GitHub Actions typecheck and production build pass.
-- [ ] Test add/edit/complete/delete for tasks and add/delete for subjects.
-- [ ] Test deadlines in the device's local timezone, search and all planner filters.
-- [ ] Test study-session logging and progress totals.
-- [ ] Test JSON export and valid/invalid restore, including cancellation.
-- [ ] Test dark/light themes and small-screen layout.
-- [ ] Test first load, refresh, installation and offline relaunch on target browsers.
-- [ ] Confirm no credentials, personal data or private files are present in the repository or commit history before changing visibility.
+The app is published through GitHub Pages at [mayendzeke.github.io/planner](https://mayendzeke.github.io/planner/). A successful GitHub Actions build and Pages deployment is required before treating a source change as live.
 
-Studyspace is a personal local planner, not a central school management system. Each student must use their own browser/device profile. Cloud sync and administrator/student accounts are not included.
+## Release verification
+
+- Confirm the latest GitHub Actions build and Pages deployment succeed.
+- Verify sign-in and learner account isolation with the intended test accounts.
+- Verify the same learner's workspace synchronises across two separate devices/browsers.
+- Verify edits and deletions made offline reconcile correctly after reconnecting.
+- Verify personal files and teacher-assigned resources remain private to the correct learner.
+- Verify assessments respect release dates and deadlines, submit to the server, and record results.
+- Verify written answers appear in the Monitor marking queue and teacher feedback returns to the learner.
+- Test installation, first load, refresh and offline relaunch on target browsers.
+
+The production build verifies TypeScript and frontend compilation. It does not, by itself, prove every live database policy, account, storage rule or multi-device workflow.
