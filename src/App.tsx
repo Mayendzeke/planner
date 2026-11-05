@@ -262,8 +262,10 @@ export default function App() {
           const reminderKey = studentStorageKey("studyspace-study-reminders");
           if (localStorage.getItem(reminderKey) === null) {
             localStorage.setItem(reminderKey, JSON.stringify(result.reminderSettings));
-            window.dispatchEvent(new Event("studyspace-cloud-preferences-updated"));
           }
+          // The sync engine may already have written the cloud value to storage.
+          // Notify the mounted reminder control in either case.
+          window.dispatchEvent(new Event("studyspace-cloud-preferences-updated"));
         }
         await refresh();
       } catch (reason) {
