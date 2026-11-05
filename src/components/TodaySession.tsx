@@ -69,9 +69,11 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       const ids = memberships.map(item => item.session_id);
       const { data: sessions, error: sessionError } = await supabase!.from("class_sessions")
         .select("id,title,subject_name,objectives,starts_at,status,duration_minutes,meeting_url")
-        .in("id", ids).in("status", ["scheduled","live"]).order("starts_at", { ascending: false }).limit(1);
+        .in("id", ids).in("status", ["scheduled","live"]).order("starts_at", { ascending: true }).limit(10);
       if (sessionError || !sessions?.length || !alive) return;
-      const session = sessions[0];
+      const session = sessions.find(item => item.status === "live")
+        || sessions.find(item => new Date(item.starts_at).getTime() >= Date.now())
+        || sessions[sessions.length - 1];
       setActiveSessionId(session.id); setLessonTitle(session.title); setSubject(session.subject_name);
       setObjectives(session.objectives || "");
       setMeetingUrl(session.meeting_url || "");
@@ -113,6 +115,10 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
             id: row.id, text: row.message, sender: row.sender_id === auth.user.id ? "You" : "Teacher",
             time: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           }]);
+        })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "class_sessions", filter: "id=eq." + session.id }, payload => {
+          const status = (payload.new as {status?:string}).status;
+          if (alive && status) setCloudStatus(status === "live" ? "Live class connected" : status === "ended" ? "Class ended" : "Assigned lesson connected");
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "session_whiteboards", filter: "session_id=eq." + session.id }, payload => {
           const imageData = (payload.new as { board_state?: { imageData?: string } }).board_state?.imageData;
