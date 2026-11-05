@@ -290,7 +290,7 @@ export default function App() {
         localStorage.setItem("studyspace-profile:" + userId, JSON.stringify(raw.profile));
         setProfile(raw.profile as StudentProfile);
       }
-      if (raw.version >= 4 && raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace)) localStorage.setItem(studentStorageKey("studyspace-current-session-v1"), JSON.stringify(raw.sessionWorkspace)); else localStorage.removeItem("studyspace-current-session-v1");
+      if (raw.version >= 4 && raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace)) localStorage.setItem(studentStorageKey("studyspace-current-session-v1"), JSON.stringify(raw.sessionWorkspace)); else localStorage.removeItem(studentStorageKey("studyspace-current-session-v1"));
       setImportMessage("Backup restored successfully."); await refresh();
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
     e.target.value = "";
