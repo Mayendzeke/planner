@@ -130,9 +130,10 @@ export default function App() {
 
   async function finishOnboarding(nextProfile: StudentProfile) {
     try {
-      if (supabase) {
-        const { data: authState } = await supabase.auth.getSession();
-        if (authState.session) {
+      if (!supabase) throw new Error("Studyspace is not connected. Reconnect and sign in again.");
+      const { data: authState, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !authState.session) throw new Error("Your secure session has expired. Sign in again before completing setup.");
+      {
           const { error: profileError } = await supabase.rpc("update_studyspace_learner_profile", {
             p_full_name: nextProfile.fullName,
             p_preferred_name: nextProfile.preferredName,
@@ -151,7 +152,6 @@ export default function App() {
             );
             if (subjectsError) throw new Error("Your cloud profile was saved, but subjects could not be synced: " + subjectsError.message);
           }
-        }
       }
       localStorage.setItem("studyspace-profile", JSON.stringify(nextProfile));
       setProfile(nextProfile);
@@ -160,7 +160,7 @@ export default function App() {
       const additions = nextProfile.subjects.filter(name => !names.has(name.toLocaleLowerCase()));
       if (additions.length) await plannerDb.subjects.bulkAdd(additions.map((name, index) => ({ id: Date.now() + index, name, color: colors[index % colors.length], createdAt: new Date().toISOString() })));
       await refresh();
-    } catch { setError("Your profile was saved, but some subjects could not be added. You can add them from the Subjects page."); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Your profile could not be saved. Check your connection and try again."); }
   }
 
   const subjectById = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
