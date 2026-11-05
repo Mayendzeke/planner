@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BookOpen, FileText, FolderOpen, Plus, Trash2, Upload, X, Eye, AlertCircle } from "lucide-react";
+import PdfViewer from "./PdfViewer";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
@@ -18,7 +19,6 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
   const [resourceType, setResourceType] = useState<"Study notes" | "Revision notes">("Study notes");
   const [topic, setTopic] = useState("");
   const [viewing, setViewing] = useState<StudentResource | null>(null);
-  const [previewUrl, setPreviewUrl] = useState("");
   const [previewText, setPreviewText] = useState("");
 
   async function refresh() {
@@ -29,11 +29,10 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
   useEffect(() => { void refresh(); }, []);
 
   useEffect(() => {
-    if (!viewing) { setPreviewUrl(""); return; }
-    const url = URL.createObjectURL(viewing.file); setPreviewUrl(url); setPreviewText("");
+    if (!viewing) { setPreviewText(""); return; }
+    setPreviewText("");
     const ext = viewing.name.toLowerCase().slice(viewing.name.lastIndexOf("."));
     if (ext === ".txt" || ext === ".rtf") void viewing.file.text().then(setPreviewText).catch(() => setPreviewText("Unable to read this file."));
-    return () => URL.revokeObjectURL(url);
   }, [viewing]);
   useEffect(() => {
     if (!viewing) return;
@@ -111,7 +110,7 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
       <section className="library-viewer" role="dialog" aria-modal="true" aria-label={"Viewing " + viewing.name}>
         <header className="library-viewer-header"><div><span>STUDYSPACE VIEWER</span><strong>{viewing.name}</strong></div><button className="icon-button" onClick={() => setViewing(null)} aria-label="Close viewer"><X size={19}/></button></header>
         <div className="library-viewer-content">
-          {previewUrl && viewing.name.toLowerCase().endsWith(".pdf") && <iframe title={viewing.name} src={previewUrl + "#toolbar=0&navpanes=0"} />}
+          {viewing.name.toLowerCase().endsWith(".pdf") && <PdfViewer file={viewing.file} fileName={viewing.name} />}
           {(viewing.name.toLowerCase().endsWith(".txt") || viewing.name.toLowerCase().endsWith(".rtf")) && <pre>{previewText || "Loading preview…"}</pre>}
           {![".pdf",".txt",".rtf"].some(ext => viewing.name.toLowerCase().endsWith(ext)) && <div className="library-viewer-unsupported"><AlertCircle size={28}/><strong>This format is not yet supported by the in-app preview.</strong><p>The file stays here. Studyspace will not open it in another app or offer it for download.</p></div>}
         </div><footer className="library-viewer-footer">In-app viewing only · No download option</footer>
