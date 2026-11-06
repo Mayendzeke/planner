@@ -366,7 +366,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     .map(item => ({ key: "personal:" + item.id, name: item.name, topic: item.topic ?? "", source: "personal", personal: item }));
   const teacherNoteChoices: NoteChoice[] = teacherNotes
     .filter(item => item.subject_name.trim().toLowerCase() === (activeSubject?.name ?? "").trim().toLowerCase()
-      && /\\.(pdf|txt|rtf)$/i.test(item.title)
+      && /\.(pdf|txt|rtf)$/i.test(item.title)
       && /note|lesson|study|revision|learning material/i.test(item.resource_type + " " + item.title))
     .map(item => ({ key: "teacher:" + item.id, name: item.title, topic: item.topic || item.description || "", source: "teacher", teacher: item }));
   const noteChoices = [...personalNoteChoices, ...teacherNoteChoices];
@@ -417,7 +417,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       }
       if (!supabase) throw new Error("StudySpace is not connected. Sign in again and retry.");
       const topic = (testTopicInput.trim() || topicName.trim() || selectedNote.topic.trim()
-        || selectedNote.name.replace(/\\.[^.]+$/, "").slice(0, 160));
+        || selectedNote.name.replace(/\.[^.]+$/, "").slice(0, 160));
       const { data, error } = await supabase.functions.invoke("mia-assistant", {
         body: { action: "generate_topic_test", subject: activeSubject.name, topic, fileName: selectedNote.name, notesText },
       });
