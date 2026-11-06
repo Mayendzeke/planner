@@ -200,6 +200,15 @@ export default function App() {
     };
   }, [mobileMenu]);
 
+  useEffect(() => {
+    const handleLocalDataUpdated = () => {
+      void refresh();
+      setSyncRequested(value => value + 1);
+    };
+    window.addEventListener("studyspace-local-data-updated", handleLocalDataUpdated);
+    return () => window.removeEventListener("studyspace-local-data-updated", handleLocalDataUpdated);
+  }, []);
+
   async function refresh() {
     try {
       const [s, t, l] = await Promise.all([plannerDb.subjects.toArray(), plannerDb.tasks.toArray(), plannerDb.sessions.toArray()]);
