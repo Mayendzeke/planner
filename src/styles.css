@@ -767,3 +767,48 @@ html{overflow-anchor:none}
  .session-workspace { padding:14px; }
  .session-note-footer { align-items:flex-start;flex-direction:column; }
 }
+
+
+/* Independent study: guided focus, active recall and deliberate practice. */
+.solo-study-panel{display:grid;gap:17px;min-width:0}
+.solo-study-setup{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.solo-study-setup .session-field:nth-child(3){grid-column:1/-1}
+.solo-study-setup>.primary-button{justify-self:start;min-width:180px}
+.solo-study-active{display:grid;gap:16px}
+.solo-study-active-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.solo-study-active-head h3{margin:5px 0;font-size:18px}
+.solo-study-active-head p{margin:0;color:var(--muted);font-size:10px;line-height:1.6}
+.solo-study-clock{display:grid;justify-items:center;gap:3px;min-width:96px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong)}
+.solo-study-clock svg{color:var(--mint)}
+.solo-study-clock strong{font-size:22px;font-variant-numeric:tabular-nums}
+.solo-study-clock small{color:var(--muted);font-size:9px}
+.solo-study-progress{height:6px;overflow:hidden;border-radius:99px;background:var(--panel-strong)}
+.solo-study-progress span{display:block;height:100%;border-radius:inherit;background:var(--mint);transition:width .2s ease}
+.solo-study-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.solo-study-steps button{display:grid;justify-items:center;gap:7px;padding:10px 5px;border:1px solid var(--border);border-radius:10px;background:var(--panel-strong);color:var(--muted);cursor:pointer;min-width:0}
+.solo-study-steps button>span{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--panel);font-size:10px;font-weight:700}
+.solo-study-steps button small{font-size:9px;line-height:1.35;text-align:center}
+.solo-study-steps button.active{border-color:var(--mint);color:var(--text);background:color-mix(in srgb,var(--mint) 8%,var(--panel-strong))}
+.solo-study-steps button.completed>span{background:var(--mint);color:#10241f}
+.solo-study-instruction{display:grid;gap:8px;padding:17px;border:1px solid var(--border);border-radius:13px;background:var(--panel-strong)}
+.solo-study-instruction>span{color:var(--mint);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.solo-study-instruction h4{margin:0;font-size:15px}
+.solo-study-instruction p{margin:0;color:var(--muted);font-size:11px;line-height:1.75}
+.solo-study-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.solo-study-principle{display:flex;align-items:flex-start;gap:8px;padding:11px 12px;border-radius:10px;background:var(--panel-strong);color:var(--muted);font-size:9px;line-height:1.6}
+.solo-study-principle svg{flex:0 0 auto;color:var(--mint)}
+.solo-study-success{display:flex;align-items:center;gap:12px}
+.solo-study-success>svg{flex:0 0 auto;color:var(--mint)}
+.solo-study-success h3{margin:0 0 4px;font-size:16px}
+.solo-study-success p{margin:0;color:var(--muted);font-size:10px}
+.solo-study-summary{display:grid;gap:8px;padding:13px;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong);color:var(--muted);font-size:10px}
+.solo-study-summary strong{color:var(--text)}
+@media(max-width:600px){
+ .solo-study-setup{grid-template-columns:1fr}
+ .solo-study-setup .session-field:nth-child(3){grid-column:auto}
+ .solo-study-active-head{align-items:flex-start}
+ .solo-study-steps{gap:4px}
+ .solo-study-steps button{padding:8px 3px}
+ .solo-study-steps button small{font-size:8px}
+ .solo-study-actions>*{flex:1;justify-content:center}
+}
