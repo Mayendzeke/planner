@@ -129,7 +129,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const uploaded = file ? await filePayload(file) : null;
       if (uploaded?.textContent && !value) setText("");
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded?.data ? uploaded : null, conversationId },
+        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded, conversationId },
       });
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
