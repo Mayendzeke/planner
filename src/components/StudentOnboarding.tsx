@@ -97,13 +97,16 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
     if (step === 3) {
       const preferred = profile.preferredDays.length ? profile.preferredDays : ["Saturday", "Sunday"];
       const hours = Math.max(1, Math.min(80, Number(profile.weeklyHours) || 6));
-      const slotsPerDay = Math.ceil(hours / preferred.length);
-      const generatedStudyEntries: OnboardingTimetableEntry[] = preferred.flatMap(dayName => {
+      const baseSlots = Math.floor(hours / preferred.length);
+      const extraSlots = hours % preferred.length;
+      let assignedSlots = 0;
+      const generatedStudyEntries: OnboardingTimetableEntry[] = preferred.flatMap((dayName, dayPosition) => {
         const dayIndex = days.indexOf(dayName);
         const dayOfWeek = (dayIndex + 1) % 7;
         const weekend = dayName === "Saturday" || dayName === "Sunday";
         const startMinutes = weekend ? 10 * 60 : 16 * 60;
-        return Array.from({ length: slotsPerDay }, (_, slot) => {
+        const slotsForDay = Math.min(4, baseSlots + (dayPosition < extraSlots ? 1 : 0));
+        return Array.from({ length: slotsForDay }, (_, slot) => {
           const start = startMinutes + slot * 75;
           const end = start + 60;
           const format = (value: number) => String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
