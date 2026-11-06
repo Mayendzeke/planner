@@ -911,3 +911,6 @@ html{overflow-anchor:none}
 .mia-floating-shell{height:100%;border-radius:20px}.mia-floating-shell .mia-messages{padding:15px}
 .mia-spin{animation:miarotate 1s linear infinite}@keyframes miarotate{to{transform:rotate(360deg)}}
 @media(max-width:640px){.mia-studio-shell{height:calc(100dvh - 190px);min-height:420px;border-radius:16px}.mia-message-row{max-width:96%}.mia-floating-launcher{right:14px;bottom:14px;width:56px;height:56px}.mia-floating-panel{right:8px;bottom:80px;width:calc(100vw - 16px);height:min(620px,calc(100dvh - 95px))}.mia-composer{margin:0 9px}.mia-header{padding:12px}.mia-context-strip{padding:8px 12px}}
+
+.mia-timetable-review td input,.mia-timetable-review td select{max-width:125px;min-width:76px;border:1px solid var(--border);border-radius:7px;padding:6px;background:var(--bg2);color:var(--text);font-size:11px}.mia-time-edit{display:flex;gap:4px}.mia-time-edit input{width:92px;min-width:80px}.mia-remove-entry{border:0;background:transparent;color:var(--danger);font-size:20px;line-height:1;padding:4px 8px}
+@media(max-width:640px){.mia-time-edit{flex-direction:column}.mia-time-edit input{width:100%}.mia-timetable-review td input,.mia-timetable-review td select{max-width:100px}}
