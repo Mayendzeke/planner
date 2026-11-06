@@ -19,7 +19,7 @@ function readSoloStudyDraft(): SoloStudyDraft | null {
     const value = JSON.parse(localStorage.getItem(studentStorageKey(SOLO_STUDY_KEY)) || "null");
     if (!value || typeof value !== "object") return null;
     return {
-      subjectId: Number.isFinite(Number(value.subjectId)) ? Number(value.subjectId) : "",
+      subjectId: value.subjectId === "" || value.subjectId === null || value.subjectId === undefined ? "" : Number.isFinite(Number(value.subjectId)) ? Number(value.subjectId) : "",
       topic: typeof value.topic === "string" ? value.topic.slice(0, 120) : "",
       goal: typeof value.goal === "string" ? value.goal.slice(0, 400) : "",
       duration: [25,45,60,90].includes(Number(value.duration)) ? Number(value.duration) : 45,
@@ -54,7 +54,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
   const [completedMinutes, setCompletedMinutes] = useState(0);
 
   useEffect(() => {
-    if (subjectId === "" && subjects.length) setSubjectId(subjects[0].id);
+    if (subjects.length && (subjectId === "" || !subjects.some(subject => subject.id === subjectId))) setSubjectId(subjects[0].id);
   }, [subjects, subjectId]);
 
   useEffect(() => {
