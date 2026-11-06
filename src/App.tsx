@@ -389,10 +389,15 @@ export default function App() {
     catch { setError("The study session could not be saved."); }
   }
   async function exportData() {
-    const [academicPeriods, events] = await Promise.all([plannerDb.academicPeriods.toArray(), plannerDb.events.toArray()]);
-    const sessionWorkspace = (() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-current-session-v1")) || "null"); } catch { return null; } })();
-    const data = { format:"Studyspace backup", version:5, exportedAt:new Date().toISOString(), profile, goal, subjects, tasks, sessions, academicPeriods, events, sessionWorkspace };
-    downloadJson("studyspace-backup-" + today + ".json", data);
+    try {
+      const [academicPeriods, events] = await Promise.all([plannerDb.academicPeriods.toArray(), plannerDb.events.toArray()]);
+      const sessionWorkspace = (() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-current-session-v1")) || "null"); } catch { return null; } })();
+      const data = { format:"Studyspace backup", version:5, exportedAt:new Date().toISOString(), profile, goal, subjects, tasks, sessions, academicPeriods, events, sessionWorkspace };
+      downloadJson("studyspace-backup-" + today + ".json", data);
+      setImportMessage("Studyspace backup exported successfully. Personal library files are kept in your secure cloud library and are not included in this JSON file.");
+    } catch (reason) {
+      setImportMessage(reason instanceof Error ? "Backup export failed: " + reason.message : "Backup export failed. Check device storage and try again.");
+    }
   }
   async function importData(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
@@ -420,28 +425,46 @@ export default function App() {
         const userId = sessionState.session?.user.id;
         if (sessionError || !userId) throw new Error("Your secure session has expired. Sign in again before restoring this profile.");
         restoreProfileKey = "studyspace-profile:" + userId;
-        const storageCheckKey = studentStorageKey("studyspace-restore-preflight");
-        try { localStorage.setItem(storageCheckKey, "ready"); localStorage.removeItem(storageCheckKey); }
-        catch { throw new Error("Browser storage is unavailable. Nothing was restored; enable site storage and try again."); }
       }
-      await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, plannerDb.events, async () => {
+      const storageChanges: { key: string; value: string | null }[] = [];
+      if (restoreProfileKey && raw.profile) storageChanges.push({key:restoreProfileKey,value:JSON.stringify(raw.profile)});
+      if (raw.version >= 4) storageChanges.push({
+        key:studentStorageKey("studyspace-current-session-v1"),
+        value:raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace) ? JSON.stringify(raw.sessionWorkspace) : null,
+      });
+      storageChanges.push({key:studentStorageKey("studyspace-weekly-goal"),value:String(raw.version >= 5 ? raw.goal : 8)});
+      storageChanges.push({key:studentStorageKey("studyspace-weekly-goal-updated-at"),value:new Date().toISOString()});
+      const previousStorage = new Map<string,string|null>();
+      const rollbackStorage = () => {
+        for (const [key,value] of previousStorage) {
+          try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key,value); } catch { /* Preserve the original restore error. */ }
+        }
+      };
+      try {
+        for (const change of storageChanges) {
+          if (!previousStorage.has(change.key)) previousStorage.set(change.key,localStorage.getItem(change.key));
+          if (change.value === null) localStorage.removeItem(change.key);
+          else localStorage.setItem(change.key,change.value);
+        }
+      } catch {
+        rollbackStorage();
+        throw new Error("Browser storage could not save the restored settings. Nothing was imported; free space or enable site storage and try again.");
+      }
+      try {
+        await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, plannerDb.events, async () => {
         await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.events.clear()]);
         await plannerDb.subjects.bulkPut(raw.subjects);
         await plannerDb.tasks.bulkPut(raw.tasks);
         await plannerDb.sessions.bulkPut(raw.sessions);
         if (academicPeriods.length) await plannerDb.academicPeriods.bulkPut(academicPeriods);
         if (events.length) await plannerDb.events.bulkPut(events);
-      });
-      if (raw.profile && restoreProfileKey) {
-        localStorage.setItem(restoreProfileKey, JSON.stringify(raw.profile));
-        setProfile(raw.profile as StudentProfile);
+        });
+      } catch (reason) {
+        rollbackStorage();
+        throw reason;
       }
-      if (raw.version >= 4 && raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace)) localStorage.setItem(studentStorageKey("studyspace-current-session-v1"), JSON.stringify(raw.sessionWorkspace)); else localStorage.removeItem(studentStorageKey("studyspace-current-session-v1"));
-      if (raw.version >= 5) {
-        localStorage.setItem(studentStorageKey("studyspace-weekly-goal"), String(raw.goal));
-        localStorage.setItem(studentStorageKey("studyspace-weekly-goal-updated-at"), new Date().toISOString());
-        setGoal(raw.goal);
-      }
+      if (raw.profile && restoreProfileKey) setProfile(raw.profile as StudentProfile);
+      setGoal(raw.version >= 5 ? raw.goal : 8);
       setImportMessage("Backup restored successfully."); await refresh();
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
     e.target.value = "";
