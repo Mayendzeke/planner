@@ -149,6 +149,7 @@ export default function AssignedAssessments() {
         <p>{active.set.instructions}</p>
         <div className="assigned-assessment-meta"><span><Clock3 size={14}/>{active.set.duration_minutes} suggested minutes</span><span>{active.questions.length} questions</span><span>{answeredCount} of {active.questions.length} answered</span>{active.due_at&&<span>Due {new Date(active.due_at).toLocaleDateString()}</span>}</div>
         <div className="assigned-answer-progress"><span style={{width:(active.questions.length?answeredCount/active.questions.length*100:0)+"%"}}/></div>
+        {!draftSaveError&&<p className="assigned-draft-saved" role="status">Answers are saved on this device as you work. You can leave and return on this device before submitting.</p>}
         <div className="assigned-question-navigation" aria-label="Question navigation">{active.questions.map((question,index)=><button type="button" key={question.id} className={isAnswered(question)?"answered":""} onClick={()=>document.getElementById("assigned-q-"+question.id)?.scrollIntoView({behavior:"smooth",block:"start"})} aria-label={"Go to question "+(index+1)}>{index+1}</button>)}</div>
         {draftSaveError&&<p className="assigned-draft-warning" role="status">Your answers are not being saved to this device. Keep this page open until you submit.</p>}
         {active.questions.map((question,index)=>{
