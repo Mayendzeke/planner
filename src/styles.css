@@ -914,3 +914,5 @@ html{overflow-anchor:none}
 
 .mia-timetable-review td input,.mia-timetable-review td select{max-width:125px;min-width:76px;border:1px solid var(--border);border-radius:7px;padding:6px;background:var(--bg2);color:var(--text);font-size:11px}.mia-time-edit{display:flex;gap:4px}.mia-time-edit input{width:92px;min-width:80px}.mia-remove-entry{border:0;background:transparent;color:var(--danger);font-size:20px;line-height:1;padding:4px 8px}
 @media(max-width:640px){.mia-time-edit{flex-direction:column}.mia-time-edit input{width:100%}.mia-timetable-review td input,.mia-timetable-review td select{max-width:100px}}
+
+.mia-quick-actions{display:flex;flex-wrap:wrap;gap:7px;padding:0 18px 10px}.mia-quick-actions button{border:1px solid var(--border);background:var(--panel-strong);color:var(--muted);border-radius:999px;padding:7px 11px;font-size:11px}.mia-quick-actions button:hover{border-color:var(--blue);color:var(--text)}
