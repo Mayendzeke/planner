@@ -128,6 +128,19 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
     } finally { setSaving(false); }
   }
 
+  async function toggleReady(entry: Entry) {
+    if (!supabase || !ownerId || entry.timetable_kind !== "personal") return;
+    const marker = "[READY_FOR_STUDY]";
+    const ready = (entry.notes || "").includes(marker);
+    const notes = ready
+      ? (entry.notes || "").replace(marker, "").trim()
+      : (marker + " " + (entry.notes || "")).trim();
+    const { error: updateError } = await supabase.from("student_timetable_entries")
+      .update({ notes }).eq("id", entry.id).eq("learner_id", ownerId);
+    if (updateError) setError("Availability could not be updated: " + updateError.message);
+    else { setNotice(ready ? "Study availability changed to planned." : "You are marked ready for this study slot."); await loadEntries(); }
+  }
+
   async function removeEntry(entry: Entry) {
     if (!supabase || !ownerId || !window.confirm("Remove " + entry.title + " from your timetable?")) return;
     setError("");
@@ -184,7 +197,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
             {Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=>{const items=visibleEntries.filter(item=>item.day_of_week===day&&timeValue(item.starts_at)===start);return <td key={start} className={items.length?"has-lessons":""}>
               {items.map(entry=><article className={"weekly-timetable-lesson "+(/break/i.test(entry.title)?"is-break":/lunch/i.test(entry.title)?"is-lunch":"")} key={entry.id}>
                 <strong>{entry.subject_name||entry.title}</strong><span>{timeValue(entry.starts_at)}–{timeValue(entry.ends_at)}</span>{entry.location&&<small>{entry.location}</small>}
-                <div><button type="button" onClick={()=>openEdit(entry)} aria-label={"Edit "+entry.title}><Pencil size={12}/></button><button type="button" onClick={()=>void removeEntry(entry)} aria-label={"Remove "+entry.title}><Trash2 size={12}/></button></div>
+                <div>{kind==="personal"&&<button type="button" className="subtle-button" onClick={()=>void toggleReady(entry)}>{(entry.notes||"").includes("[READY_FOR_STUDY]")?"Ready":"Mark ready"}</button>}<button type="button" onClick={()=>openEdit(entry)} aria-label={"Edit "+entry.title}><Pencil size={12}/></button><button type="button" onClick={()=>void removeEntry(entry)} aria-label={"Remove "+entry.title}><Trash2 size={12}/></button></div>
               </article>)}
               {!items.length&&<button type="button" className="timetable-cell-add" onClick={()=>openNew(day,start,"09:00")} aria-label={"Add lesson "+days[day]+" at "+start}>+</button>}
             </td>})}

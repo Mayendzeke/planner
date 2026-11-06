@@ -377,7 +377,7 @@ export default function App() {
       if (nextProfile.timetableEntries?.length) {
         const timetableRows = nextProfile.timetableEntries.map(entry => ({
           learner_id: authState.session!.user.id,
-          timetable_kind: "school",
+          timetable_kind: entry.timetable_kind || "school",
           subject_name: entry.subject_name,
           title: entry.title,
           day_of_week: entry.day_of_week,
