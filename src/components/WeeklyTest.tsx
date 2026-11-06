@@ -412,8 +412,8 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
         throw new Error("This note is not available on this device. Open it while online and try again.");
       }
       const notesText = await extractNoteText(file, selectedNote.name);
-      if (notesText.length < 120) {
-        throw new Error("This file has too little selectable text for a reliable test. It may be a scanned PDF; use a text-based PDF or TXT/RTF notes.");
+      if (notesText.length < 50) {
+        throw new Error("There is not enough readable text yet. Add a short paragraph of notes or choose a clearer text-based PDF, TXT or RTF file.");
       }
       if (!supabase) throw new Error("StudySpace is not connected. Sign in again and retry.");
       const topic = (testTopicInput.trim() || topicName.trim() || selectedNote.topic.trim()
@@ -431,7 +431,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
         difficulty: typeof item.difficulty === "string" ? item.difficulty : "Medium",
         topic: typeof item.topic === "string" ? item.topic : topic,
       })) : [];
-      if (questions.length < 5) throw new Error(data?.error || "MIΛ could not create enough reliable questions from these notes. Try a clearer or shorter set of notes.");
+      if (questions.length < 3) throw new Error(data?.error || "MIΛ could not create three reliable questions from these notes. Add a little more readable lesson material and try again.");
       setGeneratedQuestions(questions);
       setTopicName(topic);
       setQuestionIndex(0); setResponse(""); setSubmitted(false); setScore(0); setFinished(false);
@@ -475,7 +475,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
             {teacherNoteChoices.length>0&&<optgroup label="Teacher-assigned notes">{teacherNoteChoices.map(note=><option key={note.key} value={note.key}>{note.name}{note.topic?" · "+note.topic:""}</option>)}</optgroup>}
           </select>
         </label>
-        <label className="field-label">Topic (optional)<input value={testTopicInput} onChange={event=>setTestTopicInput(event.target.value)} placeholder={selectedNote?.topic || "e.g. Cell structure or Algebraic expressions"} maxLength={160}/></label>
+        <label className="field-label">Topic (optional)<input value={testTopicInput} onChange={event=>setTestTopicInput(event.target.value)} placeholder={selectedNote?.topic || "Leave blank and MIΛ will identify the topic"} maxLength={160}/></label>
         <button type="button" className="primary-button" disabled={!selectedNote||generatingTest} onClick={()=>void generateTopicTest()}>
           {generatingTest?<><Sparkles size={16}/> Creating test…</>:<><Target size={16}/> Generate topic test from notes</>}
         </button>
