@@ -719,3 +719,51 @@ html{overflow-anchor:none}
 
 .assigned-question-clue{margin:8px 0 11px;padding:10px 11px;border-left:2px solid var(--mint);border-radius:0 8px 8px 0;background:var(--panel);color:var(--muted);font-size:10px;line-height:1.55}
 .assigned-question-clue strong{color:var(--text)}
+
+
+/* Clearer teacher-led student classroom and embedded lesson calls. */
+.session-inline-error,.session-call-waiting,.session-guide-empty,.live-classroom-call-error,.live-classroom-call-status {
+  display:flex;align-items:flex-start;gap:9px;padding:12px 14px;margin:12px 0;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong);color:var(--muted);font-size:10px;line-height:1.6;
+}
+.session-inline-error,.live-classroom-call-error { border-color:color-mix(in srgb,var(--danger) 35%,var(--border));color:var(--danger); }
+.session-call-waiting svg,.session-guide-empty svg { flex:0 0 auto;color:var(--mint); }
+.session-teacher-guide { display:grid;gap:13px;padding:15px;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong); }
+.session-teacher-guide>div { display:grid;gap:6px; }
+.session-teacher-guide strong { font-size:11px;color:var(--text); }
+.session-teacher-guide p,.session-teacher-guide li { margin:0;color:var(--muted);font-size:11px;line-height:1.7;white-space:pre-wrap; }
+.session-teacher-guide ol { margin:0;padding-left:20px;display:grid;gap:5px; }
+.session-guide-empty { min-height:130px;display:flex!important;align-items:center;flex-direction:column;text-align:center;justify-content:center; }
+.session-guide-empty strong { font-size:12px; }
+.session-guide-empty span { color:var(--muted);font-size:10px; }
+.session-personal-notes { margin-top:17px; }
+.session-personal-notes textarea { min-height:170px; }
+.homework-complete-label { display:inline-flex;align-items:center;gap:5px;color:var(--mint);font-size:9px;font-weight:700; }
+.session-classroom-guide { display:grid;gap:8px;margin:14px 0 22px;padding:15px;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong); }
+.session-classroom-guide>strong { margin-bottom:3px;font-size:11px; }
+.session-classroom-guide>span { display:flex;align-items:center;gap:8px;color:var(--muted);font-size:10px; }
+.session-classroom-guide b { display:grid;place-items:center;width:21px;height:21px;border-radius:7px;background:rgba(121,226,196,.12);color:var(--mint);font-size:9px; }
+.session-idle-dot { width:7px;height:7px;border-radius:50%;background:var(--subtle);display:inline-block; }
+.session-status { max-width:230px; }
+.live-classroom-call { margin:12px 0;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--panel-strong);min-width:0; }
+.live-classroom-call-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+.live-classroom-call-heading>div:first-child { display:grid;gap:6px; }
+.live-classroom-call-heading strong { display:flex;align-items:center;gap:7px;font-size:12px; }
+.live-classroom-call-heading strong svg { color:var(--mint); }
+.live-classroom-call-heading span { display:flex;align-items:center;gap:6px;color:var(--muted);font-size:9px;line-height:1.5; }
+.live-classroom-call-actions { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+.live-classroom-external { display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:9px;text-decoration:none;padding:8px; }
+.live-classroom-call-frame { min-height:420px;height:min(68vh,680px);margin-top:12px;overflow:hidden;border:1px solid var(--border);border-radius:11px;background:#101827; }
+.live-classroom-call-frame iframe { width:100%;height:100%;min-height:420px;border:0; }
+.live-classroom-call-footnote { margin:9px 0 0;color:var(--muted);font-size:9px;line-height:1.55; }
+@media(max-width:600px) {
+ .live-classroom-call { padding:11px; }
+ .live-classroom-call-heading { align-items:flex-start;flex-direction:column; }
+ .live-classroom-call-actions { width:100%; }
+ .live-classroom-call-actions>* { flex:1;justify-content:center; }
+ .live-classroom-call-frame { min-height:340px;height:62vh; }
+ .session-hero-main { align-items:flex-start;flex-direction:column; }
+ .session-meta { grid-template-columns:1fr; }
+ .session-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .session-workspace { padding:14px; }
+ .session-note-footer { align-items:flex-start;flex-direction:column; }
+}
