@@ -378,7 +378,6 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     { name: "Class chat", icon: MessageCircle, hint: "Ask your teacher" },
     { name: "Homework", icon: ClipboardList, hint: "Assigned follow-up work" },
   ];
-  const displayName = subjects.length ? "Student" : "Learner";
 
   return (
     <section className="today-session">
