@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
@@ -45,7 +45,7 @@ const dueValue = (value: string) => value ? new Date(value).toISOString() : "";
 const downloadJson = (filename: string, value: unknown) => {
   const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob); const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+  a.href = url; a.download = filename; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
 export default function App() {
@@ -81,6 +81,7 @@ export default function App() {
   const [syncMessage, setSyncMessage] = useState("");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [syncRequested, setSyncRequested] = useState(0);
+  const suppressCloudSyncRef = useRef(false);
   // The fixed app shell owns its scroll position. Reset only that surface when
   // changing tabs; do not alter document scroll restoration or window scroll.
   useLayoutEffect(() => {
@@ -98,6 +99,7 @@ export default function App() {
       setCloudAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) suppressCloudSyncRef.current = false;
       setCloudUserId(session?.user.id ?? null);
       setCloudAuthReady(true);
     });
@@ -240,7 +242,7 @@ export default function App() {
     let alive = true;
     let inFlight = false;
     const runSync = async () => {
-      if (inFlight || !alive) return;
+      if (inFlight || !alive || suppressCloudSyncRef.current) return;
       if (!navigator.onLine) {
         setSyncStatus("offline");
         setSyncMessage("Your changes are saved on this device and will sync when you reconnect.");
@@ -402,6 +404,17 @@ export default function App() {
       const linkedRecordsValid = raw.tasks.every((t: any) => t.subjectId === null || subjectIds.has(t.subjectId)) && raw.sessions.every((s: any) => s.subjectId === null || subjectIds.has(s.subjectId)) && raw.subjects.every((s: any) => (s.periodIds ?? []).every((id: number) => periodIds.has(id)));
       if (!validGoal || !validProfile || !validSubjects || !validTasks || !validSessions || !validAcademicPeriods || !validEvents || !linkedRecordsValid) throw new Error("The backup contains invalid, incomplete or incorrectly linked records. Nothing was changed.");
       if (!window.confirm("Import this backup and replace all Studyspace data on this device? Export a backup first if you need the current data.")) { e.target.value = ""; return; }
+      let restoreProfileKey: string | null = null;
+      if (raw.profile) {
+        if (!supabase) throw new Error("Studyspace is not connected. Sign in again before restoring a profile.");
+        const { data: sessionState, error: sessionError } = await supabase.auth.getSession();
+        const userId = sessionState.session?.user.id;
+        if (sessionError || !userId) throw new Error("Your secure session has expired. Sign in again before restoring this profile.");
+        restoreProfileKey = "studyspace-profile:" + userId;
+        const storageCheckKey = studentStorageKey("studyspace-restore-preflight");
+        try { localStorage.setItem(storageCheckKey, "ready"); localStorage.removeItem(storageCheckKey); }
+        catch { throw new Error("Browser storage is unavailable. Nothing was restored; enable site storage and try again."); }
+      }
       await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, plannerDb.events, async () => {
         await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.events.clear()]);
         await plannerDb.subjects.bulkPut(raw.subjects);
@@ -410,12 +423,8 @@ export default function App() {
         if (academicPeriods.length) await plannerDb.academicPeriods.bulkPut(academicPeriods);
         if (events.length) await plannerDb.events.bulkPut(events);
       });
-      if (raw.profile) {
-        if (!supabase) throw new Error("Studyspace is not connected. Sign in again before restoring a profile.");
-        const { data: sessionState, error: sessionError } = await supabase.auth.getSession();
-        const userId = sessionState.session?.user.id;
-        if (sessionError || !userId) throw new Error("Your secure session has expired. Sign in again before restoring this profile.");
-        localStorage.setItem("studyspace-profile:" + userId, JSON.stringify(raw.profile));
+      if (raw.profile && restoreProfileKey) {
+        localStorage.setItem(restoreProfileKey, JSON.stringify(raw.profile));
         setProfile(raw.profile as StudentProfile);
       }
       if (raw.version >= 4 && raw.sessionWorkspace && typeof raw.sessionWorkspace === "object" && !Array.isArray(raw.sessionWorkspace)) localStorage.setItem(studentStorageKey("studyspace-current-session-v1"), JSON.stringify(raw.sessionWorkspace)); else localStorage.removeItem(studentStorageKey("studyspace-current-session-v1"));
@@ -429,20 +438,38 @@ export default function App() {
     e.target.value = "";
   }
   async function clearAll() {
-    if (!window.confirm("This permanently deletes your profile, subjects, tasks, study sessions, academic calendar and personal library files stored on this device. Export a backup first if you need it.")) return;
-    await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
-    if (cloudUserId) {
+    if (!cloudUserId || !supabase || signOutBusy) return;
+    if (!window.confirm("Clear this student's offline copy from this device and sign out? Your Studyspace account and cloud records will remain safe. They will synchronise again the next time you sign in. Export a backup first if you also need a separate file copy.")) return;
+    suppressCloudSyncRef.current = true;
+    setSignOutBusy(true);
+    try {
+      setPlannerDbUser(cloudUserId);
+      await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, plannerDb.resources, plannerDb.events, async () => {
+        await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
+      });
       const scopedPrefix = studentStorageKey("");
-      for (let index = localStorage.length - 1; index >= 0; index -= 1) {
-        const key = localStorage.key(index);
-        if (key?.startsWith(scopedPrefix)) localStorage.removeItem(key);
+      try {
+        for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+          const key = localStorage.key(index);
+          if (key?.startsWith(scopedPrefix)) localStorage.removeItem(key);
+        }
+        localStorage.removeItem("studyspace-profile:" + cloudUserId);
+        localStorage.removeItem("studyspace-profile");
+        localStorage.removeItem("studyspace-current-session-v1");
+      } catch {
+        throw new Error("The local study database was cleared, but some browser preferences could not be removed. Sign out and clear this site's storage in your browser settings.");
       }
-      localStorage.removeItem("studyspace-profile:" + cloudUserId);
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      setProfile(null);
+      setProfileOwnerId(null);
+      setError("");
+      setSyncStatus("checking");
+    } catch (reason) {
+      setError(reason instanceof Error ? "Device data clearing needs attention: " + reason.message : "Device data could not be cleared completely.");
+    } finally {
+      setSignOutBusy(false);
     }
-    localStorage.removeItem("studyspace-profile");
-    localStorage.removeItem("studyspace-current-session-v1");
-    setProfile(null);
-    await refresh();
   }
   async function signOutStudent() {
     if (!supabase || signOutBusy) return;
@@ -499,7 +526,7 @@ export default function App() {
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Cloud synchronisation</h2><p>Keep your planner consistent across devices. Offline changes are queued on this device and uploaded when your connection returns.</p></div><Cloud size={20}/></div><div className="setting-row"><div><strong>{syncStatus==="synced"?"Connected and synchronised":syncStatus==="syncing"?"Synchronising your workspace":syncStatus==="offline"?"Offline · safe to keep studying":syncStatus==="error"?"Synchronisation needs attention":"Checking your connection"}</strong><span>{syncMessage || "Studyspace is checking your student account and available cloud records."}{lastSyncAt ? " Last successful sync: " + new Date(lastSyncAt).toLocaleString() + "." : ""}</span></div><button className="secondary-button" onClick={()=>setSyncRequested(value=>value+1)} disabled={syncStatus==="syncing" || !navigator.onLine}><RefreshCw size={15}/>{syncStatus==="syncing"?"Syncing…":"Sync now"}</button></div></div>
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Backup &amp; restore</h2><p>Keep a copy before changing devices or clearing site data.</p></div><Download size={20}/></div><div className="setting-row"><div><strong>Export backup</strong><span>Downloads your profile, subjects, tasks, study sessions, calendar periods and personal events as a JSON file.</span></div><button className="secondary-button" onClick={()=>void exportData()}><Download size={15}/> Export data</button></div><div className="setting-row"><div><strong>Restore backup</strong><span>Replaces local data with a valid Studyspace backup file.</span></div><label className="secondary-button upload-button"><Upload size={15}/> Choose file<input type="file" accept="application/json,.json" onChange={importData}/></label></div>{importMessage&&<p className="inline-message" role="status">{importMessage}</p>}</div>
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Studyspace account</h2><p>Your student account is authenticated by Supabase. Sign out before handing this device to another learner.</p></div><LockKeyhole size={20}/></div><div className="setting-row"><div><strong>Sign out of this device</strong><span>Your study data remains in this student's separate local workspace and will be available after signing in again.</span></div><button className="secondary-button" onClick={()=>void signOutStudent()} disabled={signOutBusy}><LockKeyhole size={15}/>{signOutBusy?"Signing out…":"Sign out"}</button></div></div>
-          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Privacy &amp; local data</h2><p>Your Studyspace account is secured online. Subjects, tasks, study sessions, calendar records and personal library files synchronise to your account; this browser keeps an offline copy.</p></div><CircleHelp size={20}/></div><div className="privacy-list"><p><Check size={16}/> Subjects, tasks and sessions are synchronised to your Studyspace account and cached on this device for offline use.</p><p><Check size={16}/> Each student has a separate cloud account and a separate local offline database.</p><p><Check size={16}/> Your profile and planner records synchronise with the signed-in student account when online.</p><p><CircleHelp size={16}/> Clearing browser/site data can erase your records. Export backups regularly.</p></div><div className="danger-row"><div><strong>Delete all local data</strong><span>Permanently removes your profile, subjects, tasks, sessions, calendar, personal library files, class-session notes, reminders and test progress on this device.</span></div><button className="danger-button" onClick={()=>void clearAll()}><Trash2 size={15}/> Delete data</button></div></div></section>}
+          <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Privacy &amp; local data</h2><p>Your Studyspace account is secured online. Subjects, tasks, study sessions, calendar records and personal library files synchronise to your account; this browser keeps an offline copy.</p></div><CircleHelp size={20}/></div><div className="privacy-list"><p><Check size={16}/> Subjects, tasks and sessions are synchronised to your Studyspace account and cached on this device for offline use.</p><p><Check size={16}/> Each student has a separate cloud account and a separate local offline database.</p><p><Check size={16}/> Your profile and planner records synchronise with the signed-in student account when online.</p><p><CircleHelp size={16}/> Clearing browser/site data can erase your records. Export backups regularly.</p></div><div className="danger-row"><div><strong>Delete all local data</strong><span>Clears this device's offline copy and signs you out. Your secure cloud copy remains intact and returns after your next sign-in.</span></div><button className="danger-button" onClick={()=>void clearAll()} disabled={signOutBusy}><Trash2 size={15}/>{signOutBusy?"Clearing…":"Clear device copy & sign out"}</button></div></div></section>}
         </>}
         <footer className="page-footer"><span>STUDYSPACE <span className="footer-dot">●</span> BUILT FOR YOUR NEXT STEP</span><span><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":syncStatus==="synced"?"Signed in · Cloud synced":syncStatus==="offline"?"Signed in · Offline cache":syncStatus==="syncing"?"Synchronising…":syncStatus==="error"?"Signed in · Sync needs attention":"Signed in · Connecting"}</span></footer>
       </div>
