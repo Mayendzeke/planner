@@ -67,9 +67,9 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
   const visibleEntries = useMemo(() => entries.filter(item => item.timetable_kind === kind), [entries, kind]);
 
 
-  function openNew(day = 1) {
+  function openNew(day = 1, start = "08:00", end = "09:00") {
     setEditingId(null);
-    setDraft({ ...blank(), day_of_week: day, subject_name: subjects[0]?.name ?? "" });
+    setDraft({ ...blank(), day_of_week: day, starts_at: start, ends_at: end, subject_name: subjects[0]?.name ?? "" });
     setEditorOpen(true);
     setNotice("");
     setError("");
@@ -179,20 +179,16 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
       {loading ? <div className="timetable-empty"><RefreshCw size={20}/> Loading your timetable…</div> : <div className="timetable-grid-wrap">
         {visibleEntries.length === 0 && <div className="timetable-grid-empty"><CalendarDays size={20}/><span>No lessons saved yet. Add lessons or import a school timetable through MIΛ.</span></div>}
         <div className="timetable-grid-scroll"><table className="weekly-timetable-grid">
-          <thead><tr><th className="timetable-time-heading">TIME</th>{["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(day=><th key={day}>{day}</th>)}</tr></thead>
-          <tbody>{Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=> {
-            const atTime=visibleEntries.filter(item=>timeValue(item.starts_at)===start);
-            const first=atTime[0];
-            return <tr key={start}><th className="timetable-time-cell"><strong>{start}</strong><small>{timeValue(first.ends_at)}</small></th>
-              {[1,2,3,4,5,6,0].map(day=>{const items=atTime.filter(item=>item.day_of_week===day);return <td key={day} className={items.length?"has-lessons":""}>
-                {items.map(entry=><article className={"weekly-timetable-lesson "+(/break/i.test(entry.title)?"is-break":/lunch/i.test(entry.title)?"is-lunch":"")} key={entry.id}>
-                  <strong>{entry.subject_name||entry.title}</strong><span>{timeValue(entry.starts_at)}–{timeValue(entry.ends_at)}</span>{entry.location&&<small>{entry.location}</small>}
-                  <div><button type="button" onClick={()=>openEdit(entry)} aria-label={"Edit "+entry.title}><Pencil size={12}/></button><button type="button" onClick={()=>void removeEntry(entry)} aria-label={"Remove "+entry.title}><Trash2 size={12}/></button></div>
-                </article>)}
-                {!items.length&&<button type="button" className="timetable-cell-add" onClick={()=>{setEditingId(null);setDraft({...blank(),day_of_week:day,starts_at:start,ends_at:timeValue(first.ends_at),subject_name:subjects[0]?.name??""});setEditorOpen(true);}}>+</button>}
-              </td>})}
-            </tr>
-          })}</tbody>
+          <thead><tr><th className="timetable-day-heading">DAY</th>{Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=><th key={start}>{start}</th>)}</tr></thead>
+          <tbody>{[1,2,3,4,5,6,0].map(day=><tr key={day}><th className="timetable-day-cell">{days[day]}</th>
+            {Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=>{const items=visibleEntries.filter(item=>item.day_of_week===day&&timeValue(item.starts_at)===start);return <td key={start} className={items.length?"has-lessons":""}>
+              {items.map(entry=><article className={"weekly-timetable-lesson "+(/break/i.test(entry.title)?"is-break":/lunch/i.test(entry.title)?"is-lunch":"")} key={entry.id}>
+                <strong>{entry.subject_name||entry.title}</strong><span>{timeValue(entry.starts_at)}–{timeValue(entry.ends_at)}</span>{entry.location&&<small>{entry.location}</small>}
+                <div><button type="button" onClick={()=>openEdit(entry)} aria-label={"Edit "+entry.title}><Pencil size={12}/></button><button type="button" onClick={()=>void removeEntry(entry)} aria-label={"Remove "+entry.title}><Trash2 size={12}/></button></div>
+              </article>)}
+              {!items.length&&<button type="button" className="timetable-cell-add" onClick={()=>openNew(day,start,"09:00")} aria-label={"Add lesson "+days[day]+" at "+start}>+</button>}
+            </td>})}
+          </tr>)}</tbody>
         </table></div>
       </div>}
     </section>
