@@ -828,3 +828,37 @@ html{overflow-anchor:none}
 
 .session-call-waiting{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong);color:var(--muted);font-size:10px;line-height:1.6}
 .session-call-waiting svg{flex:0 0 auto;color:var(--mint)}
+
+
+/* Student support and feedback */
+.student-feedback-launcher{position:fixed;right:22px;bottom:20px;z-index:80;display:flex;align-items:center;gap:9px;padding:12px 16px;border:1px solid color-mix(in srgb,var(--mint) 55%,var(--border));border-radius:999px;background:var(--panel-strong);color:var(--text);box-shadow:0 12px 34px #0003;font:inherit;font-size:12px;font-weight:750;cursor:pointer;backdrop-filter:blur(18px)}
+.student-feedback-launcher svg{color:var(--mint)}
+.student-feedback-launcher:hover{transform:translateY(-2px);border-color:var(--mint)}
+.student-feedback-backdrop{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:18px;background:#050914b8;backdrop-filter:blur(8px)}
+.student-feedback-dialog{width:min(100%,560px);max-height:min(90vh,820px);overflow:auto;padding:22px;border:1px solid var(--border);border-radius:20px;background:var(--panel);box-shadow:0 24px 90px #0006}
+.student-feedback-header{display:flex;align-items:flex-start;gap:13px;margin-bottom:20px}
+.student-feedback-heading-icon{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:13px;background:color-mix(in srgb,var(--mint) 15%,var(--panel-strong));color:var(--mint)}
+.student-feedback-header>div:nth-child(2){flex:1;min-width:0}
+.student-feedback-header h2{margin:3px 0 6px;font-size:20px;line-height:1.25}
+.student-feedback-header p{margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+.student-feedback-form{display:grid;gap:14px}
+.student-feedback-form .field-label{position:relative;display:grid;gap:7px}
+.student-feedback-form textarea{resize:vertical;min-height:110px}
+.student-feedback-counter{justify-self:end;margin-top:-4px;color:var(--muted);font-size:9px}
+.student-feedback-upload{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-strong)}
+.student-feedback-upload>div{display:grid;gap:4px}
+.student-feedback-upload strong{display:flex;align-items:center;gap:7px;font-size:11px}
+.student-feedback-upload strong svg{color:var(--mint)}
+.student-feedback-upload span{color:var(--muted);font-size:9px}
+.student-feedback-upload .upload-button{flex:0 0 auto}
+.student-feedback-preview{position:relative;max-height:190px;overflow:hidden;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong)}
+.student-feedback-preview img{display:block;max-width:100%;max-height:190px;margin:auto;object-fit:contain}
+.student-feedback-preview .icon-button{position:absolute;top:7px;right:7px;background:var(--panel)}
+.student-feedback-privacy{display:flex;align-items:flex-start;gap:7px;margin:0;color:var(--muted);font-size:9px;line-height:1.6}
+.student-feedback-privacy svg{flex:0 0 auto;color:var(--mint);margin-top:1px}
+.student-feedback-notice{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border-radius:10px;font-size:10px;line-height:1.5}
+.student-feedback-notice svg{flex:0 0 auto}
+.student-feedback-notice.success{background:color-mix(in srgb,var(--mint) 12%,var(--panel-strong));color:var(--text)}
+.student-feedback-notice.error{background:color-mix(in srgb,var(--danger) 12%,var(--panel-strong));color:var(--danger)}
+.student-feedback-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:3px}
+@media(max-width:600px){.student-feedback-launcher{right:12px;bottom:12px;padding:11px 13px}.student-feedback-dialog{padding:17px;border-radius:16px}.student-feedback-header h2{font-size:18px}.student-feedback-upload{align-items:flex-start;flex-direction:column}.student-feedback-actions>*{flex:1}}
