@@ -4,7 +4,32 @@ import { supabase } from "../lib/supabase";
 import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
 
-type ChatMessage = { id: string; role: "user" | "assistant"; content: string };\ntype Flashcard = { front: string; back: string };\nfunction extractFlashcards(reply: string): Flashcard[] {\n  const clean = (value: string) => value.replace(/\\*\\*/g, "").replace(/^[-*]\\s*/, "").trim();\n  const pattern = /(?:^|\\n)\\s*(?:[-*]\\s*)?(?:\\*\\*)?(?:front|question)\\s*[:：]\\s*([\\s\\S]*?)\\n\\s*(?:[-*]\\s*)?(?:\\*\\*)?(?:back|answer)\\s*[:：]\\s*([\\s\\S]*?)(?=(?:\\n\\s*(?:[-*]\\s*)?(?:\\*\\*)?(?:front|question)\\s*[:：])|$)/gi;\n  return [...reply.matchAll(pattern)].map(match => ({ front: clean(match[1]), back: clean(match[2]) })).filter(card => card.front && card.back).slice(0, 40);\n}
+type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+type Flashcard = { front: string; back: string };
+function extractFlashcards(reply: string): Flashcard[] {
+  const cards: Flashcard[] = [];
+  let front = "";
+  let back = "";
+  let side: "front" | "back" | null = null;
+  const clean = (value: string) => value.replace(/\*\*/g, "").replace(/^[-*]\s*/, "").trim();
+  for (const rawLine of reply.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const frontMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:front|question)(?:\*\*)?\s*[:：]\s*(.*)$/i);
+    const backMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:back|answer)(?:\*\*)?\s*[:：]\s*(.*)$/i);
+    if (frontMatch) {
+      if (front && back) cards.push({ front: clean(front), back: clean(back) });
+      front = frontMatch[1]; back = ""; side = "front";
+    } else if (backMatch && front) {
+      back = backMatch[1]; side = "back";
+    } else if (side === "front" && line) {
+      front += " " + line;
+    } else if (side === "back" && line) {
+      back += " " + line;
+    }
+  }
+  if (front && back) cards.push({ front: clean(front), back: clean(back) });
+  return cards.filter(card => card.front && card.back).slice(0, 40);
+}
 type TimetableEntry = { day_of_week: number; subject_name: string; title: string; starts_at: string; ends_at: string; location: string; notes: string };
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const welcome: ChatMessage = { id: "mia-welcome", role: "assistant", content: "Hi! I'm MIΛ, your personal learning companion. I know your subjects and study goals, and I can help you understand lessons, practise questions, prepare for exams and organise your study. What shall we work on?" };
