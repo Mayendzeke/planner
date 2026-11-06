@@ -29,6 +29,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [completedMinutes, setCompletedMinutes] = useState(0);
 
   useEffect(() => {
     if (subjectId === "" && subjects.length) setSubjectId(subjects[0].id);
@@ -74,6 +75,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
     setNotice("");
     try {
       const minutes = Math.max(1, Math.round(elapsed / 60));
+      setCompletedMinutes(minutes);
       const notes = [
         "Independent study · " + topic.trim(),
         "Goal: " + goal.trim(),
@@ -114,7 +116,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
   if (complete) {
     return <div className="glass-panel solo-study-panel solo-study-complete">
       <div className="solo-study-success"><CheckCircle2 size={30}/><div><h3>Session complete</h3><p>Your independent study time has been added to Progress.</p></div></div>
-      <div className="solo-study-summary"><span><strong>{selectedSubject?.name || "Subject"}</strong> · {topic}</span><span>{Math.max(1, Math.round(elapsedSeconds / 60))} minutes recorded</span><span>Goal: {goal}</span></div>
+      <div className="solo-study-summary"><span><strong>{selectedSubject?.name || "Subject"}</strong> · {topic}</span><span>{completedMinutes} minutes recorded</span><span>Goal: {goal}</span></div>
       <button type="button" className="primary-button" onClick={reset}><RefreshCw size={15}/> Start another study session</button>
     </div>;
   }
