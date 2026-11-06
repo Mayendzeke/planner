@@ -16,6 +16,8 @@ type ClassroomSession = {
   status: "scheduled" | "live" | "ended" | "cancelled";
   duration_minutes: number;
   meeting_url: string | null;
+  meeting_password: string | null;
+  meeting_ready_at: string | null;
 };
 type ChatMessage = { id: string; text: string; sender: "You" | "Teacher"; time: string };
 type Homework = { id: string; title: string; details: string; due: string; done: boolean };
@@ -96,7 +98,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         return;
       }
       const { data, error } = await supabase.from("class_sessions")
-        .select("id,title,subject_name,objectives,starts_at,status,duration_minutes,meeting_url")
+        .select("id,title,subject_name,objectives,starts_at,status,duration_minutes,meeting_url,meeting_password,meeting_ready_at")
         .in("id", ids).order("starts_at", { ascending: false }).limit(25);
       if (error) throw error;
       const rows = (data ?? []) as ClassroomSession[];
@@ -405,8 +407,11 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       </div>
 
       {sessionError && <div className="session-inline-error" role="alert">{sessionError}</div>}
-      {activeSession?.meeting_url && activeSession.status === "live" && (
-        <LiveClassroomCall meetingUrl={activeSession.meeting_url} displayName={displayName} audience="student" />
+      {activeSession?.meeting_url && activeSession.status === "live" && activeSession.meeting_password && !activeSession.meeting_ready_at && (
+        <div className="session-call-waiting"><Clock3 size={16}/><span>Your teacher is securing the classroom. The Join button will appear as soon as the teacher has opened the password-protected room.</span></div>
+      )}
+      {activeSession?.meeting_url && activeSession.status === "live" && (!activeSession.meeting_password || Boolean(activeSession.meeting_ready_at)) && (
+        <LiveClassroomCall meetingUrl={activeSession.meeting_url} displayName={displayName} audience="student" meetingPassword={activeSession.meeting_password||undefined} />
       )}
       {activeSession?.status === "scheduled" && activeSession.meeting_url && (
         <div className="session-call-waiting"><Clock3 size={16} /><span>Your teacher has scheduled this lesson. The video room will be available here when the teacher starts the class.</span></div>
