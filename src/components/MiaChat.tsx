@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles } from "lucide-react";
+import { strFromU8, unzipSync } from "fflate";
 import { supabase } from "../lib/supabase";
 import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
@@ -38,14 +39,63 @@ type TimetableEntry = { day_of_week: number; subject_name: string; title: string
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const welcome: ChatMessage = { id: "mia-welcome", role: "assistant", content: "Hi! I'm MIΛ, your personal learning companion. I know your subjects and study goals, and I can help you understand lessons, practise questions, prepare for exams and organise your study. What shall we work on?" };
 
+function extractOfficeText(buffer: ArrayBuffer, extension: string): string {
+  const archive = unzipSync(new Uint8Array(buffer));
+  const readXml = (path: string) => {
+    const bytes = archive[path];
+    if (!bytes) return null;
+    const document = new DOMParser().parseFromString(strFromU8(bytes), "application/xml");
+    if (document.getElementsByTagName("parsererror").length) throw new Error("This office document contains invalid XML.");
+    return document;
+  };
+  if (extension === "docx") {
+    const document = readXml("word/document.xml");
+    if (!document) throw new Error("The Word document could not be read.");
+    return Array.from(document.getElementsByTagName("w:p")).map(paragraph =>
+      Array.from(paragraph.getElementsByTagName("w:t")).map(node => node.textContent || "").join("")
+    ).filter(Boolean).join("\n");
+  }
+  if (extension === "pptx") {
+    const slides = Object.keys(archive).filter(path => /^ppt\/slides\/slide\d+\.xml$/.test(path)).sort((a,b) =>
+      Number(a.match(/slide(\d+)/)?.[1] || 0) - Number(b.match(/slide(\d+)/)?.[1] || 0)
+    );
+    return slides.map(path => {
+      const document = readXml(path);
+      return document ? Array.from(document.getElementsByTagName("a:p")).map(paragraph =>
+        Array.from(paragraph.getElementsByTagName("a:t")).map(node => node.textContent || "").join("")
+      ).filter(Boolean).join(" ") : "";
+    }).filter(Boolean).join("\n");
+  }
+  const sharedDocument = readXml("xl/sharedStrings.xml");
+  const shared = sharedDocument ? Array.from(sharedDocument.getElementsByTagName("si")).map(item =>
+    Array.from(item.getElementsByTagName("t")).map(node => node.textContent || "").join("")
+  ) : [];
+  const sheets = Object.keys(archive).filter(path => /^xl\/worksheets\/sheet\d+\.xml$/.test(path)).sort((a,b) =>
+    Number(a.match(/sheet(\d+)/)?.[1] || 0) - Number(b.match(/sheet(\d+)/)?.[1] || 0)
+  );
+  return sheets.map(path => {
+    const document = readXml(path);
+    if (!document) return "";
+    return Array.from(document.getElementsByTagName("row")).map(row =>
+      Array.from(row.getElementsByTagName("c")).map(cell => {
+        const value = cell.getElementsByTagName("v")[0]?.textContent || "";
+        if (cell.getAttribute("t") === "s") return shared[Number(value)] || "";
+        if (cell.getAttribute("t") === "inlineStr") return Array.from(cell.getElementsByTagName("t")).map(node => node.textContent || "").join("");
+        return value;
+      }).join("\t")
+    ).join("\n");
+  }).filter(Boolean).join("\n");
+}
+
 async function filePayload(file: File): Promise<MiaAttachment> {
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
-  const mimeType = file.type || ({ pdf: "application/pdf", txt: "text/plain", md: "text/markdown", csv: "text/csv" }[extension] ?? "application/octet-stream");
-  if (mimeType.startsWith("text/") || ["text/plain", "text/markdown", "text/csv"].includes(mimeType)) {
+  const mimeType = file.type || ({ pdf: "application/pdf", txt: "text/plain", md: "text/markdown", csv: "text/csv", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }[extension] ?? "application/octet-stream");
+  if (["docx", "pptx", "xlsx"].includes(extension)) { const textContent = extractOfficeText(buffer, extension).trim(); if (!textContent) throw new Error("No readable text was found in this office document."); return { name: file.name, mimeType: "text/plain", textContent: textContent.slice(0, 50000) }; }
+  if (mimeType.startsWith("text/") || ["text/plain", "text/markdown", "text/csv", "application/json", "application/xml"].includes(mimeType)) {
     return { name: file.name, mimeType, textContent: (await file.text()).slice(0, 50000) };
   }
   return { name: file.name, mimeType, data: btoa(binary) };
@@ -143,7 +193,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const uploaded = file ? await filePayload(file) : null;
       if (uploaded?.textContent && !value) setText("");
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded, conversationId },
+        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded?.data ? uploaded : null, conversationId },
       });
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
@@ -273,7 +323,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
     <div className="mia-usage-note">{remaining === null ? (usageChecked ? "Daily usage limit unavailable" : "Checking your daily allowance…") : remaining + " requests remaining"} · rolling 24-hour limit</div>
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); void sendMessage();}}>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,.txt,.md,.csv,.pdf" hidden onChange={event=>{const file=event.target.files?.[0];if(file){const allowed=file.type.startsWith("image/")&&["image/jpeg","image/png","image/webp"].includes(file.type)||["application/pdf","text/plain","text/markdown","text/csv"].includes(file.type)||/\\.(pdf|txt|md|csv)$/i.test(file.name);if(!allowed){setError("Attach an image, PDF, TXT, Markdown or CSV file.");}else if(file.size>4*1024*1024){setError("Choose a file smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,application/json,application/xml,.txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.pptx,.xlsx" hidden onChange={event=>{const file=event.target.files?.[0];if(file){const ext=file.name.split(".").pop()?.toLowerCase()||"";const allowed=file.type.startsWith("image/")&&["image/jpeg","image/png","image/webp"].includes(file.type)||["pdf","txt","md","csv","json","xml","html","docx","pptx","xlsx"].includes(ext);if(!allowed){setError("Attach an image, PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV, JSON or XML file.");}else if(file.size>4*1024*1024){setError("Choose a file smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
       <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach an image, PDF or text file" aria-label="Attach a file"><Paperclip size={19}/></button>
       <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
       <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
