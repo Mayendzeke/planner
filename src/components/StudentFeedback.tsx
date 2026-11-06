@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, CheckCircle2, ImagePlus, LifeBuoy, MessageCircle, MessageSquarePlus, Send, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ImagePlus, MessageCircle, Send } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 const SUPPORT_WHATSAPP = ["2687994", "0955"].join("");
@@ -117,7 +117,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
           <label className="field-label">Email address (optional)
             <input type="email" maxLength={254} value={contactEmail} onChange={event => setContactEmail(event.target.value)} placeholder="Only if you would like us to reply" />
           </label>
-          <a className="student-feedback-whatsapp" href="https://wa.me/${SUPPORT_WHATSAPP}" target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Chat with the Studyspace team on +268 7994 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
+          <a className="student-feedback-whatsapp" href={"https://wa.me/" + SUPPORT_WHATSAPP} target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Contact us on WhatsApp · +268 7994 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
           <p className="student-feedback-privacy"><AlertCircle size={14}/> Please do not include passwords, private account details or sensitive personal information in your message or screenshot. Your report is sent privately to the Studyspace team.</p>
           {notice && <p className={"student-feedback-notice " + notice.kind} role="status">{notice.kind === "success" ? <CheckCircle2 size={16}/> : <AlertCircle size={16}/>} {notice.text}</p>}
           <div className="student-feedback-actions"><button type="button" className="secondary-button" onClick={() => setOpen(false)} disabled={busy}>Close</button><button type="submit" className="primary-button" disabled={busy}><Send size={15}/>{busy ? "Sending…" : "Send feedback"}</button></div>
