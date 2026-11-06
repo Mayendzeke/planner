@@ -17,6 +17,27 @@ async function imagePayload(file: File) {
   return { mimeType: file.type, data: btoa(binary) };
 }
 
+async function functionErrorMessage(error: unknown): Promise<string> {
+  const value = error as { message?: string; context?: Response };
+  const context = value?.context;
+  if (context instanceof Response) {
+    try {
+      const body = await context.clone().json();
+      if (typeof body?.error === "string" && body.error.trim()) return body.error;
+      if (typeof body?.message === "string" && body.message.trim()) return body.message;
+    } catch {
+      try {
+        const body = await context.clone().text();
+        if (body.trim()) return body.trim().slice(0, 500);
+      } catch { /* Use the original client error below. */ }
+    }
+    return "MIΛ returned HTTP " + context.status + ". Please try again.";
+  }
+  return typeof value?.message === "string" && value.message.trim()
+    ? value.message
+    : "MIΛ could not complete the request. Check your connection and retry.";
+}
+
 export default function MiaChat({ profile, subjects, variant = "studio", onClose }: {
   profile: StudentProfile;
   subjects: Subject[];
@@ -74,13 +95,15 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
         body: { action: "chat", message: value, conversationId },
       });
-      if (invokeError) throw invokeError;
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
       setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "MIΛ could not reply. Check your connection.");
+      setMessages(current => current.filter(item => item.role !== "user" || item.content !== value || item.id !== current[current.length - 1]?.id));
+      setText(value);
     } finally { setBusy(false); inputRef.current?.focus(); }
   }
 
@@ -92,7 +115,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
         body: { action: "parse_timetable", image, conversationId, message: text.trim() },
       });
-      if (invokeError) throw invokeError;
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success) throw new Error(data?.error || "The timetable could not be read.");
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);

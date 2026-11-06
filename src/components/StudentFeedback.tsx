@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, CheckCircle2, ImagePlus, LifeBuoy, MessageCircle, MessageSquarePlus, Send, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ImagePlus, LifeBuoy, MessageCircle, Send } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
+const SUPPORT_WHATSAPP = ["2687994", "0955"].join("");
 const categories = ["Bug report", "Suggestion", "Content issue", "Accessibility", "Other"] as const;
 
 export default function StudentFeedback({ currentPage }: { currentPage: string }) {
-  const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<(typeof categories)[number]>("Suggestion");
   const [message, setMessage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -21,12 +21,6 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape" && !busy) setOpen(false); };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, busy]);
 
   function chooseFile(next: File | null) {
     if (!next) { setFile(null); return; }
@@ -87,41 +81,33 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
     }
   }
 
-  return <>
-    <button type="button" className="student-feedback-launcher" onClick={() => { setOpen(true); setNotice(null); }} aria-haspopup="dialog">
-      <MessageSquarePlus size={17} /><span>Help &amp; feedback</span>
-    </button>
-    {open && <div className="student-feedback-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !busy) setOpen(false); }}>
-      <section className="student-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="student-feedback-title">
-        <header className="student-feedback-header">
-          <div className="student-feedback-heading-icon"><LifeBuoy size={20} /></div>
-          <div><span className="eyebrow">WE’RE LISTENING</span><h2 id="student-feedback-title">Help us improve Studyspace</h2><p>Report a problem, suggest an idea or tell us what would make studying easier.</p></div>
-          <button type="button" className="icon-button" onClick={() => setOpen(false)} disabled={busy} aria-label="Close feedback"><X size={18}/></button>
-        </header>
-        <form onSubmit={event => void submit(event)} className="student-feedback-form">
-          <label className="field-label">What is this about?
-            <select value={category} onChange={event => setCategory(event.target.value as (typeof categories)[number])}>
-              {categories.map(item => <option key={item}>{item}</option>)}
-            </select>
-          </label>
-          <label className="field-label">Tell us what happened or what you would like to see
-            <textarea required minLength={10} maxLength={4000} rows={5} value={message} onChange={event => setMessage(event.target.value)} placeholder="Describe the steps, what you expected, and what happened instead…" />
-            <span className="student-feedback-counter">{message.length}/4000</span>
-          </label>
-          <div className="student-feedback-upload">
-            <div><strong><ImagePlus size={16}/> Screenshot (optional)</strong><span>PNG, JPG or WebP · maximum 5 MB</span></div>
-            <label className="secondary-button upload-button"><ImagePlus size={15}/> {file ? "Change image" : "Attach image"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseFile(event.target.files?.[0] || null)} /></label>
-          </div>
-          {preview && <div className="student-feedback-preview"><img src={preview} alt="Screenshot attached to feedback"/><button type="button" className="icon-button" onClick={() => setFile(null)} aria-label="Remove screenshot"><X size={15}/></button></div>}
-          <label className="field-label">Email address (optional)
-            <input type="email" maxLength={254} value={contactEmail} onChange={event => setContactEmail(event.target.value)} placeholder="Only if you would like us to reply" />
-          </label>
-          <a className="student-feedback-whatsapp" href="https://wa.me/26879930955" target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Chat with the Studyspace team on +268 7993 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
-          <p className="student-feedback-privacy"><AlertCircle size={14}/> Please do not include passwords, private account details or sensitive personal information in your message or screenshot. Your report is sent privately to the Studyspace team.</p>
-          {notice && <p className={"student-feedback-notice " + notice.kind} role="status">{notice.kind === "success" ? <CheckCircle2 size={16}/> : <AlertCircle size={16}/>} {notice.text}</p>}
-          <div className="student-feedback-actions"><button type="button" className="secondary-button" onClick={() => setOpen(false)} disabled={busy}>Close</button><button type="submit" className="primary-button" disabled={busy}><Send size={15}/>{busy ? "Sending…" : "Send feedback"}</button></div>
-        </form>
-      </section>
-    </div>}
-  </>;
+  return <section className="glass-panel student-feedback-page">
+    <header className="student-feedback-header">
+      <div className="student-feedback-heading-icon"><LifeBuoy size={20} /></div>
+      <div><span className="eyebrow">STUDENT SUPPORT</span><h2 id="student-feedback-title">Help us improve Studyspace</h2><p>Report a problem, suggest an idea or tell us what would make studying easier.</p></div>
+    </header>
+    <a className="student-feedback-whatsapp" href={"https://wa.me/" + SUPPORT_WHATSAPP} target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Contact us on WhatsApp · +268 7994 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
+    <form onSubmit={event => void submit(event)} className="student-feedback-form">
+      <label className="field-label">What is this about?
+        <select value={category} onChange={event => setCategory(event.target.value as (typeof categories)[number])}>
+          {categories.map(item => <option key={item}>{item}</option>)}
+        </select>
+      </label>
+      <label className="field-label">Tell us what happened or what you would like to see
+        <textarea required minLength={10} maxLength={4000} rows={5} value={message} onChange={event => setMessage(event.target.value)} placeholder="Describe the steps, what you expected, and what happened instead…" />
+        <span className="student-feedback-counter">{message.length}/4000</span>
+      </label>
+      <div className="student-feedback-upload">
+        <div><strong><ImagePlus size={16}/> Screenshot (optional)</strong><span>PNG, JPG or WebP · maximum 5 MB</span></div>
+        <label className="secondary-button upload-button"><ImagePlus size={15}/> {file ? "Change image" : "Attach image"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseFile(event.target.files?.[0] || null)} /></label>
+      </div>
+      {preview && <div className="student-feedback-preview"><img src={preview} alt="Screenshot attached to feedback"/><button type="button" className="secondary-button" onClick={() => setFile(null)}>Remove screenshot</button></div>}
+      <label className="field-label">Email address <span className="field-optional">OPTIONAL</span>
+        <input type="email" maxLength={254} value={contactEmail} onChange={event => setContactEmail(event.target.value)} placeholder="Only if you would like us to reply" />
+      </label>
+      <p className="student-feedback-privacy"><AlertCircle size={14}/> Please do not include passwords, private account details or sensitive personal information in your message or screenshot. Your report is sent privately to the Studyspace team.</p>
+      {notice && <p className={"student-feedback-notice " + notice.kind} role="status">{notice.kind === "success" ? <CheckCircle2 size={16}/> : <AlertCircle size={16}/>} {notice.text}</p>}
+      <div className="student-feedback-actions"><button type="submit" className="primary-button" disabled={busy}><Send size={15}/>{busy ? "Sending…" : "Send feedback"}</button></div>
+    </form>
+  </section>;
 }

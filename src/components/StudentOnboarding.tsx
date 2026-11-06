@@ -6,6 +6,7 @@ export type StudentProfile = {
   preferredName: string;
   country: string;
   institution: string;
+  course: string;
   level: string;
   grade: string;
   curriculum: string;
@@ -19,7 +20,7 @@ export type StudentProfile = {
 };
 
 const emptyProfile: StudentProfile = {
-  fullName: "", preferredName: "", country: "", institution: "", level: "Secondary school",
+  fullName: "", preferredName: "", country: "", institution: "", course: "", level: "Secondary school",
   grade: "", curriculum: "", academicYear: String(new Date().getFullYear()), termCount: "3",
   goals: "Improve my marks", targetMark: "75", weeklyHours: "6", preferredDays: ["Saturday", "Sunday"], subjects: []
 };
@@ -82,6 +83,7 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
     setError("");
     if (step === 0 && !profile.fullName.trim()) { setError("Please enter the student's name."); return; }
     if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim())) { setError("Please enter a grade or year and academic year."); return; }
+    if (step === 1 && (profile.level === "University" || profile.level === "College") && !profile.course.trim()) { setError("Please enter your course or programme."); return; }
     if (step === 2) {
       if (!profile.subjects.length) { setError("Select at least one subject or course to continue."); return; }
       onComplete({ ...profile, subjects: [...new Set(profile.subjects)] });
@@ -111,8 +113,9 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
 
       {step === 1 && <div className="onboarding-fields">
         <label className="field-label">Education level<select value={profile.level} onChange={e => update("level", e.target.value)}>{levels.map(item => <option key={item}>{item}</option>)}</select></label>
+        {(profile.level === "University" || profile.level === "College") && <label className="field-label">Course / programme<input value={profile.course} onChange={e => update("course", e.target.value)} placeholder="Enter your course or programme" maxLength={160}/></label>}
         <div className="onboarding-two-col">
-          <label className="field-label">Grade / year<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder="e.g. Form 3, Grade 10, Year 2" maxLength={60}/></label>
+          <label className="field-label">{(profile.level === "University" || profile.level === "College") ? "Year of study" : "Grade / year"}<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder={(profile.level === "University" || profile.level === "College") ? "e.g. Year 1, Year 2, Final year" : "e.g. Form 3, Grade 10"} maxLength={60}/></label>
           <label className="field-label">Academic year<input value={profile.academicYear} onChange={e => update("academicYear", e.target.value)} placeholder="2026" maxLength={20}/></label>
         </div>
         <label className="field-label">Curriculum<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum</option>{curricula.map(item => <option key={item}>{item}</option>)}</select></label>

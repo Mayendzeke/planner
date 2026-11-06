@@ -916,3 +916,29 @@ html{overflow-anchor:none}
 @media(max-width:640px){.mia-time-edit{flex-direction:column}.mia-time-edit input{width:100%}.mia-timetable-review td input,.mia-timetable-review td select{max-width:100px}}
 
 .mia-quick-actions{display:flex;flex-wrap:wrap;gap:7px;padding:0 18px 10px}.mia-quick-actions button{border:1px solid var(--border);background:var(--panel-strong);color:var(--muted);border-radius:999px;padding:7px 11px;font-size:11px}.mia-quick-actions button:hover{border-color:var(--blue);color:var(--text)}
+
+
+/* Embedded support page: feedback lives in navigation, not beside the MIΛ launcher. */
+.student-feedback-page{width:100%;max-width:900px;margin:0 auto;padding:clamp(18px,3vw,30px);display:grid;gap:18px}
+.student-feedback-page .student-feedback-header{margin:0;align-items:center}
+.student-feedback-page .student-feedback-heading-icon{flex-basis:46px;height:46px}
+.student-feedback-page .student-feedback-whatsapp{max-width:520px;margin:0}
+.student-feedback-page .student-feedback-form{display:grid;gap:16px;max-width:720px}
+.student-feedback-page .student-feedback-form .field-label{margin:0}
+.student-feedback-page .student-feedback-actions{justify-content:flex-start;margin-top:2px}
+.student-feedback-page .student-feedback-preview{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.student-feedback-page .student-feedback-preview img{max-width:min(100%,340px);max-height:220px;object-fit:contain;border-radius:12px}
+.student-feedback-page .student-feedback-privacy{margin:0}
+@media(max-width:640px){.student-feedback-page{padding:16px;gap:15px}.student-feedback-page .student-feedback-header{gap:10px}.student-feedback-page .student-feedback-header p{font-size:12px}}
+
+/* Notes-to-test workflow */
+.topic-notes-generator{display:grid;gap:13px;margin-top:18px;padding:18px;border:1px solid var(--border);border-radius:18px;background:var(--panel)}
+.topic-notes-copy{display:grid;gap:5px}
+.topic-notes-copy strong{font-size:14px;color:var(--text)}
+.topic-notes-copy span,.topic-notes-hint{font-size:12px;line-height:1.55;color:var(--muted)}
+.topic-notes-generator .field-label{display:grid;gap:7px;margin:0}
+.topic-notes-generator select,.topic-notes-generator input{width:100%;min-width:0}
+.topic-notes-generator .primary-button{justify-self:start;min-height:42px}
+.topic-notes-generator .inline-message{margin:0}
+.weekly-test-feedback:not(.good):not(.bad){border-left:3px solid var(--blue);padding:9px 12px;background:var(--panel);border-radius:0 10px 10px 0;color:var(--text)}
+@media(max-width:640px){.topic-notes-generator{padding:13px}.topic-notes-generator .primary-button{width:100%;justify-content:center}}
