@@ -176,6 +176,11 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       setActiveSession(null);
       setLessonGuide({ summary: "", keyPoints: [], workedExample: "", exitQuestion: "" });
       setChat([]);
+       setUnreadChatCount(0);
+       setChatNotice("");
+       setPracticeQuestions([]);
+       setPracticeAnswers({});
+       setPracticeComplete(false);
       setHomework([]);
       return;
     }
@@ -234,6 +239,11 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
             id: row.id, text: row.message, sender: row.sender_id === userId ? "You" : "Teacher",
             time: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           }]);
+           if (row.sender_id !== userId && tabRef.current !== "Class chat") {
+             setUnreadChatCount(count => count + 1);
+             setChatNotice("New message from your teacher.");
+             if ("Notification" in window && Notification.permission === "granted") new Notification("Studyspace class chat", { body: "Your teacher sent a lesson message." });
+           }
         })
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "class_sessions", filter: "id=eq." + activeSessionId }, payload => {
           const row = payload.new as ClassroomSession;
@@ -355,7 +365,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       ...lessonGuide.keyPoints,
       lessonGuide.workedExample,
       lessonGuide.exitQuestion,
-    ].filter(Boolean).join("\\n\\n");
+    ].filter(Boolean).join("\n\n");
     if (notesText.trim().length < 50) {
       setPracticeError("Your teacher's lesson guide does not contain enough material to build a reliable practice set yet.");
       return;
