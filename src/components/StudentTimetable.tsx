@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, Clock3, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 
@@ -65,11 +65,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
   useEffect(() => { void loadEntries(); }, []);
 
   const visibleEntries = useMemo(() => entries.filter(item => item.timetable_kind === kind), [entries, kind]);
-  const groupedDays = useMemo(() => days.map((label, index) => ({
-    label,
-    index,
-    items: visibleEntries.filter(item => item.day_of_week === index).sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
-  })), [visibleEntries]);
+
 
   function openNew(day = 1) {
     setEditingId(null);
