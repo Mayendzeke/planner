@@ -214,6 +214,10 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         sender: item.sender_id === userId ? "You" : "Teacher",
         time: new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       })));
+       const readKey = studentStorageKey("studyspace-class-chat-read:" + activeSessionId);
+       let readAt = Date.now();
+       try { const stored = localStorage.getItem(readKey); if (stored) readAt = Date.parse(stored); } catch { /* First visit starts with a clean unread count. */ }
+       setUnreadChatCount((messagesResult.data ?? []).filter(item => item.sender_id !== userId && Date.parse(item.created_at) > readAt).length);
       const completed = new Set((submissionsResult.data ?? []).filter(item => item.completed_at).map(item => item.homework_id));
       setHomework((homeworkResult.data ?? []).map(item => ({
         id: item.id, title: item.title, details: item.instructions || "",
