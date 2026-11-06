@@ -1082,3 +1082,6 @@ html{overflow-anchor:none}
 .session-practice-result>strong{font-size:20px}
 .session-chat-new-notice{margin:8px 0;padding:9px 11px;border-radius:9px;background:color-mix(in srgb,var(--mint) 10%,var(--panel));color:var(--mint);font-size:10px}
 @media(max-width:560px){.session-practice-options{grid-template-columns:1fr}.session-practice-panel{padding:13px}}
+
+/* Interactive matching question layout. */
+.weekly-test-matching{display:grid;gap:10px;margin:16px 0}.weekly-test-matching label{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr);align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--border);border-radius:11px;background:var(--panel)}.weekly-test-matching label span{font-size:12px;font-weight:700;color:var(--text)}.weekly-test-matching select{width:100%;min-width:0;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--panel-strong);color:var(--text);font:inherit;font-size:11px}@media(max-width:560px){.weekly-test-matching label{grid-template-columns:1fr;gap:7px}}
