@@ -4,8 +4,9 @@ import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 import { studentStorageKey } from "../lib/studentStorage";
 import LiveClassroomCall from "./LiveClassroomCall";
+import SoloStudyCoach from "./SoloStudyCoach";
 
-type Tab = "Lesson guide" | "Worksheet" | "Class chat" | "Homework";
+type Tab = "Solo study" | "Lesson guide" | "Worksheet" | "Class chat" | "Homework";
 type ClassroomSession = {
   id: string;
   title: string;
@@ -48,7 +49,7 @@ function readStoredNotes(key: string): string {
 }
 
 export default function TodaySession({ subjects }: { subjects: Subject[] }) {
-  const [tab, setTab] = useState<Tab>("Lesson guide");
+  const [tab, setTab] = useState<Tab>("Solo study");
   const [sessions, setSessions] = useState<ClassroomSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState("");
   const [activeSession, setActiveSession] = useState<ClassroomSession | null>(null);
@@ -357,6 +358,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   }
 
   const tabs: { name: Tab; icon: typeof PenLine; hint: string }[] = [
+    { name: "Solo study", icon: Sparkles, hint: "A step-by-step routine for studying alone" },
     { name: "Lesson guide", icon: BookOpen, hint: "Teacher's lesson and revision notes" },
     { name: "Worksheet", icon: PenLine, hint: "Work through examples" },
     { name: "Class chat", icon: MessageCircle, hint: "Ask your teacher" },
@@ -372,7 +374,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
           <div>
             <div className="eyebrow"><Sparkles size={14} /> LEARN TOGETHER</div>
             <h2>{activeSession?.title || "Today's learning space"}</h2>
-            <p>{activeSession ? activeSession.subject_name + " · " + formatDate(activeSession.starts_at) : "Your teacher's lessons, class discussion, practice and follow-up work will appear here."}</p>
+            <p>{activeSession ? activeSession.subject_name + " · " + formatDate(activeSession.starts_at) : "Study independently with a guided routine, or choose one of your teacher's assigned lessons."}</p>
           </div>
           <div className="session-status"><Clock3 size={16} /> {activeSession?.status === "live" ? "Live class" : activeSession?.status === "ended" ? "Lesson completed" : activeSession?.status === "cancelled" ? "Cancelled" : activeSession ? "Assigned lesson" : connection}</div>
         </div>
@@ -404,6 +406,8 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
           </button>
         ))}
       </div>
+
+      {tab === "Solo study" && <SoloStudyCoach subjects={subjects} />}
 
       {tab === "Lesson guide" && (
         <div className="glass-panel session-workspace">
@@ -463,8 +467,8 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       )}
 
       <div className="session-classroom-guide">
-        <strong>A simple lesson routine</strong>
-        <span><b>1</b> Read the teacher's guide</span><span><b>2</b> Work through the worksheet</span><span><b>3</b> Ask questions in class chat</span><span><b>4</b> Complete homework and revise your notes</span>
+        <strong>Make every study session count</strong>
+        <span><b>1</b> Understand one idea</span><span><b>2</b> Recall it without looking</span><span><b>3</b> Practise a real question</span><span><b>4</b> Correct mistakes and plan what to revisit</span>
       </div>
     </section>
   );
