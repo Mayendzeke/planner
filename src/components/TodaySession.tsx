@@ -175,7 +175,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     const loadDetails = async () => {
       setSessionError("");
       const [{ data: session, error: sessionError }, messagesResult, notesResult, homeworkResult, boardResult, submissionsResult] = await Promise.all([
-        supabase!.from("class_sessions").select("id,title,subject_name,objectives,starts_at,status,duration_minutes,meeting_url").eq("id", activeSessionId).single(),
+        supabase!.from("class_sessions").select("id,title,subject_name,objectives,starts_at,status,duration_minutes,meeting_url,meeting_password,meeting_ready_at").eq("id", activeSessionId).single(),
         supabase!.from("session_messages").select("id,sender_id,message,created_at").eq("session_id", activeSessionId).order("created_at"),
         supabase!.from("session_lesson_notes").select("summary,key_points,worked_example,exit_question").eq("session_id", activeSessionId).maybeSingle(),
         supabase!.from("session_homework").select("id,title,instructions,due_at").eq("session_id", activeSessionId).order("created_at"),
