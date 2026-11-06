@@ -117,25 +117,32 @@ export default function App() {
     let alive = true;
     setProfileOwnerId(null);
     const loadProfile = async () => {
+      const key = "studyspace-profile:" + cloudUserId;
+      let cached: StudentProfile | null = null;
       try {
-        const key = "studyspace-profile:" + cloudUserId;
         const raw = localStorage.getItem(key);
         if (raw) {
-          const cached = JSON.parse(raw) as StudentProfile;
-          if (alive && cached && typeof cached.fullName === "string" && typeof cached.preferredName === "string") {
-            setProfile(cached);
-            setProfileOwnerId(cloudUserId);
-            return;
+          const parsed = JSON.parse(raw) as Partial<StudentProfile>;
+          if (parsed && typeof parsed.fullName === "string" && typeof parsed.preferredName === "string"
+            && Array.isArray(parsed.subjects) && Array.isArray(parsed.preferredDays)) {
+            cached = parsed as StudentProfile;
           }
         }
+      } catch {
+        cached = null;
+      }
 
+      try {
         if (!supabase) throw new Error("Studyspace is not connected.");
+        // Always refresh from the cloud when online. A local cache must not
+        // silently overwrite profile changes made on another signed-in device.
         const [profileResult, goalResult, subjectsResult] = await Promise.all([
           supabase.from("profiles").select("full_name,preferred_name,country,institution,education_level,grade,curriculum,academic_year").eq("id", cloudUserId).single(),
           supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
           supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
         ]);
         if (profileResult.error) throw profileResult.error;
+        if (goalResult.error) throw goalResult.error;
         if (subjectsResult.error) throw subjectsResult.error;
         const cloud = profileResult.data;
         const goalData = goalResult.data;
@@ -145,6 +152,7 @@ export default function App() {
           if (alive) {
             setProfile(null);
             setProfileOwnerId(cloudUserId);
+            setError("");
           }
           return;
         }
@@ -157,7 +165,7 @@ export default function App() {
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
           academicYear: String(cloud.academic_year || new Date().getFullYear()),
-          termCount: "3",
+          termCount: cached?.termCount || "3",
           goals: String(goalData?.goal_text || "Improve my marks"),
           targetMark: String(goalData?.target_mark ?? 75),
           weeklyHours: String(goalData?.weekly_hours ?? 6),
@@ -168,12 +176,21 @@ export default function App() {
           localStorage.setItem(key, JSON.stringify(restored));
           setProfile(restored);
           setProfileOwnerId(cloudUserId);
+          setError("");
         }
       } catch (reason) {
         if (!alive) return;
-        setProfile(null);
-        setProfileOwnerId(cloudUserId);
-        setError(reason instanceof Error ? "Your cloud profile could not be restored: " + reason.message : "Your cloud profile could not be restored. Check your connection.");
+        if (cached) {
+          setProfile(cached);
+          setProfileOwnerId(cloudUserId);
+          setError(reason instanceof Error
+            ? "Using your saved offline profile. Cloud refresh failed: " + reason.message
+            : "Using your saved offline profile. Cloud refresh failed; your local copy is retained.");
+        } else {
+          setProfile(null);
+          setProfileOwnerId(cloudUserId);
+          setError(reason instanceof Error ? "Your cloud profile could not be restored: " + reason.message : "Your cloud profile could not be restored. Check your connection.");
+        }
       }
     };
     void loadProfile();
