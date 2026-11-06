@@ -115,7 +115,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
         body: { action: "parse_timetable", image, conversationId, message: text.trim() },
       });
-      if (invokeError) throw invokeError;
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success) throw new Error(data?.error || "The timetable could not be read.");
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
