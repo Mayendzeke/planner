@@ -129,7 +129,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     setText("");
     const file = attachment;
     const displayMessage = value || (file ? "Please review the attached file: " + file.name : "");
-    const outgoingId = crypto.randomUUID();\n    setMessages(current => [...current, { id: outgoingId, role: "user", content: displayMessage + (file ? " · " + file.name : "") }]);
+    const outgoingId = crypto.randomUUID();
+    setMessages(current => [...current, { id: outgoingId, role: "user", content: displayMessage + (file ? " · " + file.name : "") }]);
     try {
       const uploaded = file ? await filePayload(file) : null;
       if (uploaded?.textContent && !value) setText("");
@@ -146,7 +147,9 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (cards.length) { setFlashcards(cards); setFlashcardIndex(0); setFlashcardFlipped(false); }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "MIΛ could not reply. Check your connection.");
-      setMessages(current => current.filter(item => item.role !== "user" || item.content !== value || item.id !== current[current.length - 1]?.id));
+      setMessages(current => current.filter(item => item.id !== outgoingId));
+      setText(value);
+      setAttachment(file);
       setText(value);
     } finally { setBusy(false); inputRef.current?.focus(); }
   }
