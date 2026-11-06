@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, Image as ImageIcon, LoaderCircle, CalendarDays, CheckCircle2, BookOpen } from "lucide-react";
+import { Paperclip, Send, X, Plus, Image as ImageIcon, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
 
-type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+type ChatMessage = { id: string; role: "user" | "assistant"; content: string };\ntype Flashcard = { front: string; back: string };\nfunction extractFlashcards(reply: string): Flashcard[] {\n  const clean = (value: string) => value.replace(/\\*\\*/g, "").replace(/^[-*]\\s*/, "").trim();\n  const pattern = /(?:^|\\n)\\s*(?:[-*]\\s*)?(?:\\*\\*)?(?:front|question)\\s*[:：]\\s*([\\s\\S]*?)\\n\\s*(?:[-*]\\s*)?(?:\\*\\*)?(?:back|answer)\\s*[:：]\\s*([\\s\\S]*?)(?=(?:\\n\\s*(?:[-*]\\s*)?(?:\\*\\*)?(?:front|question)\\s*[:：])|$)/gi;\n  return [...reply.matchAll(pattern)].map(match => ({ front: clean(match[1]), back: clean(match[2]) })).filter(card => card.front && card.back).slice(0, 40);\n}
 type TimetableEntry = { day_of_week: number; subject_name: string; title: string; starts_at: string; ends_at: string; location: string; notes: string };
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const welcome: ChatMessage = { id: "mia-welcome", role: "assistant", content: "Hi! I'm MIΛ, your personal learning companion. I know your subjects and study goals, and I can help you understand lessons, practise questions, prepare for exams and organise your study. What shall we work on?" };
@@ -53,7 +53,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [draft, setDraft] = useState<TimetableEntry[]>([]);
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
-  const [remaining, setRemaining] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);\n  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);\n  const [flashcardIndex, setFlashcardIndex] = useState(0);\n  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -99,7 +99,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
-      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
+      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);\n      const cards = extractFlashcards(data.reply);\n      if (cards.length) { setFlashcards(cards); setFlashcardIndex(0); setFlashcardFlipped(false); }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "MIΛ could not reply. Check your connection.");
       setMessages(current => current.filter(item => item.role !== "user" || item.content !== value || item.id !== current[current.length - 1]?.id));
@@ -157,7 +157,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   }
 
   function newChat() {
-    setConversationId(null); setMessages([welcome]); setDraft([]); setError(""); setSaved(false);
+    setConversationId(null); setMessages([welcome]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
   }
 
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
@@ -188,6 +188,20 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         <p>Before saving, tell MIΛ which timetable this is. School lessons and your own study sessions will be stored separately.</p>
         <div className="mia-kind-options"><button className={timetableKind === "school" ? "selected" : ""} onClick={()=>setTimetableKind("school")}><BookOpen size={15}/> School timetable</button><button className={timetableKind === "personal" ? "selected" : ""} onClick={()=>setTimetableKind("personal")}><CalendarDays size={15}/> Personal study timetable</button></div>
         <button className="mia-confirm-button" disabled={!timetableKind || busy} onClick={()=>void saveTimetable()}><CheckCircle2 size={16}/> Confirm and save timetable</button>
+      </section>}
+      {flashcards.length > 0 && <section className="mia-visual-flashcards" aria-label="Interactive flashcards">
+        <div className="mia-flashcard-heading"><div><span><Brain size={15}/> ACTIVE RECALL</span><strong>Visual flashcards</strong><small>Tap the card to reveal the answer</small></div><span className="mia-flashcard-count">{flashcardIndex+1} / {flashcards.length}</span></div>
+        <button type="button" className={"mia-flashcard "+(flashcardFlipped?"flipped":"")} onClick={()=>setFlashcardFlipped(value=>!value)} aria-label="Flip flashcard">
+          <span className="mia-flashcard-decoration"><Sparkles size={19}/><i/><i/><i/></span>
+          <span className="mia-flashcard-side">{flashcardFlipped?"REMEMBER THIS":"THINK ABOUT IT"}</span>
+          <strong>{flashcardFlipped?flashcards[flashcardIndex].back:flashcards[flashcardIndex].front}</strong>
+          <small>{flashcardFlipped?"Answer · Tap to see question":"Question · Tap to reveal"}</small>
+        </button>
+        <div className="mia-flashcard-controls">
+          <button type="button" onClick={()=>{setFlashcardIndex(value=>(value-1+flashcards.length)%flashcards.length);setFlashcardFlipped(false);}}><ChevronLeft size={16}/> Previous</button>
+          <button type="button" onClick={()=>setFlashcardFlipped(value=>!value)}><RotateCw size={15}/> Flip</button>
+          <button type="button" onClick={()=>{setFlashcardIndex(value=>(value+1)%flashcards.length);setFlashcardFlipped(false);}}>Next <ChevronRight size={16}/></button>
+        </div>
       </section>}
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
