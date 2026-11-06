@@ -29,6 +29,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [completedMinutes, setCompletedMinutes] = useState(0);
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
     if (!topic.trim()) { setNotice("Enter the topic you are studying."); return; }
     if (!goal.trim()) { setNotice("Write one clear learning goal."); return; }
     setComplete(false);
+    setHasStarted(true);
     setNotice("Your independent study session has started. Work through each step in order.");
     if (runningSince === null) setRunningSince(Date.now());
   }
@@ -103,6 +105,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
 
   function reset() {
     setStage(0);
+    setHasStarted(false);
     setElapsedSeconds(0);
     setRunningSince(null);
     setTicker(Date.now());
@@ -146,7 +149,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
       </label>
       <button type="button" className="primary-button" onClick={begin} disabled={!subjects.length}><Play size={15}/> Start studying</button>
     </div>}
-    {(runningSince !== null || elapsedSeconds > 0) && <div className="solo-study-active">
+    {hasStarted && <div className="solo-study-active">
       <div className="solo-study-active-head"><div><span className="eyebrow">YOUR FOCUS SESSION</span><h3>{topic}</h3><p>{selectedSubject?.name} · {goal}</p></div><div className="solo-study-clock"><Clock3 size={15}/><strong>{formatTime(remaining)}</strong><small>remaining</small></div></div>
       <div className="solo-study-progress"><span style={{ width: progress + "%" }}/></div>
       <div className="solo-study-steps" aria-label="Study steps">
