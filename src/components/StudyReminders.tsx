@@ -20,7 +20,9 @@ function readSettings(): ReminderSettings {
 export default function StudyReminders({ preferredDays = [], showSettings = true }: { preferredDays?: string[]; showSettings?: boolean }) {
   const [settings, setSettings] = useState<ReminderSettings>(() => {
     const saved = readSettings();
-    return localStorage.getItem(studentStorageKey(STORAGE_KEY)) ? saved : { ...defaultSettings, days: preferredDays.length ? preferredDays.filter(day => DAYS.includes(day)) : defaultSettings.days };
+    let hasSavedSettings = false;
+    try { hasSavedSettings = localStorage.getItem(studentStorageKey(STORAGE_KEY)) !== null; } catch { /* Use device-independent defaults. */ }
+    return hasSavedSettings ? saved : { ...defaultSettings, days: preferredDays.length ? preferredDays.filter(day => DAYS.includes(day)) : defaultSettings.days };
   });
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported");
   const [message, setMessage] = useState("");
@@ -42,14 +44,18 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
       const delta = now.getTime() - target.getTime();
       if (!settings.days.includes(day) || delta < 0 || delta > 5 * 60 * 1000) return;
       const key = "studyspace-reminder-fired-" + now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
-      if (localStorage.getItem(studentStorageKey(key)) === settings.time) return;
-      localStorage.setItem(studentStorageKey(key), settings.time);
-      const notification = new Notification("Your Studyspace session is ready", {
-        body: "It's your planned study time. Open your study space and take one small step.",
-        icon: "/planner/icon-192.png",
-        tag: "studyspace-daily-study",
-      });
-      notification.onclick = () => { window.focus(); notification.close(); };
+      try {
+        if (localStorage.getItem(studentStorageKey(key)) === settings.time) return;
+        localStorage.setItem(studentStorageKey(key), settings.time);
+        const notification = new Notification("Your Studyspace session is ready", {
+          body: "It's your planned study time. Open your study space and take one small step.",
+          icon: "/planner/icon-192.png",
+          tag: "studyspace-daily-study",
+        });
+        notification.onclick = () => { window.focus(); notification.close(); };
+      } catch {
+        setMessage("The browser could not store the reminder check. Your study workspace is still available.");
+      }
     };
     check();
     const timer = window.setInterval(check, 20_000);
@@ -63,16 +69,20 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
 
   async function enableReminders() {
     if (permission === "unsupported") { setMessage("This browser does not support desktop notifications. Try a current version of Chrome, Edge or Firefox."); return; }
-    let result = permission;
-    if (permission === "default") result = await Notification.requestPermission();
-    setPermission(result);
-    if (result === "granted") {
-      update({ ...settings, enabled: true });
-      setMessage("Notifications are enabled. Keep Studyspace open around your selected study time.");
-    } else if (result === "denied") {
-      setMessage("Notifications are blocked in browser settings. Allow notifications for this site, then try again.");
-    } else {
-      setMessage("Notification permission was not granted.");
+    try {
+      let result = permission;
+      if (permission === "default") result = await Notification.requestPermission();
+      setPermission(result);
+      if (result === "granted") {
+        update({ ...settings, enabled: true });
+        setMessage("Notifications are enabled. Keep Studyspace open around your selected study time.");
+      } else if (result === "denied") {
+        setMessage("Notifications are blocked in browser settings. Allow notifications for this site, then try again.");
+      } else {
+        setMessage("Notification permission was not granted.");
+      }
+    } catch {
+      setMessage("The browser could not request notification permission. Check this site's browser permissions.");
     }
   }
 
