@@ -465,12 +465,13 @@ export default function App() {
       }
       if (raw.profile && restoreProfileKey) setProfile(raw.profile as StudentProfile);
       setGoal(raw.version >= 5 ? raw.goal : 8);
-      setImportMessage("Backup restored successfully."); await refresh();
+      setImportMessage("Backup restored successfully."); await refresh(); setSyncRequested(value => value + 1);
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
     e.target.value = "";
   }
   async function clearAll() {
     if (!cloudUserId || !supabase || signOutBusy) return;
+    if (syncStatus === "syncing") { setError("Wait for the current cloud synchronisation to finish before clearing this device."); return; }
     if (!window.confirm("Clear this student's offline copy from this device and sign out? Your Studyspace account and cloud records will remain safe. They will synchronise again the next time you sign in. Export a backup first if you also need a separate file copy.")) return;
     suppressCloudSyncRef.current = true;
     setSignOutBusy(true);
