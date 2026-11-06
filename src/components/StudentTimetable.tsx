@@ -192,7 +192,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
       {loading ? <div className="timetable-empty"><RefreshCw size={20}/> Loading your timetable…</div> : <div className="timetable-grid-wrap">
         {visibleEntries.length === 0 && <div className="timetable-grid-empty"><CalendarDays size={20}/><span>No lessons saved yet. Add lessons or import a school timetable through MIΛ.</span></div>}
         <div className="timetable-grid-scroll"><table className="weekly-timetable-grid">
-          <thead><tr><th className="timetable-day-heading">DAY</th>{Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=><th key={start}>{start}</th>)}</tr></thead>
+          <thead><tr><th className="timetable-day-heading">DAY</th>{Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=><th key={start}><span>{start}</span><small>SUBJECT / ACTIVITY</small></th>)}</tr></thead>
           <tbody>{[1,2,3,4,5,6,0].map(day=><tr key={day}><th className="timetable-day-cell">{days[day]}</th>
             {Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=>{const items=visibleEntries.filter(item=>item.day_of_week===day&&timeValue(item.starts_at)===start);return <td key={start} className={items.length?"has-lessons":""}>
               {items.map(entry=><article className={"weekly-timetable-lesson "+(/break/i.test(entry.title)?"is-break":/lunch/i.test(entry.title)?"is-lunch":"")} key={entry.id}>
