@@ -124,6 +124,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
         minutes,
         notes,
       });
+      window.dispatchEvent(new Event("studyspace-local-data-updated"));
       try { localStorage.removeItem(studentStorageKey(SOLO_STUDY_KEY)); } catch { /* The study record is already saved. */ }
       setElapsedSeconds(0);
       setRunningSince(null);
