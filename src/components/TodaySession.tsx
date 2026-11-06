@@ -246,7 +246,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         })
         .subscribe();
     };
-    void loadDetails();
+    void loadDetails().catch(reason => { if (alive) setSessionError(reason instanceof Error ? "Lesson details could not be loaded: " + reason.message : "Lesson details could not be loaded. Check your connection and refresh."); });
     return () => { alive = false; if (channel && supabase) void supabase.removeChannel(channel); };
   }, [activeSessionId, userId]);
 
@@ -302,11 +302,16 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     const imageData = canvas.toDataURL("image/jpeg", 0.55);
     if (activeSessionId && userId && supabase) {
       setBoardNotice("Saving shared board…");
-      const { error } = await supabase.from("session_whiteboards").upsert({
-        session_id: activeSessionId, board_state: { version: 1, imageData },
-        updated_by: userId, updated_at: new Date().toISOString(),
-      }, { onConflict: "session_id" });
-      setBoardNotice(error ? "The shared board could not be saved. Your drawing remains on this screen." : "Shared board saved.");
+      try {
+        const { error } = await supabase.from("session_whiteboards").upsert({
+          session_id: activeSessionId, board_state: { version: 1, imageData },
+          updated_by: userId, updated_at: new Date().toISOString(),
+        }, { onConflict: "session_id" });
+        if (error) throw error;
+        setBoardNotice("Shared board saved.");
+      } catch {
+        setBoardNotice("The shared board could not be saved. Your drawing remains on this screen; reconnect and save again.");
+      }
     } else {
       try {
         localStorage.setItem(studentStorageKey("studyspace-personal-worksheet"), imageData);
@@ -337,24 +342,33 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     if (!text || !activeSessionId || !userId || !supabase || sending) return;
     setSending(true);
     setSessionError("");
-    const { error } = await supabase.from("session_messages").insert({ session_id: activeSessionId, sender_id: userId, message: text });
-    if (error) setSessionError("Message not sent. Check your connection and try again.");
-    else setMessage("");
-    setSending(false);
+    try {
+      const { error } = await supabase.from("session_messages").insert({ session_id: activeSessionId, sender_id: userId, message: text });
+      if (error) throw error;
+      setMessage("");
+    } catch {
+      setSessionError("Message not sent. Check your connection and try again.");
+    } finally {
+      setSending(false);
+    }
   }
 
   async function toggleHomework(item: Homework, done: boolean) {
     if (!userId || !supabase || homeworkBusy) return;
     setHomeworkBusy(item.id);
     setHomework(current => current.map(row => row.id === item.id ? { ...row, done } : row));
-    const { error } = await supabase.from("session_homework_submissions").upsert({
-      homework_id: item.id, learner_id: userId, completed_at: done ? new Date().toISOString() : null,
-    }, { onConflict: "homework_id,learner_id" });
-    if (error) {
+    try {
+      const { error } = await supabase.from("session_homework_submissions").upsert({
+        homework_id: item.id, learner_id: userId, completed_at: done ? new Date().toISOString() : null,
+      }, { onConflict: "homework_id,learner_id" });
+      if (error) throw error;
+      setSessionError("");
+    } catch {
       setHomework(current => current.map(row => row.id === item.id ? { ...row, done: item.done } : row));
-      setSessionError("Homework progress could not be saved. Please try again.");
+      setSessionError("Homework progress could not be saved. Your previous completion status has been restored. Try again when connected.");
+    } finally {
+      setHomeworkBusy("");
     }
-    setHomeworkBusy("");
   }
 
   const tabs: { name: Tab; icon: typeof PenLine; hint: string }[] = [
