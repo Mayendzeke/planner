@@ -871,3 +871,43 @@ html{overflow-anchor:none}
 .student-feedback-whatsapp small{font-size:9px;color:var(--muted)}
 .student-feedback-whatsapp-arrow{color:var(--muted);font-size:14px}
 .student-feedback-whatsapp:hover{border-color:#25a56a;background:color-mix(in srgb,#25a56a 13%,var(--panel-strong))}
+
+/* MIΛ learning companion */
+.mia-studio-shell,.mia-floating-shell{display:flex;flex-direction:column;min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:22px;overflow:hidden;box-shadow:var(--shadow)}
+.mia-studio-shell{height:min(720px,calc(100vh - 230px));min-height:480px}
+.mia-header{display:flex;align-items:center;gap:11px;padding:15px 18px;border-bottom:1px solid var(--border);background:var(--panel-strong)}
+.mia-brand-mark,.mia-message-avatar{display:grid;place-items:center;flex:none;background:linear-gradient(145deg,#31234e,#1b3150);color:#e5d8ff;font-weight:800}
+.mia-brand-mark{width:39px;height:39px;border-radius:13px;font-size:23px}
+.mia-brand-copy{display:flex;flex-direction:column;gap:2px}.mia-brand-copy strong{font-size:16px;letter-spacing:.06em}.mia-brand-copy span{font-size:9px;letter-spacing:.12em;color:var(--muted)}
+.mia-header-actions{margin-left:auto;display:flex;align-items:center;gap:8px}.mia-remaining{font-size:11px;color:var(--muted)}
+.mia-icon-button{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:transparent;display:grid;place-items:center}
+.mia-icon-button:hover,.mia-attach-button:hover{background:var(--bg2)}
+.mia-context-strip{display:flex;align-items:center;gap:8px;padding:9px 18px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)}
+.mia-context-dot{width:4px;height:4px;border-radius:50%;background:var(--mint)}
+.mia-messages{flex:1;overflow:auto;min-height:0;padding:22px clamp(14px,4vw,34px);display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+.mia-message-row{display:flex;align-items:flex-start;gap:9px;max-width:88%}.mia-message-row.is-user{align-self:flex-end;justify-content:flex-end}
+.mia-message-avatar{width:28px;height:28px;border-radius:10px;font-size:17px}
+.mia-message-bubble{padding:12px 15px;border:1px solid var(--border);border-radius:16px;background:var(--panel-strong);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.mia-message-row.is-user .mia-message-bubble{background:rgba(141,185,255,.13);border-color:rgba(141,185,255,.22);border-bottom-right-radius:5px}
+.mia-message-row.is-assistant .mia-message-bubble{border-top-left-radius:5px}
+.mia-thinking{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.mia-composer{display:flex;align-items:flex-end;gap:9px;margin:0 16px;padding:9px 10px;border:1px solid var(--border);border-radius:17px;background:var(--panel-strong)}
+.mia-composer textarea{flex:1;min-width:0;max-height:130px;resize:vertical;border:0;outline:0;background:transparent;color:var(--text);padding:8px 2px;line-height:1.5}
+.mia-attach-button,.mia-send-button{width:38px;height:38px;flex:none;border:0;border-radius:12px;display:grid;place-items:center}
+.mia-attach-button{background:transparent;color:var(--muted)}.mia-send-button{background:var(--blue);color:#101c32}.mia-send-button:disabled{opacity:.35}
+.mia-footnote{text-align:center;padding:9px 12px 12px;font-size:10px;color:var(--subtle)}
+.mia-attachment-preview{display:flex;align-items:center;gap:8px;margin:8px 18px 0;padding:8px 10px;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px}
+.mia-attachment-preview span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.mia-attachment-preview button{border:0;background:transparent;display:grid;place-items:center}
+.mia-error{align-self:center;color:var(--danger);font-size:12px;padding:8px 12px;background:var(--panel-strong);border-radius:10px;max-width:100%}
+.mia-timetable-review{width:100%;border:1px solid var(--border);border-radius:15px;padding:14px;background:var(--panel-strong)}
+.mia-review-heading{display:flex;align-items:center;gap:9px}.mia-review-heading div{display:flex;flex-direction:column;gap:3px}.mia-review-heading span,.mia-timetable-review p{font-size:11px;color:var(--muted)}
+.mia-table-scroll{overflow:auto;max-height:230px;margin:12px 0}.mia-timetable-review table{width:100%;border-collapse:collapse;font-size:12px}.mia-timetable-review th,.mia-timetable-review td{text-align:left;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap}.mia-timetable-review th{color:var(--muted);font-weight:600}
+.mia-kind-options{display:flex;gap:8px;flex-wrap:wrap}.mia-kind-options button,.mia-confirm-button{display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);border-radius:10px;background:transparent;padding:9px 11px;font-size:12px}
+.mia-kind-options button.selected{border-color:var(--blue);background:rgba(141,185,255,.12)}
+.mia-confirm-button{margin-top:10px;background:var(--blue);color:#101c32;border:0;font-weight:700}.mia-saved-note{display:flex;align-items:center;gap:7px;color:var(--mint);font-size:12px}
+.mia-floating-launcher{position:fixed;right:22px;bottom:22px;z-index:70;width:62px;height:62px;border:1px solid rgba(205,185,255,.35);border-radius:21px;background:linear-gradient(145deg,#35244f,#172d49);color:#eee5ff;box-shadow:0 12px 35px rgba(10,8,30,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.mia-floating-launcher span{font-size:26px;font-weight:800;line-height:1}.mia-floating-launcher small{font-size:9px;letter-spacing:.12em}
+.mia-floating-panel{position:fixed;right:22px;bottom:96px;z-index:80;width:min(440px,calc(100vw - 28px));height:min(640px,calc(100dvh - 125px));filter:drop-shadow(0 20px 40px rgba(0,0,0,.25))}
+.mia-floating-shell{height:100%;border-radius:20px}.mia-floating-shell .mia-messages{padding:15px}
+.mia-spin{animation:miarotate 1s linear infinite}@keyframes miarotate{to{transform:rotate(360deg)}}
+@media(max-width:640px){.mia-studio-shell{height:calc(100dvh - 190px);min-height:420px;border-radius:16px}.mia-message-row{max-width:96%}.mia-floating-launcher{right:14px;bottom:14px;width:56px;height:56px}.mia-floating-panel{right:8px;bottom:80px;width:calc(100vw - 16px);height:min(620px,calc(100dvh - 95px))}.mia-composer{margin:0 9px}.mia-header{padding:12px}.mia-context-strip{padding:8px 12px}}
