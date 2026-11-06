@@ -20,6 +20,7 @@ import TodaySession from "./components/TodaySession";
 import StudentFeedback from "./components/StudentFeedback";
 import MiaChat from "./components/MiaChat";
 import StudentTimetable from "./components/StudentTimetable";
+import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 
 type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "MIΛ Studio" | "My Library" | "Academic Calendar" | "Progress" | "Help & feedback" | "Settings";
@@ -580,10 +581,11 @@ export default function App() {
   }
 
   if (!supabase) return <StudentAccess />;
-  if (!cloudAuthReady) return <main className="student-access-shell"><section className="student-access-card">Checking secure Studyspace access…</section></main>;
+  if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
-  if (profileOwnerId !== cloudUserId) return <main className="student-access-shell"><section className="student-access-card">Loading your secure student profile…</section></main>;
+  if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
   if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
+  if (!ready) return <SplashScreen theme={theme} />;
 
   return <div className="app-shell" data-theme={theme}>
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
