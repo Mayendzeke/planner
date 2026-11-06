@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, Clock3, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 
@@ -65,15 +65,11 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
   useEffect(() => { void loadEntries(); }, []);
 
   const visibleEntries = useMemo(() => entries.filter(item => item.timetable_kind === kind), [entries, kind]);
-  const groupedDays = useMemo(() => days.map((label, index) => ({
-    label,
-    index,
-    items: visibleEntries.filter(item => item.day_of_week === index).sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
-  })), [visibleEntries]);
 
-  function openNew(day = 1) {
+
+  function openNew(day = 1, start = "08:00", end = "09:00") {
     setEditingId(null);
-    setDraft({ ...blank(), day_of_week: day, subject_name: subjects[0]?.name ?? "" });
+    setDraft({ ...blank(), day_of_week: day, starts_at: start, ends_at: end, subject_name: subjects[0]?.name ?? "" });
     setEditorOpen(true);
     setNotice("");
     setError("");
@@ -154,7 +150,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
           <button type="button" className={kind === "school" ? "selected" : ""} onClick={() => setKind("school")}>School timetable</button>
           <button type="button" className={kind === "personal" ? "selected" : ""} onClick={() => setKind("personal")}>My study timetable</button>
         </div>
-        <button type="button" className="primary-button compact-button" onClick={() => openNew()}><Plus size={16}/> Add entry</button>
+        <div className="timetable-add-actions"><button type="button" className="subtle-button" onClick={()=>openNew()}><Plus size={15}/> Add lesson</button><button type="button" className="subtle-button" onClick={()=>{setEditingId(null);setDraft({...blank(),subject_name:"",title:"Break",starts_at:"10:00",ends_at:"10:15"});setEditorOpen(true);}}>+ Break</button><button type="button" className="subtle-button" onClick={()=>{setEditingId(null);setDraft({...blank(),subject_name:"",title:"Lunch",starts_at:"12:30",ends_at:"13:15"});setEditorOpen(true);}}>+ Lunch</button></div>
       </div>
       {notice && <p className="inline-message" role="status">{notice}</p>}
       {error && <p className="alert error-alert" role="alert">{error}</p>}
@@ -180,16 +176,20 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
         </div>
         <div className="timetable-form-actions"><button type="button" className="subtle-button" onClick={() => setEditorOpen(false)} disabled={saving}>Cancel</button><button type="submit" className="primary-button" disabled={saving}><Check size={15}/>{saving ? "Saving…" : editingId ? "Save changes" : "Add to timetable"}</button></div>
       </form>}
-      {loading ? <div className="timetable-empty"><RefreshCw size={20}/> Loading your timetable…</div> : visibleEntries.length === 0 ? <div className="timetable-empty"><CalendarDays size={26}/><strong>No {kind === "school" ? "school lessons" : "study sessions"} yet</strong><span>Upload a school timetable in MIΛ Studio or add an entry here. Entries can be edited at any time.</span><button type="button" className="secondary-button" onClick={() => openNew()}><Plus size={15}/> Add the first entry</button></div> : <div className="timetable-week-grid">
-        {groupedDays.filter(day => day.items.length > 0).map(day => <section className="timetable-day-card" key={day.index}>
-          <div className="timetable-day-heading"><strong>{day.label}</strong><span>{day.items.length} {day.items.length === 1 ? "entry" : "entries"}</span></div>
-          {day.items.map(entry => <article className="timetable-entry-card" key={entry.id}>
-            <div className="timetable-entry-time"><Clock3 size={14}/><strong>{timeValue(entry.starts_at)}–{timeValue(entry.ends_at)}</strong></div>
-            <div className="timetable-entry-copy"><strong>{entry.title}</strong><span>{entry.subject_name || "General study"}{entry.location ? " · " + entry.location : ""}</span>{entry.notes && <small>{entry.notes}</small>}</div>
-            <div className="timetable-entry-actions"><button className="icon-button" type="button" onClick={() => openEdit(entry)} aria-label={"Edit " + entry.title}><Pencil size={14}/></button><button className="icon-button danger-text" type="button" onClick={() => void removeEntry(entry)} aria-label={"Remove " + entry.title}><Trash2 size={14}/></button></div>
-          </article>)}
-          <button type="button" className="timetable-add-day" onClick={() => openNew(day.index)}><Plus size={14}/> Add to {day.label}</button>
-        </section>)}
+      {loading ? <div className="timetable-empty"><RefreshCw size={20}/> Loading your timetable…</div> : <div className="timetable-grid-wrap">
+        {visibleEntries.length === 0 && <div className="timetable-grid-empty"><CalendarDays size={20}/><span>No lessons saved yet. Add lessons or import a school timetable through MIΛ.</span></div>}
+        <div className="timetable-grid-scroll"><table className="weekly-timetable-grid">
+          <thead><tr><th className="timetable-day-heading">DAY</th>{Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=><th key={start}>{start}</th>)}</tr></thead>
+          <tbody>{[1,2,3,4,5,6,0].map(day=><tr key={day}><th className="timetable-day-cell">{days[day]}</th>
+            {Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=>{const items=visibleEntries.filter(item=>item.day_of_week===day&&timeValue(item.starts_at)===start);return <td key={start} className={items.length?"has-lessons":""}>
+              {items.map(entry=><article className={"weekly-timetable-lesson "+(/break/i.test(entry.title)?"is-break":/lunch/i.test(entry.title)?"is-lunch":"")} key={entry.id}>
+                <strong>{entry.subject_name||entry.title}</strong><span>{timeValue(entry.starts_at)}–{timeValue(entry.ends_at)}</span>{entry.location&&<small>{entry.location}</small>}
+                <div><button type="button" onClick={()=>openEdit(entry)} aria-label={"Edit "+entry.title}><Pencil size={12}/></button><button type="button" onClick={()=>void removeEntry(entry)} aria-label={"Remove "+entry.title}><Trash2 size={12}/></button></div>
+              </article>)}
+              {!items.length&&<button type="button" className="timetable-cell-add" onClick={()=>openNew(day,start,"09:00")} aria-label={"Add lesson "+days[day]+" at "+start}>+</button>}
+            </td>})}
+          </tr>)}</tbody>
+        </table></div>
       </div>}
     </section>
     <p className="timetable-footnote">Changes are saved to your StudySpace account and appear here the next time you sign in. Imported timetable entries can also be corrected after review.</p>

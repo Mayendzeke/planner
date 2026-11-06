@@ -1,20 +1,54 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, Image as ImageIcon, LoaderCircle, CalendarDays, CheckCircle2, BookOpen } from "lucide-react";
+import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
 
 type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+type Flashcard = { front: string; back: string; visualCue?: string };
+type MiaAttachment = { name: string; mimeType: string; data?: string; textContent?: string };
+function extractFlashcards(reply: string): Flashcard[] {
+  const cards: Flashcard[] = [];
+  let front = "";
+  let back = "";
+  let visualCue = "";
+  let side: "front" | "back" | null = null;
+  const clean = (value: string) => value.replace(/\*\*/g, "").replace(/^[-*]\s*/, "").trim();
+  for (const rawLine of reply.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const frontMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:front|question)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
+    const backMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:back|answer)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
+    const cueMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:visual cue|memory cue)(?:\*\*)?\s*[:：]\s*(.*)$/i);
+    if (cueMatch) { visualCue = clean(cueMatch[1]); continue; }
+    if (frontMatch) {
+      if (front && back) cards.push({ front: clean(front), back: clean(back), visualCue });
+      front = frontMatch[1]; back = ""; visualCue = ""; side = "front";
+    } else if (backMatch && front) {
+      back = backMatch[1]; side = "back";
+    } else if (side === "front" && line) {
+      front += " " + line;
+    } else if (side === "back" && line) {
+      back += " " + line;
+    }
+  }
+  if (front && back) cards.push({ front: clean(front), back: clean(back), visualCue });
+  return cards.filter(card => card.front && card.back).slice(0, 40);
+}
 type TimetableEntry = { day_of_week: number; subject_name: string; title: string; starts_at: string; ends_at: string; location: string; notes: string };
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const welcome: ChatMessage = { id: "mia-welcome", role: "assistant", content: "Hi! I'm MIΛ, your personal learning companion. I know your subjects and study goals, and I can help you understand lessons, practise questions, prepare for exams and organise your study. What shall we work on?" };
 
-async function imagePayload(file: File) {
+async function filePayload(file: File): Promise<MiaAttachment> {
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return { mimeType: file.type, data: btoa(binary) };
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  const mimeType = file.type || ({ pdf: "application/pdf", txt: "text/plain", md: "text/markdown", csv: "text/csv" }[extension] ?? "application/octet-stream");
+  if (mimeType.startsWith("text/") || ["text/plain", "text/markdown", "text/csv"].includes(mimeType)) {
+    return { name: file.name, mimeType, textContent: (await file.text()).slice(0, 50000) };
+  }
+  return { name: file.name, mimeType, data: btoa(binary) };
 }
 
 async function functionErrorMessage(error: unknown): Promise<string> {
@@ -54,6 +88,10 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [usageChecked, setUsageChecked] = useState(false);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [flashcardIndex, setFlashcardIndex] = useState(0);
+  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -66,6 +104,13 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
       if (!userId) return;
+      try {
+        const { data: usage, error: usageError } = await supabase.functions.invoke("mia-assistant", { body: { action: "usage_status" } });
+        if (alive) {
+          setUsageChecked(true);
+          if (!usageError && typeof usage?.remainingDailyRequests === "number") setRemaining(usage.remainingDailyRequests);
+        }
+      } catch { if (alive) setUsageChecked(true); }
       const { data: conv } = await supabase.from("mia_conversations").select("id")
         .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (!alive || !conv?.id) return;
@@ -86,23 +131,33 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
 
   async function sendMessage() {
     const value = text.trim();
-    if (!value || busy || !supabase) return;
+    if ((!value && !attachment) || busy || !supabase) return;
     setError("");
     setBusy(true);
     setText("");
-    setMessages(current => [...current, { id: crypto.randomUUID(), role: "user", content: value }]);
+    const file = attachment;
+    const displayMessage = value || (file ? "Please review the attached file: " + file.name : "");
+    const outgoingId = crypto.randomUUID();
+    setMessages(current => [...current, { id: outgoingId, role: "user", content: displayMessage + (file ? " · " + file.name : "") }]);
     try {
+      const uploaded = file ? await filePayload(file) : null;
+      if (uploaded?.textContent && !value) setText("");
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "chat", message: value, conversationId },
+        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded, conversationId },
       });
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
       setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
+      setAttachment(null);
+      const cards = extractFlashcards(data.reply);
+      if (cards.length) { setFlashcards(cards); setFlashcardIndex(0); setFlashcardFlipped(false); }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "MIΛ could not reply. Check your connection.");
-      setMessages(current => current.filter(item => item.role !== "user" || item.content !== value || item.id !== current[current.length - 1]?.id));
+      setMessages(current => current.filter(item => item.id !== outgoingId));
+      setText(value);
+      setAttachment(file);
       setText(value);
     } finally { setBusy(false); inputRef.current?.focus(); }
   }
@@ -111,9 +166,10 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     if (!attachment || busy || !supabase) return;
     setError(""); setBusy(true); setDraft([]); setSaved(false); setTimetableKind("");
     try {
-      const image = await imagePayload(attachment);
+      if (!attachment.type.startsWith("image/")) throw new Error("Timetable import currently needs a photo or image file.");
+      const image = await filePayload(attachment);
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "parse_timetable", image, conversationId, message: text.trim() },
+        body: { action: "parse_timetable", image: { mimeType: image.mimeType, data: image.data }, conversationId, message: text.trim() },
       });
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success) throw new Error(data?.error || "The timetable could not be read.");
@@ -157,7 +213,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   }
 
   function newChat() {
-    setConversationId(null); setMessages([welcome]); setDraft([]); setError(""); setSaved(false);
+    setConversationId(null); setMessages([welcome]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
   }
 
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
@@ -165,7 +221,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <div className="mia-brand-mark">Λ</div>
       <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMINI</span></div>
       <div className="mia-header-actions">
-        {remaining !== null && <span className="mia-remaining">{remaining} free today</span>}
+        <span className="mia-remaining">{remaining === null ? (usageChecked ? "Limit unavailable" : "Checking daily limit…") : remaining + " left · 24h"}</span>
         <button className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
         {onClose && <button className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
@@ -189,6 +245,21 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         <div className="mia-kind-options"><button className={timetableKind === "school" ? "selected" : ""} onClick={()=>setTimetableKind("school")}><BookOpen size={15}/> School timetable</button><button className={timetableKind === "personal" ? "selected" : ""} onClick={()=>setTimetableKind("personal")}><CalendarDays size={15}/> Personal study timetable</button></div>
         <button className="mia-confirm-button" disabled={!timetableKind || busy} onClick={()=>void saveTimetable()}><CheckCircle2 size={16}/> Confirm and save timetable</button>
       </section>}
+      {flashcards.length > 0 && <section className="mia-visual-flashcards" aria-label="Interactive flashcards">
+        <div className="mia-flashcard-heading"><div><span><Brain size={15}/> ACTIVE RECALL</span><strong>Visual flashcards</strong><small>Tap the card to reveal the answer</small></div><span className="mia-flashcard-count">{flashcardIndex+1} / {flashcards.length}</span></div>
+        <button type="button" className={"mia-flashcard "+(flashcardFlipped?"flipped":"")} onClick={()=>setFlashcardFlipped(value=>!value)} aria-label="Flip flashcard">
+          <span className="mia-flashcard-decoration"><Sparkles size={19}/><i/><i/><i/></span>
+          <span className="mia-flashcard-cue">{flashcards[flashcardIndex].visualCue || "🧠"} <small>VISUAL MEMORY CUE</small></span>
+          <span className="mia-flashcard-side">{flashcardFlipped?"REMEMBER THIS":"THINK ABOUT IT"}</span>
+          <strong>{flashcardFlipped?flashcards[flashcardIndex].back:flashcards[flashcardIndex].front}</strong>
+          <small>{flashcardFlipped?"Answer · Tap to see question":"Question · Tap to reveal"}</small>
+        </button>
+        <div className="mia-flashcard-controls">
+          <button type="button" onClick={()=>{setFlashcardIndex(value=>(value-1+flashcards.length)%flashcards.length);setFlashcardFlipped(false);}}><ChevronLeft size={16}/> Previous</button>
+          <button type="button" onClick={()=>setFlashcardFlipped(value=>!value)}><RotateCw size={15}/> Flip</button>
+          <button type="button" onClick={()=>{setFlashcardIndex(value=>(value+1)%flashcards.length);setFlashcardFlipped(false);}}>Next <ChevronRight size={16}/></button>
+        </div>
+      </section>}
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
     </div>
@@ -199,12 +270,13 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <button type="button" onClick={()=>setText("Help me create a realistic revision plan using my subjects, goals and available study time.")}>Plan revision</button>
       <button type="button" onClick={()=>setText("Create a set of useful flashcards for a topic I am revising. Ask me for the subject and topic.")}>Flashcards</button>
     </div>}
-    {attachment && <div className="mia-attachment-preview"><ImageIcon size={15}/><span>{attachment.name}</span><button onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
-    <form className="mia-composer" onSubmit={event=>{event.preventDefault(); if (attachment) void reviewTimetable(); else void sendMessage();}}>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={event=>{const file=event.target.files?.[0];if(file){if(file.size>4*1024*1024){setError("Choose an image smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
-      <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach a timetable or study image" aria-label="Attach an image"><Paperclip size={19}/></button>
-      <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(attachment)void reviewTimetable();else void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
-      <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Review timetable image" : "Send message"} aria-label={attachment ? "Review timetable image" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
+    {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
+    <div className="mia-usage-note">{remaining === null ? (usageChecked ? "Daily usage limit unavailable" : "Checking your daily allowance…") : remaining + " requests remaining"} · rolling 24-hour limit</div>
+    <form className="mia-composer" onSubmit={event=>{event.preventDefault(); void sendMessage();}}>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,.txt,.md,.csv,.pdf" hidden onChange={event=>{const file=event.target.files?.[0];if(file){const allowed=file.type.startsWith("image/")&&["image/jpeg","image/png","image/webp"].includes(file.type)||["application/pdf","text/plain","text/markdown","text/csv"].includes(file.type)||/\\.(pdf|txt|md|csv)$/i.test(file.name);if(!allowed){setError("Attach an image, PDF, TXT, Markdown or CSV file.");}else if(file.size>4*1024*1024){setError("Choose a file smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
+      <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach an image, PDF or text file" aria-label="Attach a file"><Paperclip size={19}/></button>
+      <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
+      <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
     <div className="mia-footnote">Study-focused · Short answers · Gemini processes prompts; avoid sharing personal details</div>
   </section>;

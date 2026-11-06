@@ -20,6 +20,7 @@ type ClassroomSession = {
 type ChatMessage = { id: string; text: string; sender: "You" | "Teacher"; time: string };
 type Homework = { id: string; title: string; details: string; due: string; done: boolean };
 type LessonGuide = { summary: string; keyPoints: string[]; workedExample: string; exitQuestion: string };
+type PracticeQuestion = { prompt: string; options: string[]; answer: string; explanation: string; topic?: string; difficulty?: string };
 const LEGACY_KEY = "studyspace-current-session-v1";
 
 function formatDate(value: string) {
@@ -62,6 +63,14 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [personalNotes, setPersonalNotes] = useState("");
   const [notesSaved, setNotesSaved] = useState(false);
   const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [chatNotice, setChatNotice] = useState("");
+  const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestion[]>([]);
+  const [practiceIndex, setPracticeIndex] = useState(0);
+  const [practiceAnswers, setPracticeAnswers] = useState<Record<number, string>>({});
+  const [practiceBusy, setPracticeBusy] = useState(false);
+  const [practiceError, setPracticeError] = useState("");
+  const [practiceComplete, setPracticeComplete] = useState(false);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [homework, setHomework] = useState<Homework[]>([]);
@@ -71,6 +80,8 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
+  const tabRef = useRef<Tab>(tab);
+  useEffect(() => { tabRef.current = tab; }, [tab]);
 
   async function refreshAssignedSessions(preserveSelection = true) {
     if (!supabase) {
@@ -165,6 +176,11 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       setActiveSession(null);
       setLessonGuide({ summary: "", keyPoints: [], workedExample: "", exitQuestion: "" });
       setChat([]);
+       setUnreadChatCount(0);
+       setChatNotice("");
+       setPracticeQuestions([]);
+       setPracticeAnswers({});
+       setPracticeComplete(false);
       setHomework([]);
       return;
     }
@@ -198,6 +214,10 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         sender: item.sender_id === userId ? "You" : "Teacher",
         time: new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       })));
+       const readKey = studentStorageKey("studyspace-class-chat-read:" + activeSessionId);
+       let readAt = Date.now();
+       try { const stored = localStorage.getItem(readKey); if (stored) readAt = Date.parse(stored); } catch { /* First visit starts with a clean unread count. */ }
+       setUnreadChatCount((messagesResult.data ?? []).filter(item => item.sender_id !== userId && Date.parse(item.created_at) > readAt).length);
       const completed = new Set((submissionsResult.data ?? []).filter(item => item.completed_at).map(item => item.homework_id));
       setHomework((homeworkResult.data ?? []).map(item => ({
         id: item.id, title: item.title, details: item.instructions || "",
@@ -223,6 +243,11 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
             id: row.id, text: row.message, sender: row.sender_id === userId ? "You" : "Teacher",
             time: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           }]);
+           if (row.sender_id !== userId && tabRef.current !== "Class chat") {
+             setUnreadChatCount(count => count + 1);
+             setChatNotice("New message from your teacher.");
+             if ("Notification" in window && Notification.permission === "granted") new Notification("Studyspace class chat", { body: "Your teacher sent a lesson message." });
+           }
         })
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "class_sessions", filter: "id=eq." + activeSessionId }, payload => {
           const row = payload.new as ClassroomSession;
@@ -336,6 +361,35 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     await saveBoard();
   }
 
+  async function startLessonPractice() {
+    if (!supabase || practiceBusy) return;
+    const notesText = [
+      activeSession?.objectives || "",
+      lessonGuide.summary,
+      ...lessonGuide.keyPoints,
+      lessonGuide.workedExample,
+      lessonGuide.exitQuestion,
+    ].filter(Boolean).join("\n\n");
+    if (notesText.trim().length < 50) {
+      setPracticeError("Your teacher's lesson guide does not contain enough material to build a reliable practice set yet.");
+      return;
+    }
+    setPracticeBusy(true); setPracticeError("");
+    try {
+      const { data, error } = await supabase.functions.invoke("mia-assistant", {
+        body: { action: "generate_topic_test", notesText, subject: activeSession?.subject_name || subjects[0]?.name || "General studies", topic: activeSession?.title || "Lesson understanding", fileName: "Teacher lesson guide" },
+      });
+      if (error) throw error;
+      if (!data?.success || !Array.isArray(data.questions) || data.questions.length < 3) {
+        throw new Error(data?.error || "The practice questions could not be prepared. Try again.");
+      }
+      setPracticeQuestions(data.questions as PracticeQuestion[]);
+      setPracticeIndex(0); setPracticeAnswers({}); setPracticeComplete(false);
+    } catch (reason) {
+      setPracticeError(reason instanceof Error ? reason.message : "The practice questions could not be prepared.");
+    } finally { setPracticeBusy(false); }
+  }
+
   async function sendMessage(event: React.FormEvent) {
     event.preventDefault();
     const text = message.trim();
@@ -414,8 +468,8 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
 
       <div className="session-tabs" role="tablist" aria-label="Classroom workspaces">
         {tabs.map(item => (
-          <button type="button" key={item.name} role="tab" aria-selected={tab === item.name} className={tab === item.name ? "active" : ""} onClick={() => setTab(item.name)}>
-            <item.icon size={17} /><span>{item.name}</span><small>{item.hint}</small>
+          <button type="button" key={item.name} role="tab" aria-selected={tab === item.name} className={tab === item.name ? "active" : ""} onClick={() => { setTab(item.name); if (item.name === "Class chat") { setUnreadChatCount(0); setChatNotice(""); try { localStorage.setItem(studentStorageKey("studyspace-class-chat-read:" + activeSessionId), new Date().toISOString()); } catch { /* The in-session unread badge still clears. */ } } }}>
+            <item.icon size={17} /><span>{item.name === "Class chat" ? "Messages" : item.name}{item.name === "Class chat" && unreadChatCount > 0 ? " (" + unreadChatCount + ")" : ""}</span><small>{item.hint}</small>
           </button>
         ))}
       </div>
@@ -430,7 +484,18 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
             {lessonGuide.summary && <div><strong>Lesson summary</strong><p>{lessonGuide.summary}</p></div>}
             {lessonGuide.keyPoints.length > 0 && <div><strong>Key points</strong><ol>{lessonGuide.keyPoints.map((point,index) => <li key={index}>{point}</li>)}</ol></div>}
             {lessonGuide.workedExample && <div><strong>Worked example</strong><p>{lessonGuide.workedExample}</p></div>}
-            {lessonGuide.exitQuestion && <div className="session-exit-question"><strong>Check your understanding</strong><p>{lessonGuide.exitQuestion}</p></div>}
+            {lessonGuide.exitQuestion && <button type="button" className="session-exit-question session-exit-question-button" onClick={() => void startLessonPractice()} disabled={practiceBusy}><strong>Check your understanding</strong><p>{lessonGuide.exitQuestion}</p><span>{practiceBusy ? "Preparing your questions…" : "Tap to practise with multiple-choice questions →"}</span></button>}
+            {(lessonGuide.summary || lessonGuide.keyPoints.length > 0 || lessonGuide.workedExample) && !lessonGuide.exitQuestion && <button type="button" className="session-practice-launch" onClick={() => void startLessonPractice()} disabled={practiceBusy}>{practiceBusy ? "Preparing practice…" : "Test your understanding · Multiple choice"}</button>}
+            {practiceError && <p className="session-inline-error" role="alert">{practiceError}</p>}
+            {practiceQuestions.length > 0 && <section className="session-practice-panel">
+              <div className="session-section-heading"><div><h3>Lesson practice</h3><p>Choose the best answer. You will get feedback as you go.</p></div><Sparkles size={19}/></div>
+              {practiceComplete ? <div className="session-practice-result"><strong>{practiceQuestions.filter((question,index)=>practiceAnswers[index]===question.answer).length} / {practiceQuestions.length} correct</strong><p>Review any missed answers in your lesson guide, then try again.</p><button type="button" className="secondary-button" onClick={()=>{setPracticeIndex(0);setPracticeAnswers({});setPracticeComplete(false);}}>Try again</button></div> : <>
+                <div className="session-practice-progress"><span>Question {practiceIndex+1} of {practiceQuestions.length}</span><span>{practiceQuestions.filter((question,index)=>practiceAnswers[index]===question.answer).length} correct so far</span></div>
+                <strong className="session-practice-prompt">{practiceQuestions[practiceIndex].prompt}</strong>
+                <div className="session-practice-options">{practiceQuestions[practiceIndex].options.map(option=><button type="button" key={option} disabled={practiceAnswers[practiceIndex] !== undefined} className={practiceAnswers[practiceIndex]===option ? (option===practiceQuestions[practiceIndex].answer ? "is-correct" : "is-wrong") : practiceAnswers[practiceIndex]!==undefined && option===practiceQuestions[practiceIndex].answer ? "is-correct" : ""} onClick={()=>setPracticeAnswers(current=>({...current,[practiceIndex]:option}))}>{option}</button>)}</div>
+                {practiceAnswers[practiceIndex] !== undefined && <div className="session-practice-feedback"><strong>{practiceAnswers[practiceIndex]===practiceQuestions[practiceIndex].answer ? "Correct!" : "Not quite — the correct answer is " + practiceQuestions[practiceIndex].answer + "."}</strong><p>{practiceQuestions[practiceIndex].explanation}</p><button type="button" className="primary-button" onClick={()=>{if(practiceIndex+1>=practiceQuestions.length)setPracticeComplete(true);else setPracticeIndex(index=>index+1);}}>{practiceIndex+1>=practiceQuestions.length ? "See my result" : "Next question"}</button></div>}
+              </>}
+            </section>}
             {!activeSession && <div className="session-guide-empty"><CalendarDays size={23} /><strong>No assigned lesson yet</strong><span>Your teacher's published lesson will appear here automatically.</span></div>}
             {activeSession && !lessonGuide.summary && lessonGuide.keyPoints.length === 0 && !lessonGuide.workedExample && (
               <div className="session-guide-empty"><BookOpen size={23} /><strong>Your teacher is preparing the lesson guide</strong><span>Check back after the lesson notes have been published.</span></div>
@@ -460,7 +525,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         <div className="glass-panel session-workspace session-chat">
           <div className="session-section-heading"><div><h3>Ask your teacher</h3><p>Keep questions connected to the lesson so you can find the answer later.</p></div><MessageCircle size={20} /></div>
           <div className="session-chat-notice"><Users size={16} /><span>{activeSessionId ? "Messages in this room are shared with your teacher and the learners assigned to this lesson." : "Class chat becomes available when a lesson is assigned to you."}</span></div>
-          <div className="session-chat-list">{chat.length ? chat.map(item => <article key={item.id} className="session-chat-message"><div><strong>{item.sender}</strong><time>{item.time}</time></div><p>{item.text}</p></article>) : <div className="session-chat-empty"><MessageCircle size={25} /><strong>No messages yet</strong><span>Ask a question when your lesson is assigned.</span></div>}</div>
+          {chatNotice && tab === "Class chat" && <p className="session-chat-new-notice" role="status">{chatNotice}</p>}<div className="session-chat-list">{chat.length ? chat.map(item => <article key={item.id} className="session-chat-message"><div><strong>{item.sender}</strong><time>{item.time}</time></div><p>{item.text}</p></article>) : <div className="session-chat-empty"><MessageCircle size={25} /><strong>No messages yet</strong><span>Ask a question when your lesson is assigned.</span></div>}</div>
           <form className="session-chat-compose" onSubmit={sendMessage}><input value={message} onChange={event => setMessage(event.target.value)} maxLength={2000} placeholder="Write a question or message…" aria-label="Message" disabled={!activeSessionId || sending} /><button className="primary-button" type="submit" disabled={!message.trim() || !activeSessionId || sending}><Send size={16} /> {sending ? "Sending…" : "Send"}</button></form>
         </div>
       )}
