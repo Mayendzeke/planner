@@ -14,8 +14,8 @@ function extractFlashcards(reply: string): Flashcard[] {
   const clean = (value: string) => value.replace(/\*\*/g, "").replace(/^[-*]\s*/, "").trim();
   for (const rawLine of reply.split(/\r?\n/)) {
     const line = rawLine.trim();
-    const frontMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:front|question)(?:\*\*)?\s*[:：]\s*(.*)$/i);
-    const backMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:back|answer)(?:\*\*)?\s*[:：]\s*(.*)$/i);
+    const frontMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:front|question)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
+    const backMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:back|answer)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
     if (frontMatch) {
       if (front && back) cards.push({ front: clean(front), back: clean(back) });
       front = frontMatch[1]; back = ""; side = "front";
