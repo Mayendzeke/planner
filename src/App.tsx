@@ -444,9 +444,7 @@ export default function App() {
     setSignOutBusy(true);
     try {
       setPlannerDbUser(cloudUserId);
-      await plannerDb.transaction("rw", plannerDb.subjects, plannerDb.tasks, plannerDb.sessions, plannerDb.academicPeriods, plannerDb.resources, plannerDb.events, async () => {
-        await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
-      });
+      await Promise.all([plannerDb.subjects.clear(), plannerDb.tasks.clear(), plannerDb.sessions.clear(), plannerDb.academicPeriods.clear(), plannerDb.resources.clear(), plannerDb.events.clear()]);
       const scopedPrefix = studentStorageKey("");
       try {
         for (let index = localStorage.length - 1; index >= 0; index -= 1) {
