@@ -78,7 +78,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [draft, setDraft] = useState<TimetableEntry[]>([]);
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
-  const [remaining, setRemaining] = useState<number | null>(null);\n  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);\n  const [flashcardIndex, setFlashcardIndex] = useState(0);\n  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);\n  const [flashcardIndex, setFlashcardIndex] = useState(0);\n  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -124,7 +125,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
-      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);\n      const cards = extractFlashcards(data.reply);\n      if (cards.length) { setFlashcards(cards); setFlashcardIndex(0); setFlashcardFlipped(false); }
+      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
+      const cards = extractFlashcards(data.reply);\n      if (cards.length) { setFlashcards(cards); setFlashcardIndex(0); setFlashcardFlipped(false); }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "MIΛ could not reply. Check your connection.");
       setMessages(current => current.filter(item => item.role !== "user" || item.content !== value || item.id !== current[current.length - 1]?.id));
