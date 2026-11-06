@@ -63,7 +63,7 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
         localStorage.setItem(studentStorageKey(key), settings.time);
         const notification = new Notification("Your Studyspace session is ready", {
           body: "It's your planned study time. Open your study space and take one small step.",
-          icon: "/planner/icon-192.png",
+          icon: "/planner/favicon.svg",
           tag: "studyspace-daily-study",
         });
         notification.onclick = () => { window.focus(); notification.close(); };
