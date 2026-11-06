@@ -942,3 +942,38 @@ html{overflow-anchor:none}
 .topic-notes-generator .inline-message{margin:0}
 .weekly-test-feedback:not(.good):not(.bad){border-left:3px solid var(--blue);padding:9px 12px;background:var(--panel);border-radius:0 10px 10px 0;color:var(--text)}
 @media(max-width:640px){.topic-notes-generator{padding:13px}.topic-notes-generator .primary-button{width:100%;justify-content:center}}
+
+
+/* Student timetable */
+.student-timetable-page{display:grid;gap:18px}
+.timetable-hero{display:flex;align-items:center;gap:16px;padding:20px}
+.timetable-hero>div:nth-child(2){flex:1;min-width:0}
+.timetable-hero h2{margin:4px 0 5px;font-size:22px}
+.timetable-hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+.timetable-hero-mark{display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:var(--panel);color:var(--blue)}
+.timetable-workspace{padding:20px;display:grid;gap:18px}
+.timetable-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.timetable-editor{display:grid;gap:15px;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--panel)}
+.timetable-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.timetable-editor-grid label{display:grid;gap:6px;font-size:12px;color:var(--muted)}
+.timetable-editor-grid input,.timetable-editor-grid select{width:100%;min-width:0}
+.timetable-wide-field{grid-column:1/-1}
+.timetable-form-actions{display:flex;justify-content:flex-end;gap:9px}
+.timetable-empty{min-height:180px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;color:var(--muted);font-size:13px}
+.timetable-empty strong{color:var(--text);font-size:15px}
+.timetable-empty .secondary-button{margin-top:6px}
+.timetable-week-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.timetable-day-card{padding:15px;border:1px solid var(--border);border-radius:15px;background:var(--panel);min-width:0}
+.timetable-day-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.timetable-day-heading strong{font-size:14px}
+.timetable-day-heading span{font-size:11px;color:var(--muted)}
+.timetable-entry-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:11px;align-items:start;padding:11px 0;border-top:1px solid var(--border)}
+.timetable-entry-time{display:flex;gap:5px;align-items:center;color:var(--blue);font-size:11px;white-space:nowrap}
+.timetable-entry-copy{display:grid;gap:3px;min-width:0}
+.timetable-entry-copy strong{font-size:12px;overflow-wrap:anywhere}
+.timetable-entry-copy span,.timetable-entry-copy small{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.timetable-entry-actions{display:flex;gap:3px}
+.timetable-entry-actions .icon-button{width:29px;height:29px}
+.timetable-add-day{display:flex;align-items:center;gap:5px;margin-top:7px;border:0;background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+.timetable-footnote{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+@media(max-width:760px){.timetable-week-grid{grid-template-columns:1fr}.timetable-workspace{padding:14px}.timetable-editor-grid{grid-template-columns:1fr}.timetable-wide-field{grid-column:auto}}
