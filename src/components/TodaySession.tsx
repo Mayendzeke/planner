@@ -469,7 +469,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       <div className="session-tabs" role="tablist" aria-label="Classroom workspaces">
         {tabs.map(item => (
           <button type="button" key={item.name} role="tab" aria-selected={tab === item.name} className={tab === item.name ? "active" : ""} onClick={() => { setTab(item.name); if (item.name === "Class chat") { setUnreadChatCount(0); setChatNotice(""); try { localStorage.setItem(studentStorageKey("studyspace-class-chat-read:" + activeSessionId), new Date().toISOString()); } catch { /* The in-session unread badge still clears. */ } } }}>
-            <item.icon size={17} /><span>{item.name}{item.name === "Class chat" && unreadChatCount > 0 ? " (" + unreadChatCount + ")" : ""}</span><small>{item.hint}</small>
+            <item.icon size={17} /><span>{item.name === "Class chat" ? "Messages" : item.name}{item.name === "Class chat" && unreadChatCount > 0 ? " (" + unreadChatCount + ")" : ""}</span><small>{item.hint}</small>
           </button>
         ))}
       </div>
