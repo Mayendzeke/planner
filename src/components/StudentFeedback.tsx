@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, ImagePlus, LifeBuoy, MessageSquarePlus, Send, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -42,7 +42,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
     setNotice(null);
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || busy) return;
     const cleanMessage = message.trim();
