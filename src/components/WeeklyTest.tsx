@@ -2,12 +2,73 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, ChevronRight, RotateCcw, Trophy, Puzzle, ListChecks, PenLine, ToggleLeft, FileText, Target, CalendarDays, GraduationCap, Sparkles, Upload, FolderOpen, X } from "lucide-react";
 import type { Subject } from "../data/db";
 import { studentStorageKey } from "../lib/studentStorage";
+import * as pdfjs from "pdfjs-dist";
+import { supabase } from "../lib/supabase";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 import PdfViewer from "./PdfViewer";
 import AssignedAssessments from "./AssignedAssessments";
 
 type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false";
-type Exercise = { prompt: string; answer: string; options?: string[]; clue?: string; scramble?: string };
+type Exercise = { prompt: string; answer: string; options?: string[]; clue?: string; scramble?: string; explanation?: string; difficulty?: string; topic?: string };
 type Attempt = { id: string; subject: string; mode: string; score: number; total: number; completedAt: string };
+type PersonalNote = { id: number; name: string; subjectId?: number; resourceType?: string; topic?: string; file: Blob; createdAt: string };
+type TeacherNote = { id: string; title: string; description: string; subject_name: string; topic: string; resource_type: string; storage_path: string; mime_type: string; file_size: number; created_at: string };
+type NoteChoice = { key: string; name: string; topic: string; source: "personal" | "teacher"; personal?: PersonalNote; teacher?: TeacherNote };
+
+async function extractNoteText(file: Blob, name: string): Promise<string> {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".pdf")) {
+    const document = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    try {
+      const pages: string[] = [];
+      for (let number = 1; number <= Math.min(document.numPages, 40); number += 1) {
+        const page = await document.getPage(number);
+        const content = await page.getTextContent();
+        const words = content.items.map((item: unknown) => {
+          if (!item || typeof item !== "object" || !("str" in item)) return "";
+          const value = (item as { str?: unknown }).str;
+          return typeof value === "string" ? value : "";
+        }).filter(Boolean);
+        pages.push(words.join(" "));
+        if (pages.join("\n").length >= 23000) break;
+      }
+      return pages.join("\n").slice(0, 24000).trim();
+    } finally {
+      await document.destroy();
+    }
+  }
+  const raw = await file.text();
+  if (lower.endsWith(".rtf")) {
+    return raw.replace(/\\'[0-9a-fA-F]{2}/g, " ")
+      .replace(/\\par[d]?\b/g, "\n")
+      .replace(/\\[a-zA-Z]+-?\d* ?/g, " ")
+      .replace(/[{}]/g, " ")
+      .replace(/\\([\\{}])/g, "$1")
+      .replace(/\s+/g, " ").slice(0, 24000).trim();
+  }
+  return raw.slice(0, 24000).trim();
+}
+
+async function getEdgeErrorMessage(error: unknown): Promise<string> {
+  const candidate = error as { message?: string; context?: Response };
+  if (candidate?.context instanceof Response) {
+    try {
+      const data = await candidate.context.clone().json();
+      if (typeof data?.error === "string" && data.error.trim()) return data.error;
+      if (typeof data?.message === "string" && data.message.trim()) return data.message;
+    } catch {
+      try {
+        const body = await candidate.context.clone().text();
+        if (body.trim()) return body.trim().slice(0, 500);
+      } catch { /* Use HTTP status as the fallback. */ }
+    }
+    return "The learning service returned HTTP " + candidate.context.status + ". Please try again.";
+  }
+  return typeof candidate?.message === "string" && candidate.message.trim()
+    ? candidate.message
+    : "The learning service could not complete this request. Check your connection and try again.";
+}
 
 const banks: Record<string, Record<Mode, Exercise[]>> = {
   mathematics: {
@@ -199,7 +260,13 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [attempts, setAttempts] = useState<Attempt[]>(readAttempts);
-  const [notes, setNotes] = useState<{id:number;name:string;subjectId?:number;resourceType?:string;topic?:string;file:Blob;createdAt:string}[]>([]);
+  const [notes, setNotes] = useState<PersonalNote[]>([]);
+  const [teacherNotes, setTeacherNotes] = useState<TeacherNote[]>([]);
+  const [selectedNoteKey, setSelectedNoteKey] = useState("");
+  const [testTopicInput, setTestTopicInput] = useState("");
+  const [generatedQuestions, setGeneratedQuestions] = useState<Exercise[]>([]);
+  const [generatingTest, setGeneratingTest] = useState(false);
+  const [generationMessage, setGenerationMessage] = useState("");
   const [noteTopic, setNoteTopic] = useState("");
   const [noteError, setNoteError] = useState("");
   const [viewingNote, setViewingNote] = useState<(typeof notes)[number] | null>(null);
@@ -254,7 +321,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const topicPool = useMemo(() => fullPool.filter(question => matchesTopic(question, topics.find(item => item.name === topicName) ?? {name:"",keywords:[]})), [fullPool, topics, topicName]);
   const weeklyPool = useMemo(() => modes.flatMap(item => (bankFor(subject)?.[item.name] ?? []).slice(0, 3)), [subject, fullPool]);
   const examPool = fullPool;
-  const activePool = path === "Topic test" ? topicPool : path === "Weekly test" ? weeklyPool : path === "Examination" ? examPool : [];
+  const activePool = path === "Topic test" ? (generatedQuestions.length ? generatedQuestions : topicPool) : path === "Weekly test" ? weeklyPool : path === "Examination" ? examPool : [];
   const question = activePool[questionIndex];
   const questionMode = question ? modes.find(item => bankFor(subject)?.[item.name].includes(question))?.name ?? "Question" : "";
   const sectionLetter = String.fromCharCode(65 + Math.max(0, modes.findIndex(item => item.name === questionMode)));
@@ -269,7 +336,41 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     } catch { setNotes([]); }
   }
   useEffect(() => { void loadNotes(); }, [subjectId]);
+  useEffect(() => {
+    let alive = true;
+    async function loadTeacherNotes() {
+      if (!supabase) { if (alive) setTeacherNotes([]); return; }
+      try {
+        const { data: user, error: userError } = await supabase.auth.getUser();
+        if (userError || !user.user) throw new Error("Sign in again to use your teacher-assigned notes.");
+        const { data: assignments, error: assignmentsError } = await supabase
+          .from("resource_assignments").select("resource_id").eq("learner_id", user.user.id);
+        if (assignmentsError) throw assignmentsError;
+        const ids = (assignments ?? []).map(row => row.resource_id).filter(Boolean);
+        if (!ids.length) { if (alive) setTeacherNotes([]); return; }
+        const { data, error: resourcesError } = await supabase.from("learning_resources")
+          .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at")
+          .in("id", ids).order("created_at", { ascending: false });
+        if (resourcesError) throw resourcesError;
+        if (alive) setTeacherNotes((data ?? []) as TeacherNote[]);
+      } catch {
+        if (alive) setTeacherNotes([]);
+      }
+    }
+    void loadTeacherNotes();
+    return () => { alive = false; };
+  }, [subjectId, subjects]);
   const visibleNotes = notes.filter(item => item.subjectId === activeSubject?.id && item.resourceType === path && (path !== "Revision notes" || item.resourceType === "Revision notes"));
+  const personalNoteChoices: NoteChoice[] = notes
+    .filter(item => item.subjectId === activeSubject?.id && ["Study notes", "Revision notes"].includes(item.resourceType ?? ""))
+    .map(item => ({ key: "personal:" + item.id, name: item.name, topic: item.topic ?? "", source: "personal", personal: item }));
+  const teacherNoteChoices: NoteChoice[] = teacherNotes
+    .filter(item => item.subject_name.trim().toLowerCase() === (activeSubject?.name ?? "").trim().toLowerCase()
+      && /\\.(pdf|txt|rtf)$/i.test(item.title)
+      && /note|lesson|study|revision|learning material/i.test(item.resource_type + " " + item.title))
+    .map(item => ({ key: "teacher:" + item.id, name: item.title, topic: item.topic || item.description || "", source: "teacher", teacher: item }));
+  const noteChoices = [...personalNoteChoices, ...teacherNoteChoices];
+  const selectedNote = noteChoices.find(item => item.key === selectedNoteKey) ?? noteChoices[0] ?? null;
   function openResource(resource: typeof notes[number]) { setViewingNote(resource); }
   useEffect(() => {
     if (!viewingNote) { setNotePreviewText(""); return; }
@@ -287,12 +388,58 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       if (!accepted.length) { setNoteError("Choose a supported document up to 30 MB."); return; }
       await plannerDb.resources.bulkAdd(accepted.map((file,index) => ({id:Date.now()+index,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size,file,createdAt:new Date().toISOString(),subjectId:activeSubject.id,resourceType:path === "Revision notes" ? "Revision notes" : "Study notes",topic:noteTopic.trim()})));
       await loadNotes();
+      window.dispatchEvent(new Event("studyspace-local-data-updated"));
     } catch { setNoteError("The files could not be saved. Check available device storage."); }
   }
   function begin(nextPath: LearningPath) {
     setPath(nextPath); setTopicName(""); setQuestionIndex(0); setResponse(""); setSubmitted(false); setScore(0); setFinished(false); setNoteError("");
+    setGeneratedQuestions([]); setGenerationMessage(""); setTestTopicInput("");
   }
   function restart() { setQuestionIndex(0); setResponse(""); setSubmitted(false); setScore(0); setFinished(false); }
+
+  async function generateTopicTest() {
+    if (!selectedNote || !activeSubject || generatingTest) return;
+    setGeneratingTest(true); setGenerationMessage(""); setNoteError("");
+    try {
+      let file: Blob;
+      if (selectedNote.source === "personal" && selectedNote.personal) {
+        file = selectedNote.personal.file;
+      } else if (selectedNote.source === "teacher" && selectedNote.teacher && supabase) {
+        const { data, error } = await supabase.storage.from("studyspace-resources").download(selectedNote.teacher.storage_path);
+        if (error) throw error;
+        file = data;
+      } else {
+        throw new Error("This note is not available on this device. Open it while online and try again.");
+      }
+      const notesText = await extractNoteText(file, selectedNote.name);
+      if (notesText.length < 120) {
+        throw new Error("This file has too little selectable text for a reliable test. It may be a scanned PDF; use a text-based PDF or TXT/RTF notes.");
+      }
+      if (!supabase) throw new Error("StudySpace is not connected. Sign in again and retry.");
+      const topic = (topicName.trim() || testTopicInput.trim() || selectedNote.topic.trim()
+        || selectedNote.name.replace(/\\.[^.]+$/, "").slice(0, 160));
+      const { data, error } = await supabase.functions.invoke("mia-assistant", {
+        body: { action: "generate_topic_test", subject: activeSubject.name, topic, fileName: selectedNote.name, notesText },
+      });
+      if (error) throw new Error(await getEdgeErrorMessage(error));
+      const questions = Array.isArray(data?.questions) ? data.questions.filter((item: any) =>
+        item && typeof item.prompt === "string" && Array.isArray(item.options) && item.options.length === 4
+        && typeof item.answer === "string" && item.options.includes(item.answer)
+      ).map((item: any) => ({
+        prompt: item.prompt as string, answer: item.answer as string, options: item.options as string[],
+        explanation: typeof item.explanation === "string" ? item.explanation : "",
+        difficulty: typeof item.difficulty === "string" ? item.difficulty : "Medium",
+        topic: typeof item.topic === "string" ? item.topic : topic,
+      })) : [];
+      if (questions.length < 5) throw new Error(data?.error || "MIΛ could not create enough reliable questions from these notes. Try a clearer or shorter set of notes.");
+      setGeneratedQuestions(questions);
+      setTopicName(topic);
+      setQuestionIndex(0); setResponse(""); setSubmitted(false); setScore(0); setFinished(false);
+      setGenerationMessage("Created " + questions.length + " questions from " + selectedNote.name + ". Your answers will be checked against these notes.");
+    } catch (reason) {
+      setGenerationMessage(reason instanceof Error ? reason.message : "The topic test could not be created. Please try again.");
+    } finally { setGeneratingTest(false); }
+  }
   function advance() {
     const nextScore = score + (correct ? 1 : 0);
     if (questionIndex === activePool.length - 1) {
