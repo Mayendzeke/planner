@@ -16,8 +16,6 @@ type ClassroomSession = {
   status: "scheduled" | "live" | "ended" | "cancelled";
   duration_minutes: number;
   meeting_url: string | null;
-  meeting_password: string | null;
-  meeting_ready_at: string | null;
 };
 type ChatMessage = { id: string; text: string; sender: "You" | "Teacher"; time: string };
 type Homework = { id: string; title: string; details: string; due: string; done: boolean };
