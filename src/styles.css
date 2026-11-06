@@ -823,3 +823,5 @@ html{overflow-anchor:none}
 .assigned-question{scroll-margin-top:18px}
 .assigned-draft-warning{padding:10px 12px;border:1px solid color-mix(in srgb,var(--danger) 35%,var(--border));border-radius:9px;color:var(--danger);font-size:10px;line-height:1.5}
 @media(max-width:600px){.assigned-question-navigation button{min-width:33px;height:33px}}
+
+.assigned-draft-saved{margin:4px 0 10px;color:var(--muted);font-size:9px;line-height:1.5}
