@@ -23,6 +23,7 @@ import StudentTimetable from "./components/StudentTimetable";
 import { supabase } from "./lib/supabase";
 
 type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "MIΛ Studio" | "My Library" | "Academic Calendar" | "Progress" | "Help & feedback" | "Settings";
+type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
 const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
@@ -78,6 +79,8 @@ export default function App() {
   const [subjectName, setSubjectName] = useState("");
   const [subjectColor, setSubjectColor] = useState(colors[0]);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [miaOpen, setMiaOpen] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [signOutBusy, setSignOutBusy] = useState(false);
@@ -223,6 +226,27 @@ export default function App() {
   }, [mobileMenu]);
 
   useEffect(() => {
+    const handleInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const handleInstalled = () => { setInstallPrompt(null); setInstallHelpOpen(false); };
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
+
+  async function installStudyspace() {
+    if (!installPrompt) { setInstallHelpOpen(value => !value); return; }
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") setInstallPrompt(null);
+  }
+
+  useEffect(() => {
     const handleLocalDataUpdated = () => {
       void refresh();
       setSyncRequested(value => value + 1);
@@ -349,6 +373,22 @@ export default function App() {
             );
             if (subjectsError) throw new Error("Your cloud profile was saved, but subjects could not be synced: " + subjectsError.message);
           }
+      }
+      if (nextProfile.timetableEntries?.length) {
+        const timetableRows = nextProfile.timetableEntries.map(entry => ({
+          learner_id: authState.session!.user.id,
+          timetable_kind: "school",
+          subject_name: entry.subject_name,
+          title: entry.title,
+          day_of_week: entry.day_of_week,
+          starts_at: entry.starts_at,
+          ends_at: entry.ends_at,
+          location: entry.location || "",
+          notes: entry.notes || "",
+          source: "manual"
+        }));
+        const { error: timetableError } = await supabase.from("student_timetable_entries").insert(timetableRows);
+        if (timetableError) throw new Error("Your profile was saved, but the timetable could not be saved: " + timetableError.message);
       }
       localStorage.setItem("studyspace-profile:" + authState.session.user.id, JSON.stringify(nextProfile));
       setProfile(nextProfile);
@@ -552,7 +592,7 @@ export default function App() {
       <div className="workspace-label">YOUR WORKSPACE</div>
       <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span></div></div>
       <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":syncStatus==="syncing"?"Syncing to Studyspace…":syncStatus==="synced"?"Synced to Studyspace":syncStatus==="offline"?"Offline · changes saved":syncStatus==="error"?"Sync needs attention":ready?"Opening cloud workspace":"Opening workspace"}</div></div>
+      <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><button type="button" className="nav-item install-app-link" onClick={()=>void installStudyspace()}><Download size={18}/><span>{installPrompt?"Install Studyspace":"Install / add to home screen"}</span></button>{installHelpOpen&&<div className="install-help"><strong>Install Studyspace</strong><p>On Android Chrome, open the browser menu (⋮) and choose “Install app” or “Add to Home screen”. On iPhone Safari, tap Share, then “Add to Home Screen”.</p></div>}<div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":syncStatus==="syncing"?"Syncing to Studyspace…":syncStatus==="synced"?"Synced to Studyspace":syncStatus==="offline"?"Offline · changes saved":syncStatus==="error"?"Sync needs attention":ready?"Opening cloud workspace":"Opening workspace"}</div></div>
     </aside>
     {mobileMenu&&<button className="mobile-scrim" aria-label="Close navigation overlay" onClick={()=>setMobileMenu(false)}/>}
     <main className="main-area">
