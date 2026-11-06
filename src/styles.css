@@ -1014,3 +1014,25 @@ html{overflow-anchor:none}
 .mia-flashcard>small{font-size:10px;color:var(--muted)}
 .mia-flashcard-controls{display:flex;justify-content:space-between;gap:8px}.mia-flashcard-controls button{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--text);font-size:10px}
 @media(max-width:640px){.mia-visual-flashcards{padding:10px}.mia-flashcard{min-height:190px;padding:18px}.mia-flashcard-controls button{flex:1}}
+
+
+/* Navigation drawer: keep every destination reachable on short mobile screens. */
+.app-shell>.sidebar.glass-panel{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.app-shell>.sidebar .brand,.app-shell>.sidebar .profile-card,.app-shell>.sidebar .sidebar-bottom{flex-shrink:0}
+.app-shell>.sidebar .main-nav{flex:0 0 auto}
+.app-shell>.sidebar .sidebar-bottom{margin-top:18px}
+@media(max-width:760px){.app-shell>.sidebar.glass-panel{height:100dvh;max-height:100dvh;padding-bottom:max(18px,env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}.app-shell>.sidebar .sidebar-bottom{padding-bottom:8px}}
+/* Timetable axis: weekdays at left; lesson start-times across the top. */
+.weekly-timetable-grid{min-width:760px}
+.weekly-timetable-grid th.timetable-day-heading,.weekly-timetable-grid th.timetable-day-cell{position:sticky;left:0;width:92px;min-width:92px;background:var(--panel-strong);text-align:left;z-index:3}
+.weekly-timetable-grid th.timetable-day-heading{top:0;z-index:5;text-align:center}
+.weekly-timetable-grid th.timetable-day-cell{font-weight:750;color:var(--text);vertical-align:middle}
+.weekly-timetable-grid thead th:not(:first-child){position:sticky;top:0;z-index:2;background:var(--panel-strong);text-align:center;white-space:nowrap}
+.weekly-timetable-grid td{min-width:125px;height:88px}
+.weekly-timetable-grid .timetable-cell-add{height:68px}
+.mia-remaining{white-space:nowrap}
+.mia-usage-note{padding:0 18px 8px;text-align:center;color:var(--muted);font-size:9px;letter-spacing:.01em}
+.mia-attachment-preview{flex-wrap:wrap}
+.mia-attachment-preview>span{overflow-wrap:anywhere;min-width:0;flex:1}
+.mia-attachment-preview>button:not(:last-child){border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:5px 8px;color:var(--text);font-size:10px}
+
