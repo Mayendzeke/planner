@@ -9,8 +9,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.m
 import PdfViewer from "./PdfViewer";
 import AssignedAssessments from "./AssignedAssessments";
 
-type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false";
-type Exercise = { prompt: string; answer: string; options?: string[]; clue?: string; scramble?: string; explanation?: string; difficulty?: string; topic?: string };
+type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false" | "Matching";
+type Exercise = { prompt: string; answer: string; options?: string[]; pairs?: { left: string; right: string }[]; clue?: string; scramble?: string; explanation?: string; difficulty?: string; topic?: string };
 type Attempt = { id: string; subject: string; mode: string; score: number; total: number; completedAt: string };
 type PersonalNote = { id: number; name: string; subjectId?: number; resourceType?: string; topic?: string; file: Blob; createdAt: string };
 type TeacherNote = { id: string; title: string; description: string; subject_name: string; topic: string; resource_type: string; storage_path: string; mime_type: string; file_size: number; created_at: string };
@@ -99,7 +99,13 @@ const banks: Record<string, Record<Mode, Exercise[]>> = {
       { prompt: "A right angle measures 90 degrees.", options: ["True", "False"], answer: "True" },
       { prompt: "Every multiple of 4 is also a multiple of 2.", options: ["True", "False"], answer: "True" },
       { prompt: "The sum of the interior angles of a quadrilateral is 360 degrees.", options: ["True", "False"], answer: "True" }
-    ]
+    ],
+    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
+      { left: "Perimeter", right: "Distance around a shape" },
+      { left: "Triangle", right: "Polygon with 3 sides" },
+      { left: "Pi (π)", right: "Approximately 3.14" },
+      { left: "Square root of 49", right: "7" }
+    ] }]
   },
   english: {
     "Multiple choice": [
@@ -129,7 +135,13 @@ const banks: Record<string, Record<Mode, Exercise[]>> = {
       { prompt: "A proper noun begins with a capital letter.", options: ["True", "False"], answer: "True" },
       { prompt: "A paragraph should normally develop one main idea.", options: ["True", "False"], answer: "True" },
       { prompt: "The word 'quickly' is an adjective.", options: ["True", "False"], answer: "False" }
-    ]
+    ],
+    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
+      { left: "Noun", right: "Names a person, place, thing or idea" },
+      { left: "Verb", right: "Expresses an action or state" },
+      { left: "Adjective", right: "Describes a noun" },
+      { left: "Adverb", right: "Modifies a verb, adjective or adverb" }
+    ] }]
   },
   science: {
     "Multiple choice": [
@@ -159,7 +171,13 @@ const banks: Record<string, Record<Mode, Exercise[]>> = {
       { prompt: "An atom is electrically neutral when protons equal electrons.", options: ["True", "False"], answer: "True" },
       { prompt: "The liver is part of the digestive system.", options: ["True", "False"], answer: "True" },
       { prompt: "All metals are liquids at room temperature.", options: ["True", "False"], answer: "False" }
-    ]
+    ],
+    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
+      { left: "Nucleus", right: "Contains genetic material" },
+      { left: "Mitochondrion", right: "Releases energy" },
+      { left: "Chloroplast", right: "Site of photosynthesis" },
+      { left: "Cell membrane", right: "Controls movement in and out" }
+    ] }]
   },
   general: {
     "Multiple choice": [
@@ -189,7 +207,13 @@ const banks: Record<string, Record<Mode, Exercise[]>> = {
       { prompt: "Revision is more effective when it is spaced over time.", options: ["True", "False"], answer: "True" },
       { prompt: "A conclusion should address the task or research question.", options: ["True", "False"], answer: "True" },
       { prompt: "Copying a source without acknowledgement is good academic practice.", options: ["True", "False"], answer: "False" }
-    ]
+    ],
+    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
+      { left: "Hypothesis", right: "A statement that can be tested" },
+      { left: "Evidence", right: "Information supporting a claim" },
+      { left: "Bibliography", right: "A list of sources used" },
+      { left: "Conclusion", right: "A final judgement based on findings" }
+    ] }]
   }
 };
 
@@ -197,7 +221,8 @@ const modes: { name: Mode; icon: typeof ListChecks; description: string }[] = [
   { name: "Multiple choice", icon: ListChecks, description: "Choose the best answer" },
   { name: "Word puzzle", icon: Puzzle, description: "Unscramble the key term" },
   { name: "Fill the blanks", icon: PenLine, description: "Recall the missing word" },
-  { name: "True or false", icon: ToggleLeft, description: "Judge each statement" }
+  { name: "True or false", icon: ToggleLeft, description: "Judge each statement" },
+  { name: "Matching", icon: Puzzle, description: "Connect terms to the right answers" }
 ];
 
 function bankFor(subject: string): Record<Mode, Exercise[]> | null {
@@ -256,6 +281,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [topicName, setTopicName] = useState("");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [response, setResponse] = useState("");
+  const [matchingAnswers, setMatchingAnswers] = useState<Record<number, Record<string, string>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
@@ -325,7 +351,9 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const question = activePool[questionIndex];
   const questionMode = question ? modes.find(item => bankFor(subject)?.[item.name].includes(question))?.name ?? "Question" : "";
   const sectionLetter = String.fromCharCode(65 + Math.max(0, modes.findIndex(item => item.name === questionMode)));
-  const correct = !!question && response.trim().toLocaleLowerCase() === question.answer.toLocaleLowerCase();
+  const currentMatches = matchingAnswers[questionIndex] ?? {};
+  const correct = !!question && (question.pairs ? question.pairs.every(pair => currentMatches[pair.left] === pair.right) : response.trim().toLocaleLowerCase() === question.answer.toLocaleLowerCase());
+  const correctAnswerText = question?.pairs ? question.pairs.map(pair => pair.left + " → " + pair.right).join(" · ") : question?.answer ?? "";
   const percent = activePool.length ? Math.round((score / activePool.length) * 100) : 0;
 
   async function loadNotes() {
@@ -392,10 +420,10 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     } catch { setNoteError("The files could not be saved. Check available device storage."); }
   }
   function begin(nextPath: LearningPath) {
-    setPath(nextPath); setTopicName(""); setQuestionIndex(0); setResponse(""); setSubmitted(false); setScore(0); setFinished(false); setNoteError("");
+    setPath(nextPath); setTopicName(""); setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false); setNoteError("");
     setGeneratedQuestions([]); setGenerationMessage(""); setTestTopicInput("");
   }
-  function restart() { setQuestionIndex(0); setResponse(""); setSubmitted(false); setScore(0); setFinished(false); }
+  function restart() { setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false); }
 
   async function generateTopicTest() {
     if (!selectedNote || !activeSubject || generatingTest) return;
@@ -434,7 +462,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       if (questions.length < 3) throw new Error(data?.error || "MIΛ could not create three reliable questions from these notes. Add a little more readable lesson material and try again.");
       setGeneratedQuestions(questions);
       setTopicName(topic);
-      setQuestionIndex(0); setResponse(""); setSubmitted(false); setScore(0); setFinished(false);
+      setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false);
       setGenerationMessage("Created " + questions.length + " questions from " + selectedNote.name + ". Your answers will be checked against these notes.");
     } catch (reason) {
       setGenerationMessage(reason instanceof Error ? reason.message : "The topic test could not be created. Please try again.");
@@ -486,7 +514,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     </section>}
     {(path==="Topic test"&&topicName||path==="Weekly test"||path==="Examination")&&<section className="weekly-test-card glass-panel study-quiz-card">
       <div className="section-heading"><div><span className="eyebrow">{path==="Examination"?"EXAMINATION PAPER":path==="Weekly test"?"WEEKLY KNOWLEDGE CHECK":"TOPIC ASSESSMENT"}</span><h2>{subject}{topicName?" · "+topicName:""}</h2><p>{path==="Examination"?"Formal mixed paper: all available question formats, organised into sections, using the complete current subject question bank.":path==="Weekly test"?"Ten-question mixed practice round.":"Questions matched to the topic you selected."}</p></div><span className="count-chip">{activePool.length} questions</span></div>
-      {!activePool.length?<div className="weekly-test-unavailable"><BookOpen size={28}/><h2>Questions not available yet</h2><p>No pre-authored questions are mapped to {topicName||subject} yet. Use the notes generator above to create a topic test from your saved material.</p></div>:finished?<div className="weekly-test-result"><div className="weekly-test-result-icon"><Trophy size={30}/></div><span className="eyebrow">ASSESSMENT COMPLETE</span><h2>{percent>=80?"Excellent work.":percent>=60?"Good progress.":"Keep practising."}</h2><div className="weekly-test-score">{score}<small> / {activePool.length}</small></div><p>{percent}% correct · {subject}{topicName?" · "+topicName:""} · {path}</p><div className="weekly-test-result-actions"><button className="primary-button" onClick={restart}><RotateCcw size={16}/> Retake</button><button className="secondary-button" onClick={()=>setPath(null)}>Back to subject</button></div></div>:<><div className="weekly-test-progress"><div><span>{subject}{topicName?" · "+topicName:""}</span><strong>QUESTION {questionIndex+1} / {activePool.length}</strong></div><div className="weekly-test-progress-track"><span style={{width:((questionIndex+1)/activePool.length*100)+"%"}}/></div></div><div className="weekly-test-question"><span className="weekly-test-type">{path==="Examination"?"SECTION "+sectionLetter+" · "+questionMode:path==="Weekly test"?"WEEKLY · "+questionMode:"TOPIC · "+questionMode}</span><h2>Question {questionIndex+1}</h2><p>{question.prompt}</p></div>{question.options?<div className="weekly-test-options">{question.options.map(option=><button key={option} disabled={submitted} className={submitted&&option===question.answer?"answer-correct":submitted&&option===response?"answer-wrong":response===option?"answer-selected":""} onClick={()=>setResponse(option)}>{option}{submitted&&option===question.answer&&<CheckCircle2 size={16}/>}</button>)}</div>:<label className="weekly-test-answer"><span>{question.clue??"Your answer"}</span><input value={response} onChange={e=>setResponse(e.target.value)} disabled={submitted} onKeyDown={e=>{if(e.key==="Enter"&&response.trim()&&!submitted)setSubmitted(true);}} placeholder="Type your answer…"/></label>}{submitted&&<p className={correct?"weekly-test-feedback good":"weekly-test-feedback bad"}>{correct?"Correct — well done.":"Not quite. Correct answer: "+question.answer}</p>}{submitted&&question.explanation&&<p className="weekly-test-feedback">{question.explanation}</p>}{question.difficulty&&<span className="weekly-test-type">{question.difficulty} · FROM YOUR NOTES</span>}<div className="weekly-test-controls"><span>{score} correct so far</span>{!submitted?<button className="primary-button" disabled={!response.trim()} onClick={()=>setSubmitted(true)}>Check answer <ChevronRight size={16}/></button>:<button className="primary-button" onClick={advance}>{questionIndex===activePool.length-1?"See results":"Next question"} <ChevronRight size={16}/></button>}</div></>}
+      {!activePool.length?<div className="weekly-test-unavailable"><BookOpen size={28}/><h2>Questions not available yet</h2><p>No pre-authored questions are mapped to {topicName||subject} yet. Use the notes generator above to create a topic test from your saved material.</p></div>:finished?<div className="weekly-test-result"><div className="weekly-test-result-icon"><Trophy size={30}/></div><span className="eyebrow">ASSESSMENT COMPLETE</span><h2>{percent>=80?"Excellent work.":percent>=60?"Good progress.":"Keep practising."}</h2><div className="weekly-test-score">{score}<small> / {activePool.length}</small></div><p>{percent}% correct · {subject}{topicName?" · "+topicName:""} · {path}</p><div className="weekly-test-result-actions"><button className="primary-button" onClick={restart}><RotateCcw size={16}/> Retake</button><button className="secondary-button" onClick={()=>setPath(null)}>Back to subject</button></div></div>:<><div className="weekly-test-progress"><div><span>{subject}{topicName?" · "+topicName:""}</span><strong>QUESTION {questionIndex+1} / {activePool.length}</strong></div><div className="weekly-test-progress-track"><span style={{width:((questionIndex+1)/activePool.length*100)+"%"}}/></div></div><div className="weekly-test-question"><span className="weekly-test-type">{path==="Examination"?"SECTION "+sectionLetter+" · "+questionMode:path==="Weekly test"?"WEEKLY · "+questionMode:"TOPIC · "+questionMode}</span><h2>Question {questionIndex+1}</h2><p>{question.prompt}</p></div>{question.pairs?<div className="weekly-test-matching">{question.pairs.map(pair=><label key={pair.left}><span>{pair.left}</span><select disabled={submitted} value={currentMatches[pair.left]||""} onChange={event=>setMatchingAnswers(current=>({...current,[questionIndex]:{...(current[questionIndex]||{}),[pair.left]:event.target.value}}))}><option value="">Choose the matching answer</option>{question.pairs?.map(item=><option key={item.right} value={item.right}>{item.right}</option>)}</select></label>)}</div>:question.options?<div className="weekly-test-options">{question.options.map(option=><button key={option} disabled={submitted} className={submitted&&option===question.answer?"answer-correct":submitted&&option===response?"answer-wrong":response===option?"answer-selected":""} onClick={()=>setResponse(option)}>{option}{submitted&&option===question.answer&&<CheckCircle2 size={16}/>}</button>)}</div>:<label className="weekly-test-answer"><span>{question.clue??"Your answer"}</span><input value={response} onChange={e=>setResponse(e.target.value)} disabled={submitted} onKeyDown={e=>{if(e.key==="Enter"&&response.trim()&&!submitted)setSubmitted(true);}} placeholder="Type your answer…"/></label>}{submitted&&<p className={correct?"weekly-test-feedback good":"weekly-test-feedback bad"}>{correct?"Correct — well done.":"Not quite. Correct answer: "+correctAnswerText}</p>}{submitted&&question.explanation&&<p className="weekly-test-feedback">{question.explanation}</p>}{question.difficulty&&<span className="weekly-test-type">{question.difficulty} · FROM YOUR NOTES</span>}<div className="weekly-test-controls"><span>{score} correct so far</span>{!submitted?<button className="primary-button" disabled={question.pairs ? !question.pairs.every(pair=>!!currentMatches[pair.left]) : !response.trim()} onClick={()=>setSubmitted(true)}>Check answer <ChevronRight size={16}/></button>:<button className="primary-button" onClick={advance}>{questionIndex===activePool.length-1?"See results":"Next question"} <ChevronRight size={16}/></button>}</div></>}
     </section>}
     <section className="weekly-test-history glass-panel"><div className="section-heading"><div><h2>Recent attempts</h2><p>Results saved on this device.</p></div></div>{attempts.length?<div className="weekly-test-history-list">{attempts.slice(0,6).map(item=><div className="weekly-test-history-row" key={item.id}><div><strong>{item.subject} · {item.mode}</strong><span>{new Date(item.completedAt).toLocaleString()}</span></div><b>{item.score}/{item.total}</b></div>)}</div>:<p className="weekly-test-empty">Completed tests and examinations will appear here.</p>}</section>
     {viewingNote && <div className="modal-backdrop library-viewer-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setViewingNote(null);}}><section className="library-viewer" role="dialog" aria-modal="true" aria-label={"Viewing "+viewingNote.name}><header className="library-viewer-header"><div><span>STUDYSPACE VIEWER</span><strong>{viewingNote.name}</strong></div><button className="icon-button" onClick={()=>setViewingNote(null)} aria-label="Close viewer"><X size={19}/></button></header><div className="library-viewer-content">{viewingNote.name.toLowerCase().endsWith(".pdf")&&<PdfViewer file={viewingNote.file} fileName={viewingNote.name}/>}{(viewingNote.name.toLowerCase().endsWith(".txt")||viewingNote.name.toLowerCase().endsWith(".rtf"))&&<pre>{notePreviewText||"Loading preview…"}</pre>}</div><footer className="library-viewer-footer">In-app viewing only · No external app or download action</footer></section></div>}
