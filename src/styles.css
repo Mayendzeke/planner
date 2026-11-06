@@ -812,3 +812,14 @@ html{overflow-anchor:none}
  .solo-study-steps button small{font-size:8px}
  .solo-study-actions>*{flex:1;justify-content:center}
 }
+
+
+/* Long-form assessments: clear progress, quick navigation and saved drafts. */
+.assigned-answer-progress{height:6px;margin:10px 0 12px;overflow:hidden;border-radius:99px;background:var(--panel-strong)}
+.assigned-answer-progress span{display:block;height:100%;border-radius:inherit;background:var(--mint);transition:width .2s ease}
+.assigned-question-navigation{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 16px}
+.assigned-question-navigation button{display:grid;place-items:center;min-width:30px;height:30px;padding:0 7px;border:1px solid var(--border);border-radius:8px;background:var(--panel-strong);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer}
+.assigned-question-navigation button.answered{border-color:color-mix(in srgb,var(--mint) 60%,var(--border));background:color-mix(in srgb,var(--mint) 12%,var(--panel-strong));color:var(--text)}
+.assigned-question{scroll-margin-top:18px}
+.assigned-draft-warning{padding:10px 12px;border:1px solid color-mix(in srgb,var(--danger) 35%,var(--border));border-radius:9px;color:var(--danger);font-size:10px;line-height:1.5}
+@media(max-width:600px){.assigned-question-navigation button{min-width:33px;height:33px}}
