@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, GraduationCap, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, GraduationCap, Plus, Sparkles, Trash2 } from "lucide-react";
+
+export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string };
 
 export type StudentProfile = {
   fullName: string;
@@ -17,6 +19,7 @@ export type StudentProfile = {
   weeklyHours: string;
   preferredDays: string[];
   subjects: string[];
+  timetableEntries?: OnboardingTimetableEntry[];
 };
 
 const emptyProfile: StudentProfile = {
@@ -51,6 +54,8 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
   const [subjectSearch, setSubjectSearch] = useState("");
   const [customSubject, setCustomSubject] = useState("");
   const [error, setError] = useState("");
+  const [timetableEntries, setTimetableEntries] = useState<OnboardingTimetableEntry[]>([]);
+  const [timetableDraft, setTimetableDraft] = useState<OnboardingTimetableEntry>({ subject_name: "", title: "", day_of_week: 1, starts_at: "08:00", ends_at: "09:00", location: "", notes: "" });
 
   function update<K extends keyof StudentProfile>(key: K, value: StudentProfile[K]) {
     setProfile(current => ({ ...current, [key]: value }));
@@ -86,10 +91,14 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
     if (step === 1 && (profile.level === "University" || profile.level === "College") && !profile.course.trim()) { setError("Please enter your course or programme."); return; }
     if (step === 2) {
       if (!profile.subjects.length) { setError("Select at least one subject or course to continue."); return; }
-      onComplete({ ...profile, subjects: [...new Set(profile.subjects)] });
+      setStep(3);
       return;
     }
-    setStep(current => Math.min(2, current + 1));
+    if (step === 3) {
+      onComplete({ ...profile, subjects: [...new Set(profile.subjects)], timetableEntries });
+      return;
+    }
+    setStep(current => Math.min(3, current + 1));
   }
 
   return <main className="onboarding-shell">
@@ -97,11 +106,11 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
     <div className="onboarding-glow onboarding-glow-two" />
     <section className="onboarding-card glass-panel">
       <div className="onboarding-brand"><span className="onboarding-mark"><GraduationCap size={24}/></span><span>studyspace<span className="brand-dot">.</span></span></div>
-      <div className="onboarding-progress"><span style={{ width: ((step + 1) / 3 * 100) + "%" }} /></div>
-      <div className="onboarding-step-label"><span>GETTING STARTED</span><span>STEP {step + 1} OF 3</span></div>
+      <div className="onboarding-progress"><span style={{ width: ((step + 1) / 4 * 100) + "%" }} /></div>
+      <div className="onboarding-step-label"><span>GETTING STARTED</span><span>STEP {step + 1} OF 4</span></div>
       <div className="onboarding-heading"><span className="eyebrow"><Sparkles size={14}/> YOUR LEARNING JOURNEY</span>
-        <h1>{step === 0 ? "Let's set up your study space." : step === 1 ? "Tell us about your studies." : "Build your study plan."}</h1>
-        <p>{step === 0 ? "First, let's get to know the student who will use this planner." : step === 1 ? "This helps us organise the academic year around the right school system." : "Choose the subjects and study routine you want to work towards."}</p>
+        <h1>{step === 0 ? "Let's set up your study space." : step === 1 ? "Tell us about your studies." : step === 2 ? "Build your study plan." : "Add your timetable (optional)."}</h1>
+        <p>{step === 0 ? "First, let's get to know the student who will use this planner." : step === 1 ? "This helps us organise the academic year around the right school system." : step === 2 ? "Choose the subjects and study routine you want to work towards." : "Add your school lessons now, or skip this and complete it later from My Timetable."}</p>
       </div>
 
       {step === 0 && <div className="onboarding-fields">
@@ -141,10 +150,22 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
         <div className="field-label">Preferred study days <span className="field-optional">SELECT ALL THAT APPLY</span><div className="onboarding-days">{days.map(day => <button type="button" key={day} className={profile.preferredDays.includes(day) ? "day-chip day-chip-selected" : "day-chip"} onClick={() => toggleDay(day)}>{day.slice(0, 3)}</button>)}</div></div>
       </div>}
 
+      {step === 3 && <div className="onboarding-fields onboarding-timetable-step">
+        <div className="onboarding-timetable-intro"><CalendarDays size={18}/><span><strong>School timetable</strong><small>This is optional. Your entries are saved to your student profile and can be edited any time.</small></span></div>
+        <div className="onboarding-two-col">
+          <label className="field-label">Subject / activity<select value={timetableDraft.subject_name} onChange={e=>setTimetableDraft(current=>({...current,subject_name:e.target.value,title:current.title||e.target.value}))}><option value="">General / other</option>{profile.subjects.map(name=><option key={name} value={name}>{name}</option>)}</select></label>
+          <label className="field-label">Day<select value={timetableDraft.day_of_week} onChange={e=>setTimetableDraft(current=>({...current,day_of_week:Number(e.target.value)}))}>{days.map((day,index)=><option key={day} value={(index+1)%7}>{day}</option>)}</select></label>
+          <label className="field-label">Start time<input type="time" value={timetableDraft.starts_at} onChange={e=>setTimetableDraft(current=>({...current,starts_at:e.target.value}))}/></label>
+          <label className="field-label">End time<input type="time" value={timetableDraft.ends_at} onChange={e=>setTimetableDraft(current=>({...current,ends_at:e.target.value}))}/></label>
+        </div>
+        <button type="button" className="secondary-button onboarding-add-slot" onClick={()=>{if(!timetableDraft.starts_at||!timetableDraft.ends_at||timetableDraft.ends_at<=timetableDraft.starts_at){setError("End time must be later than start time.");return;}const subject=timetableDraft.subject_name.trim();setTimetableEntries(current=>[...current,{...timetableDraft,subject_name:subject,title:timetableDraft.title.trim()||subject||"School activity"}]);setTimetableDraft(current=>({...current,starts_at:current.ends_at,ends_at:"10:00",title:""}));setError("");}}><Plus size={15}/> Add timetable slot</button>
+        {timetableEntries.length>0 && <div className="onboarding-timetable-list"><strong>{timetableEntries.length} slots added</strong>{timetableEntries.map((entry,index)=><div key={index}><span><b>{entry.subject_name||entry.title}</b><small>{days[(entry.day_of_week+6)%7]} · {entry.starts_at}–{entry.ends_at}</small></span><button type="button" onClick={()=>setTimetableEntries(current=>current.filter((_,i)=>i!==index))} aria-label="Remove timetable slot"><Trash2 size={14}/></button></div>)}</div>}
+        <p className="onboarding-privacy">You can skip this step and add your full school and personal study timetable after signing in.</p>
+      </div>}
       {error && <p className="onboarding-error" role="alert">{error}</p>}
       <div className="onboarding-actions">
         {step > 0 && <button className="secondary-button" onClick={() => { setError(""); setStep(current => current - 1); }}><ArrowLeft size={15}/> Back</button>}
-        <button className="primary-button onboarding-next" onClick={next}>{step === 2 ? <><BookOpen size={16}/> Create my study space</> : <>Continue <ArrowRight size={15}/></>}</button>
+        <button className="primary-button onboarding-next" onClick={next}>{step === 3 ? <><BookOpen size={16}/> Create my study space</> : <>Continue <ArrowRight size={15}/></>}</button>
       </div>
       <p className="onboarding-privacy">Your account profile is saved securely to Studyspace. Planner activity is stored on this device in this release.</p>
     </section>
