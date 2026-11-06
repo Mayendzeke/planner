@@ -129,7 +129,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     setText("");
     const file = attachment;
     const displayMessage = value || (file ? "Please review the attached file: " + file.name : "");
-    setMessages(current => [...current, { id: crypto.randomUUID(), role: "user", content: displayMessage + (file ? " · " + file.name : "") }]);
+    const outgoingId = crypto.randomUUID();\n    setMessages(current => [...current, { id: outgoingId, role: "user", content: displayMessage + (file ? " · " + file.name : "") }]);
     try {
       const uploaded = file ? await filePayload(file) : null;
       if (uploaded?.textContent && !value) setText("");
@@ -265,7 +265,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,.txt,.md,.csv,.pdf" hidden onChange={event=>{const file=event.target.files?.[0];if(file){const allowed=file.type.startsWith("image/")&&["image/jpeg","image/png","image/webp"].includes(file.type)||["application/pdf","text/plain","text/markdown","text/csv"].includes(file.type)||/\\.(pdf|txt|md|csv)$/i.test(file.name);if(!allowed){setError("Attach an image, PDF, TXT, Markdown or CSV file.");}else if(file.size>4*1024*1024){setError("Choose a file smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
       <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach an image, PDF or text file" aria-label="Attach a file"><Paperclip size={19}/></button>
       <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
-      <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Review timetable image" : "Send message"} aria-label={attachment ? "Review timetable image" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
+      <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
     <div className="mia-footnote">Study-focused · Short answers · Gemini processes prompts; avoid sharing personal details</div>
   </section>;
