@@ -6,6 +6,7 @@ export type StudentProfile = {
   preferredName: string;
   country: string;
   institution: string;
+  course: string;
   level: string;
   grade: string;
   curriculum: string;
@@ -19,7 +20,7 @@ export type StudentProfile = {
 };
 
 const emptyProfile: StudentProfile = {
-  fullName: "", preferredName: "", country: "", institution: "", level: "Secondary school",
+  fullName: "", preferredName: "", country: "", institution: "", course: "", level: "Secondary school",
   grade: "", curriculum: "", academicYear: String(new Date().getFullYear()), termCount: "3",
   goals: "Improve my marks", targetMark: "75", weeklyHours: "6", preferredDays: ["Saturday", "Sunday"], subjects: []
 };
