@@ -83,6 +83,7 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
     setError("");
     if (step === 0 && !profile.fullName.trim()) { setError("Please enter the student's name."); return; }
     if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim())) { setError("Please enter a grade or year and academic year."); return; }
+    if (step === 1 && (profile.level === "University" || profile.level === "College") && !profile.course.trim()) { setError("Please enter your course or programme."); return; }
     if (step === 2) {
       if (!profile.subjects.length) { setError("Select at least one subject or course to continue."); return; }
       onComplete({ ...profile, subjects: [...new Set(profile.subjects)] });
