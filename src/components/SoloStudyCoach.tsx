@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, Clock3, Pause, Play, RefreshCw, Target } from "lucide-react";
 import type { Subject } from "../data/db";
 import { plannerDb } from "../data/db";
+import { studentStorageKey } from "../lib/studentStorage";
 
 const stages = [
   { title: "Set your goal", time: "2 minutes", instruction: "Choose one small result you want by the end of this session. Be specific: a method you can use, a definition you can explain, or a question type you can solve." },
@@ -11,25 +12,45 @@ const stages = [
   { title: "Review and reflect", time: "3–5 minutes", instruction: "Mark your attempt, correct mistakes in a different colour, and identify one thing to practise next. A mistake you understand is useful progress." },
 ];
 
+type SoloStudyDraft = { subjectId: number | ""; topic: string; goal: string; duration: number; stage: number; elapsedSeconds: number; hasStarted: boolean };
+const SOLO_STUDY_KEY = "studyspace-solo-study-draft-v1";
+function readSoloStudyDraft(): SoloStudyDraft | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(studentStorageKey(SOLO_STUDY_KEY)) || "null");
+    if (!value || typeof value !== "object") return null;
+    return {
+      subjectId: Number.isFinite(Number(value.subjectId)) ? Number(value.subjectId) : "",
+      topic: typeof value.topic === "string" ? value.topic.slice(0, 120) : "",
+      goal: typeof value.goal === "string" ? value.goal.slice(0, 400) : "",
+      duration: [25,45,60,90].includes(Number(value.duration)) ? Number(value.duration) : 45,
+      stage: Math.max(0, Math.min(stages.length - 1, Number(value.stage) || 0)),
+      elapsedSeconds: Math.max(0, Math.min(60 * 60 * 6, Number(value.elapsedSeconds) || 0)),
+      hasStarted: value.hasStarted === true,
+    };
+  } catch { return null; }
+}
+
 const formatTime = (seconds: number) => {
   const value = Math.max(0, seconds);
   return String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
 };
 
 export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
-  const [subjectId, setSubjectId] = useState<number | "">("");
-  const [topic, setTopic] = useState("");
-  const [goal, setGoal] = useState("");
-  const [duration, setDuration] = useState(45);
-  const [stage, setStage] = useState(0);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [restoredDraft] = useState<SoloStudyDraft | null>(readSoloStudyDraft);
+  const [subjectId, setSubjectId] = useState<number | "">(restoredDraft?.subjectId ?? "");
+  const [topic, setTopic] = useState(restoredDraft?.topic ?? "");
+  const [goal, setGoal] = useState(restoredDraft?.goal ?? "");
+  const [duration, setDuration] = useState(restoredDraft?.duration ?? 45);
+  const [stage, setStage] = useState(restoredDraft?.stage ?? 0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(restoredDraft?.elapsedSeconds ?? 0);
   const [runningSince, setRunningSince] = useState<number | null>(null);
   const [ticker, setTicker] = useState(Date.now());
   const [reflection, setReflection] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
   const [complete, setComplete] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const [hasStarted, setHasStarted] = useState(restoredDraft?.hasStarted ?? false);
+  const [draftPersistError, setDraftPersistError] = useState(false);
   const [completedMinutes, setCompletedMinutes] = useState(0);
 
   useEffect(() => {
@@ -41,6 +62,18 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
     const timer = window.setInterval(() => setTicker(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [runningSince]);
+
+  useEffect(() => {
+    if (!hasStarted || complete) return;
+    try {
+      localStorage.setItem(studentStorageKey(SOLO_STUDY_KEY), JSON.stringify({
+        subjectId, topic, goal, duration, stage, elapsedSeconds: elapsed, hasStarted: true,
+      }));
+      setDraftPersistError(false);
+    } catch {
+      setDraftPersistError(true);
+    }
+  }, [hasStarted, complete, subjectId, topic, goal, duration, stage, elapsed]);
 
   const elapsed = elapsedSeconds + (runningSince === null ? 0 : Math.max(0, Math.floor((ticker - runningSince) / 1000)));
   const remaining = Math.max(0, duration * 60 - elapsed);
@@ -91,6 +124,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
         minutes,
         notes,
       });
+      try { localStorage.removeItem(studentStorageKey(SOLO_STUDY_KEY)); } catch { /* The study record is already saved. */ }
       setElapsedSeconds(0);
       setRunningSince(null);
       setTicker(Date.now());
@@ -109,6 +143,8 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
     setElapsedSeconds(0);
     setRunningSince(null);
     setTicker(Date.now());
+    try { localStorage.removeItem(studentStorageKey(SOLO_STUDY_KEY)); } catch { /* The next session can still start. */ }
+    setDraftPersistError(false);
     setReflection("");
     setNotice("");
     setComplete(false);
@@ -166,7 +202,8 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
         {stage < stages.length - 1 ? <button type="button" className="primary-button" onClick={nextStep}>Next step</button> : <button type="button" className="primary-button" onClick={() => void finish()} disabled={saving}>{saving ? "Saving…" : "Finish and save session"}</button>}
       </div>
     </div>}
-    {notice && <p className="inline-message" role="status">{notice}</p>}
-    <div className="solo-study-principle"><BookOpen size={16}/><span>Study tip: understanding comes from explaining, recalling and practising—not just rereading. Use your teacher's notes or your own saved resources as your source.</span></div>
+    {draftPersistError && <p className="session-inline-error" role="alert">This browser could not save your in-progress study session. Keep this page open until you finish.</p>}
+    {notice && <p className="inline-message" role="status">{notice}</p>
+    <div className="solo-study-principle"><BookOpen size={16}/><span>{hasStarted ? "Your in-progress topic and focus time are saved on this device. You can switch to another Studyspace tab and resume this session later. " : ""}Study tip: understanding comes from explaining, recalling and practising—not just rereading. Use your teacher's notes or your own saved resources as your source.</span></div>
   </div>;
 }
