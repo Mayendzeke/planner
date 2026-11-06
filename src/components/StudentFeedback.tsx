@@ -111,4 +111,3 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
     </form>
   </section>;
 }
-}
