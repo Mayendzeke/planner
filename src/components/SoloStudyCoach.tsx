@@ -63,6 +63,10 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
     return () => window.clearInterval(timer);
   }, [runningSince]);
 
+  const elapsed = elapsedSeconds + (runningSince === null ? 0 : Math.max(0, Math.floor((ticker - runningSince) / 1000)));
+  const remaining = Math.max(0, duration * 60 - elapsed);
+  const progress = Math.min(100, Math.round((stage / (stages.length - 1)) * 100));
+
   useEffect(() => {
     if (!hasStarted || complete) return;
     try {
@@ -75,9 +79,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
     }
   }, [hasStarted, complete, subjectId, topic, goal, duration, stage, elapsed]);
 
-  const elapsed = elapsedSeconds + (runningSince === null ? 0 : Math.max(0, Math.floor((ticker - runningSince) / 1000)));
-  const remaining = Math.max(0, duration * 60 - elapsed);
-  const progress = Math.min(100, Math.round((stage / (stages.length - 1)) * 100));
+
   const selectedSubject = useMemo(() => subjects.find(subject => subject.id === subjectId), [subjects, subjectId]);
 
   function begin() {
