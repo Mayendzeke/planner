@@ -5,21 +5,23 @@ import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
 
 type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
-type Flashcard = { front: string; back: string };
+type Flashcard = { front: string; back: string; visualCue?: string };
 type MiaAttachment = { name: string; mimeType: string; data?: string; textContent?: string };
 function extractFlashcards(reply: string): Flashcard[] {
   const cards: Flashcard[] = [];
   let front = "";
   let back = "";
+  let visualCue = "";
   let side: "front" | "back" | null = null;
   const clean = (value: string) => value.replace(/\*\*/g, "").replace(/^[-*]\s*/, "").trim();
   for (const rawLine of reply.split(/\r?\n/)) {
     const line = rawLine.trim();
     const frontMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:front|question)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
     const backMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:back|answer)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
+    if (cueMatch) { visualCue = clean(cueMatch[1]); continue; }
     if (frontMatch) {
-      if (front && back) cards.push({ front: clean(front), back: clean(back) });
-      front = frontMatch[1]; back = ""; side = "front";
+      if (front && back) cards.push({ front: clean(front), back: clean(back), visualCue });
+      front = frontMatch[1]; back = ""; visualCue = ""; side = "front";
     } else if (backMatch && front) {
       back = backMatch[1]; side = "back";
     } else if (side === "front" && line) {
@@ -28,7 +30,7 @@ function extractFlashcards(reply: string): Flashcard[] {
       back += " " + line;
     }
   }
-  if (front && back) cards.push({ front: clean(front), back: clean(back) });
+  if (front && back) cards.push({ front: clean(front), back: clean(back), visualCue });
   return cards.filter(card => card.front && card.back).slice(0, 40);
 }
 type TimetableEntry = { day_of_week: number; subject_name: string; title: string; starts_at: string; ends_at: string; location: string; notes: string };
@@ -203,7 +205,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <div className="mia-brand-mark">Λ</div>
       <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMINI</span></div>
       <div className="mia-header-actions">
-        <span className="mia-remaining">{remaining === null ? "20 daily requests" : remaining + " left · 24h"}</span>
+        <span className="mia-remaining">{remaining === null ? "20 requests / 24h" : remaining + " left · 24h"}</span>
         <button className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
         {onClose && <button className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
@@ -231,6 +233,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         <div className="mia-flashcard-heading"><div><span><Brain size={15}/> ACTIVE RECALL</span><strong>Visual flashcards</strong><small>Tap the card to reveal the answer</small></div><span className="mia-flashcard-count">{flashcardIndex+1} / {flashcards.length}</span></div>
         <button type="button" className={"mia-flashcard "+(flashcardFlipped?"flipped":"")} onClick={()=>setFlashcardFlipped(value=>!value)} aria-label="Flip flashcard">
           <span className="mia-flashcard-decoration"><Sparkles size={19}/><i/><i/><i/></span>
+          <span className="mia-flashcard-cue">{flashcards[flashcardIndex].visualCue || "🧠"} <small>VISUAL MEMORY CUE</small></span>
           <span className="mia-flashcard-side">{flashcardFlipped?"REMEMBER THIS":"THINK ABOUT IT"}</span>
           <strong>{flashcardFlipped?flashcards[flashcardIndex].back:flashcards[flashcardIndex].front}</strong>
           <small>{flashcardFlipped?"Answer · Tap to see question":"Question · Tap to reveal"}</small>
