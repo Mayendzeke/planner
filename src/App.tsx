@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
-  Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
+  LifeBuoy, Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
   Trash2, TrendingUp, Upload, X, Flame
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
@@ -21,13 +21,13 @@ import StudentFeedback from "./components/StudentFeedback";
 import MiaChat from "./components/MiaChat";
 import { supabase } from "./lib/supabase";
 
-type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Study & Exams" | "MIΛ Studio" | "My Library" | "Academic Calendar" | "Progress" | "Settings";
+type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Study & Exams" | "MIΛ Studio" | "My Library" | "Academic Calendar" | "Progress" | "Help & feedback" | "Settings";
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
 const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
 const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Today's Session", icon: Sparkles }, { name: "Subjects", icon: BookOpen },
-  { name: "Planner", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "MIΛ Studio", icon: Sparkles }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }
+  { name: "Planner", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "MIΛ Studio", icon: Sparkles }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Help & feedback", icon: LifeBuoy }
 ];
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
