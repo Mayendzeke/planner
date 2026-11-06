@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, Sparkles, Image as ImageIcon, LoaderCircle, CalendarDays, CheckCircle2, BookOpen } from "lucide-react";
+import { Paperclip, Send, X, Plus, Image as ImageIcon, LoaderCircle, CalendarDays, CheckCircle2, BookOpen } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
