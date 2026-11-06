@@ -70,7 +70,6 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
-  const [saved, setSaved] = useState(false);
 
   async function refreshAssignedSessions(preserveSelection = true) {
     if (!supabase) {
@@ -114,15 +113,21 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   }
 
   useEffect(() => {
+    if (!supabase) {
+      setConnection("Cloud classroom unavailable");
+      setSessionLoading(false);
+      return;
+    }
+    const client = supabase;
     let alive = true;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let channel: ReturnType<typeof client.channel> | null = null;
     let interval = 0;
     const start = async () => {
       await refreshAssignedSessions(false);
-      if (!alive || !supabase) return;
-      const { data: auth } = await supabase.auth.getUser();
+      if (!alive) return;
+      const { data: auth } = await client.auth.getUser();
       if (!auth.user || !alive) return;
-      channel = supabase.channel("studyspace-learner-classroom-" + auth.user.id)
+      channel = client.channel("studyspace-learner-classroom-" + auth.user.id)
         .on("postgres_changes", { event: "*", schema: "public", table: "class_session_members", filter: "learner_id=eq." + auth.user.id }, () => {
           if (alive) void refreshAssignedSessions(true);
         })
@@ -150,7 +155,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
       alive = false;
       window.clearInterval(interval);
       window.removeEventListener("focus", onVisible);
-      if (channel && supabase) void supabase.removeChannel(channel);
+      if (channel) void client.removeChannel(channel);
     };
   }, []);
 
@@ -357,7 +362,6 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     { name: "Class chat", icon: MessageCircle, hint: "Ask your teacher" },
     { name: "Homework", icon: ClipboardList, hint: "Assigned follow-up work" },
   ];
-  const activeTab = tabs.find(item => item.name === tab);
   const displayName = subjects.length ? "Student" : "Learner";
 
   return (
