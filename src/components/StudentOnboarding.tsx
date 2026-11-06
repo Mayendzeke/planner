@@ -113,8 +113,9 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
 
       {step === 1 && <div className="onboarding-fields">
         <label className="field-label">Education level<select value={profile.level} onChange={e => update("level", e.target.value)}>{levels.map(item => <option key={item}>{item}</option>)}</select></label>
+        {(profile.level === "University" || profile.level === "College") && <label className="field-label">Course / programme<input value={profile.course} onChange={e => update("course", e.target.value)} placeholder="Enter your course or programme" maxLength={160}/></label>}
         <div className="onboarding-two-col">
-          <label className="field-label">Grade / year<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder="e.g. Form 3, Grade 10, Year 2" maxLength={60}/></label>
+          <label className="field-label">{(profile.level === "University" || profile.level === "College") ? "Year of study" : "Grade / year"}<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder={(profile.level === "University" || profile.level === "College") ? "e.g. Year 1, Year 2, Final year" : "e.g. Form 3, Grade 10"} maxLength={60}/></label>
           <label className="field-label">Academic year<input value={profile.academicYear} onChange={e => update("academicYear", e.target.value)} placeholder="2026" maxLength={20}/></label>
         </div>
         <label className="field-label">Curriculum<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum</option>{curricula.map(item => <option key={item}>{item}</option>)}</select></label>
