@@ -862,3 +862,12 @@ html{overflow-anchor:none}
 .student-feedback-notice.error{background:color-mix(in srgb,var(--danger) 12%,var(--panel-strong));color:var(--danger)}
 .student-feedback-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:3px}
 @media(max-width:600px){.student-feedback-launcher{right:12px;bottom:12px;padding:11px 13px}.student-feedback-dialog{padding:17px;border-radius:16px}.student-feedback-header h2{font-size:18px}.student-feedback-upload{align-items:flex-start;flex-direction:column}.student-feedback-actions>*{flex:1}}
+
+
+.student-feedback-whatsapp{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid color-mix(in srgb,#25a56a 45%,var(--border));border-radius:11px;background:color-mix(in srgb,#25a56a 8%,var(--panel-strong));color:var(--text);text-decoration:none}
+.student-feedback-whatsapp>svg{flex:0 0 auto;color:#25a56a}
+.student-feedback-whatsapp>span:nth-child(2){display:grid;gap:3px;flex:1}
+.student-feedback-whatsapp strong{font-size:10px}
+.student-feedback-whatsapp small{font-size:9px;color:var(--muted)}
+.student-feedback-whatsapp-arrow{color:var(--muted);font-size:14px}
+.student-feedback-whatsapp:hover{border-color:#25a56a;background:color-mix(in srgb,#25a56a 13%,var(--panel-strong))}
