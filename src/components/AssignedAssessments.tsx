@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, LoaderCircle, Send, ShieldCheck, Trophy } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { studentStorageKey } from "../lib/studentStorage";
 
 type Question = {
   id: string;
@@ -28,6 +29,7 @@ export default function AssignedAssessments() {
   const [busy,setBusy] = useState(false);
   const [submission,setSubmission] = useState<Submission|null>(null);
   const [attemptsByAssignment,setAttemptsByAssignment] = useState<Record<string,StoredAttempt>>({});
+  const [draftSaveError,setDraftSaveError] = useState(false);
 
   const refresh = useCallback(async () => {
     if(!supabase){setError("Studyspace cloud access is not configured.");setLoading(false);return;}
@@ -82,18 +84,49 @@ export default function AssignedAssessments() {
   const active=assignments.find(item=>item.id===activeId);
   const setAnswer=(id:string,value:unknown)=>setAnswers(current=>({...current,[id]:value}));
   const begin=(item:Assignment)=>{
-    setActiveId(item.id);setAnswers({});setSubmission(null);
+    const availableAt = new Date(item.available_at).getTime();
+    if (Number.isFinite(availableAt) && availableAt > Date.now()) return;
+    if (item.due_at && new Date(item.due_at).getTime() < Date.now()) return;
+    let restored:Record<string,unknown>={};
+    try {
+      const parsed=JSON.parse(localStorage.getItem(studentStorageKey("studyspace-assessment-draft:"+item.id))||"{}");
+      if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed)) restored=parsed as Record<string,unknown>;
+    } catch { restored={}; }
+    setActiveId(item.id);setAnswers(restored);setSubmission(null);setDraftSaveError(false);
   };
   const back=()=>{
-    setActiveId("");setAnswers({});setSubmission(null);
+    setActiveId("");setAnswers({});setSubmission(null);setDraftSaveError(false);
   };
+
+  useEffect(()=>{
+    if(!activeId||submission)return;
+    try{
+      localStorage.setItem(studentStorageKey("studyspace-assessment-draft:"+activeId),JSON.stringify(answers));
+      setDraftSaveError(false);
+    }catch{
+      setDraftSaveError(true);
+    }
+  },[activeId,answers,submission]);
+
+  const isAnswered=(question:Question)=>{
+    const value=answers[question.id];
+    if(question.question_type==="matching"){
+      const record=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};
+      return (question.content?.pairs||[]).length>0&&(question.content?.pairs||[]).every(pair=>String(record[pair.left]||"").trim().length>0);
+    }
+    return String(value??"").trim().length>0;
+  };
+  const answeredCount=active?active.questions.filter(isAnswered).length:0;
   const submit=async()=>{
     if(!active||!supabase||busy||submission)return;
+    const unanswered=active.questions.length-active.questions.filter(isAnswered).length;
+    if(unanswered>0&&!window.confirm("You have "+unanswered+" unanswered question(s). Submit the assessment anyway? You will not be able to change your answers after submission."))return;
     setBusy(true);setError("");
     try{
       const {data,error:invokeError}=await supabase.functions.invoke("submit-exercise-attempt",{body:{assignmentId:active.id,answers}});
       if(invokeError) throw invokeError;
       if(!data?.success) throw new Error(data?.error||"Your answers could not be submitted.");
+      try { localStorage.removeItem(studentStorageKey("studyspace-assessment-draft:"+active.id)); } catch { /* The submitted result is already saved securely. */ }
       setSubmission({score:Number(data.score||0),totalPoints:Number(data.totalPoints||0),percentage:Number(data.percentage||0),manualReview:Number(data.manualReview||0),results:data.results||{}});
       setAttemptsByAssignment(current=>({...current,[active.id]:{
         score:Number(data.score||0),total_points:Number(data.totalPoints||0),
@@ -114,11 +147,14 @@ export default function AssignedAssessments() {
         <div className="assigned-assessment-detail-heading"><button type="button" className="subtle-button" onClick={back}><ChevronLeft size={15}/> Back to assignments</button><span className="assigned-assessment-subject">{active.set.subject_name}</span></div>
         <h3>{active.set.title}</h3>
         <p>{active.set.instructions}</p>
-        <div className="assigned-assessment-meta"><span><Clock3 size={14}/>{active.set.duration_minutes} minutes</span><span>{active.questions.length} questions</span>{active.due_at&&<span>Due {new Date(active.due_at).toLocaleDateString()}</span>}</div>
+        <div className="assigned-assessment-meta"><span><Clock3 size={14}/>{active.set.duration_minutes} suggested minutes</span><span>{active.questions.length} questions</span><span>{answeredCount} of {active.questions.length} answered</span>{active.due_at&&<span>Due {new Date(active.due_at).toLocaleDateString()}</span>}</div>
+        <div className="assigned-answer-progress"><span style={{width:(active.questions.length?answeredCount/active.questions.length*100:0)+"%"}}/></div>
+        <div className="assigned-question-navigation" aria-label="Question navigation">{active.questions.map((question,index)=><button type="button" key={question.id} className={isAnswered(question)?"answered":""} onClick={()=>document.getElementById("assigned-q-"+question.id)?.scrollIntoView({behavior:"smooth",block:"start"})} aria-label={"Go to question "+(index+1)}>{index+1}</button>)}</div>
+        {draftSaveError&&<p className="assigned-draft-warning" role="status">Your answers are not being saved to this device. Keep this page open until you submit.</p>}
         {active.questions.map((question,index)=>{
           const value=answers[question.id];
           const result=submission?.results?.[question.id];
-          return <article className="assigned-question" key={question.id}>
+          return <article className="assigned-question" id={"assigned-q-"+question.id} key={question.id}>
             <div className="assigned-question-top"><strong>Question {index+1}</strong><span>{question.points} marks</span></div>
             {question.content?.topic&&<small className="assigned-question-topic">{question.content.topic}</small>}
             <p>{question.prompt}</p>
@@ -142,8 +178,8 @@ export default function AssignedAssessments() {
       </div>:
       assignments.length?<div className="assigned-assessment-list">{assignments.map(item=><article className="assigned-assessment-card" key={item.id}>
         <div className="assigned-assessment-icon"><BookOpen size={19}/></div>
-        <div className="assigned-assessment-copy"><strong>{item.set.title}</strong><span>{item.set.subject_name} · {item.questions.length} questions · {item.set.duration_minutes} min</span><small>{item.due_at?"Due "+new Date(item.due_at).toLocaleDateString():"No due date"}</small>{attemptsByAssignment[item.id]&&<small>Last submitted: {Number(attemptsByAssignment[item.id].score)} / {Number(attemptsByAssignment[item.id].total_points)} · {attemptsByAssignment[item.id].marked_at?"Teacher marked":"Awaiting teacher marking"}</small>}{attemptsByAssignment[item.id]?.teacher_feedback&&<small>Teacher feedback: {attemptsByAssignment[item.id].teacher_feedback}</small>}</div>
-        {item.due_at&&new Date(item.due_at).getTime()<Date.now()?<button type="button" className="secondary-button" disabled>Deadline passed</button>:<button type="button" className="primary-button" onClick={()=>begin(item)}>Open <ChevronRight size={15}/></button>}
+        <div className="assigned-assessment-copy"><strong>{item.set.title}</strong><span>{item.set.subject_name} · {item.questions.length} questions · {item.set.duration_minutes} min</span><small>{new Date(item.available_at).getTime()>Date.now()?"Available "+new Date(item.available_at).toLocaleString():item.due_at?"Due "+new Date(item.due_at).toLocaleDateString():"No due date"}</small>{attemptsByAssignment[item.id]&&<small>Last submitted: {Number(attemptsByAssignment[item.id].score)} / {Number(attemptsByAssignment[item.id].total_points)} · {attemptsByAssignment[item.id].marked_at?"Teacher marked":"Awaiting teacher marking"}</small>}{attemptsByAssignment[item.id]?.teacher_feedback&&<small>Teacher feedback: {attemptsByAssignment[item.id].teacher_feedback}</small>}</div>
+        {item.available_at&&new Date(item.available_at).getTime()>Date.now()?<button type="button" className="secondary-button" disabled>Not available yet</button>:item.due_at&&new Date(item.due_at).getTime()<Date.now()?<button type="button" className="secondary-button" disabled>Deadline passed</button>:<button type="button" className="primary-button" onClick={()=>begin(item)}>{attemptsByAssignment[item.id]?"New attempt":"Start"} <ChevronRight size={15}/></button>}
       </article>)}</div>:
       <div className="assigned-assessment-empty"><ShieldCheck size={27}/><strong>No assigned assessments</strong><span>When your teacher publishes a test or assignment to your account, it will appear here.</span></div>}
   </section>;
