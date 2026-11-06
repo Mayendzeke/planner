@@ -140,7 +140,7 @@ export default function App() {
         // Always refresh from the cloud when online. A local cache must not
         // silently overwrite profile changes made on another signed-in device.
         const [profileResult, goalResult, subjectsResult] = await Promise.all([
-          supabase.from("profiles").select("full_name,preferred_name,country,institution,education_level,grade,curriculum,academic_year").eq("id", cloudUserId).single(),
+          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,grade,curriculum,academic_year").eq("id", cloudUserId).single(),
           supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
           supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
         ]);
@@ -164,6 +164,7 @@ export default function App() {
           preferredName,
           country: String(cloud.country || ""),
           institution: String(cloud.institution || ""),
+          course: String(cloud.course || ""),
           level: String(cloud.education_level || "Secondary school"),
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
@@ -336,7 +337,8 @@ export default function App() {
             p_education_level: nextProfile.level,
             p_grade: nextProfile.grade,
             p_curriculum: nextProfile.curriculum,
-            p_academic_year: nextProfile.academicYear
+            p_academic_year: nextProfile.academicYear,
+            p_course: nextProfile.course || ""
           });
           if (profileError) throw new Error("Your cloud profile could not be saved: " + profileError.message);
           if (nextProfile.subjects.length) {
@@ -430,7 +432,7 @@ export default function App() {
       const academicPeriods = raw.version >= 2 ? raw.academicPeriods : [];
       const events = raw.version >= 3 ? raw.events : [];
       const validGoal = raw.version < 5 || (Number.isInteger(raw.goal) && raw.goal >= 1 && raw.goal <= 168);
-      const validProfile = raw.profile === undefined || (raw.profile && typeof raw.profile.fullName === "string" && typeof raw.profile.preferredName === "string" && typeof raw.profile.country === "string" && typeof raw.profile.institution === "string" && typeof raw.profile.level === "string" && typeof raw.profile.grade === "string" && typeof raw.profile.curriculum === "string" && typeof raw.profile.academicYear === "string" && typeof raw.profile.termCount === "string" && typeof raw.profile.goals === "string" && typeof raw.profile.targetMark === "string" && typeof raw.profile.weeklyHours === "string" && Array.isArray(raw.profile.preferredDays) && raw.profile.preferredDays.every((day: unknown) => typeof day === "string") && Array.isArray(raw.profile.subjects) && raw.profile.subjects.every((subject: unknown) => typeof subject === "string"));
+      const validProfile = raw.profile === undefined || (raw.profile && typeof raw.profile.fullName === "string" && typeof raw.profile.preferredName === "string" && typeof raw.profile.country === "string" && typeof raw.profile.institution === "string" && (raw.profile.course === undefined || typeof raw.profile.course === "string") && typeof raw.profile.level === "string" && typeof raw.profile.grade === "string" && typeof raw.profile.curriculum === "string" && typeof raw.profile.academicYear === "string" && typeof raw.profile.termCount === "string" && typeof raw.profile.goals === "string" && typeof raw.profile.targetMark === "string" && typeof raw.profile.weeklyHours === "string" && Array.isArray(raw.profile.preferredDays) && raw.profile.preferredDays.every((day: unknown) => typeof day === "string") && Array.isArray(raw.profile.subjects) && raw.profile.subjects.every((subject: unknown) => typeof subject === "string"));
       const validEvents = events.every((event: any) => Number.isSafeInteger(event?.id) && typeof event?.title === "string" && event.title.trim().length > 0 && typeof event?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(event.date) && typeof event?.time === "string" && ["Test","School event","Personal","Other"].includes(event?.kind) && typeof event?.notes === "string" && typeof event?.createdAt === "string" && !Number.isNaN(Date.parse(event.createdAt)));
       const validAcademicPeriods = academicPeriods.every((p: any) => Number.isSafeInteger(p?.id) && typeof p?.title === "string" && p.title.trim().length > 0 && ["Term","Holiday","Examination","Other"].includes(p?.kind) && typeof p?.startDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.startDate) && typeof p?.endDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.endDate) && p.endDate >= p.startDate && typeof p?.notes === "string" && typeof p?.createdAt === "string" && !Number.isNaN(Date.parse(p.createdAt)));
       const subjectIds = new Set(raw.subjects.map((s: any) => s.id));
@@ -483,7 +485,7 @@ export default function App() {
         rollbackStorage();
         throw reason;
       }
-      if (raw.profile && restoreProfileKey) setProfile(raw.profile as StudentProfile);
+      if (raw.profile && restoreProfileKey) setProfile({ ...(raw.profile as StudentProfile), course: String(raw.profile.course || "") });
       setGoal(raw.version >= 5 ? raw.goal : 8);
       setImportMessage("Backup restored successfully."); await refresh(); setSyncRequested(value => value + 1);
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
