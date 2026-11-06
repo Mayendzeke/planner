@@ -1085,3 +1085,5 @@ html{overflow-anchor:none}
 
 /* Interactive matching question layout. */
 .weekly-test-matching{display:grid;gap:10px;margin:16px 0}.weekly-test-matching label{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr);align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--border);border-radius:11px;background:var(--panel)}.weekly-test-matching label span{font-size:12px;font-weight:700;color:var(--text)}.weekly-test-matching select{width:100%;min-width:0;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--panel-strong);color:var(--text);font:inherit;font-size:11px}@media(max-width:560px){.weekly-test-matching label{grid-template-columns:1fr;gap:7px}}
+
+.weekly-timetable-grid thead th small{display:block;margin-top:3px;font-size:8px;font-weight:600;letter-spacing:.04em;color:var(--muted)}
