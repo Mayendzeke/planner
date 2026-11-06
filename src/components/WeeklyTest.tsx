@@ -271,7 +271,7 @@ function questionsFor(subject: string): Exercise[] {
   return bank ? modes.flatMap(item => bank[item.name]) : [];
 }
 function matchesTopic(question: Exercise, topic: Topic): boolean {
-  const text = [question.prompt, question.answer, question.clue ?? "", question.scramble ?? ""].join(" ").toLocaleLowerCase();
+  const text = [question.prompt, question.answer, question.clue ?? "", question.scramble ?? "", ...(question.pairs ?? []).flatMap(pair => [pair.left, pair.right])].join(" ").toLocaleLowerCase();
   return topic.keywords.some(keyword => text.includes(keyword));
 }
 
@@ -342,7 +342,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const subject = activeSubject?.name ?? "";
   const topics = topicFor(subject);
   const fullPool = useMemo(() => questionsFor(subject), [subject]);
-  const revisionDeck = useMemo(() => fullPool.map((item, index) => ({ id: String(index), front: item.prompt, back: item.answer, mode: modes.find(mode => bankFor(subject)?.[mode.name].includes(item))?.name ?? "Key idea" })), [fullPool, subject]);
+  const revisionDeck = useMemo(() => fullPool.map((item, index) => ({ id: String(index), front: item.prompt, back: item.pairs ? item.pairs.map(pair => pair.left + " → " + pair.right).join(" · ") : item.answer, mode: modes.find(mode => bankFor(subject)?.[mode.name].includes(item))?.name ?? "Key idea" })), [fullPool, subject]);
   const activeFlashcard = revisionDeck[flashcardIndex];
   const topicPool = useMemo(() => fullPool.filter(question => matchesTopic(question, topics.find(item => item.name === topicName) ?? {name:"",keywords:[]})), [fullPool, topics, topicName]);
   const weeklyPool = useMemo(() => modes.flatMap(item => (bankFor(subject)?.[item.name] ?? []).slice(0, 3)), [subject, fullPool]);
