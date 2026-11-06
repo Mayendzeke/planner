@@ -18,11 +18,12 @@ export default defineConfig({
         orientation: "portrait",
         start_url: "/planner/",
         scope: "/planner/",
-        icons: []
+        icons: [{ src: "/planner/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }]
       },
       workbox: {
         navigateFallback: "/planner/index.html",
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"]
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2,mjs,wasm,webmanifest}"],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }
     })
   ],
