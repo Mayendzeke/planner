@@ -76,6 +76,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://tibcoottzstnqkfpwabk.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_STUDYSPACE_MEET_DOMAIN: ${{ vars.STUDYSPACE_MEET_DOMAIN }}
         run: npm run build
       - name: Configure Pages
         uses: actions/configure-pages@v5
