@@ -72,7 +72,7 @@ export default function AcademicCalendar() {
   return <section className="academic-calendar-stack">
     <section className="glass-panel academic-calendar-intro">
       <div className="academic-calendar-icon"><CalendarRange size={21}/></div>
-      <div><h2>Academic year at a glance</h2><p>Record your school terms, holidays and examination periods. Dates are stored locally on this device.</p></div>
+      <div><h2>Academic year at a glance</h2><p>Record your school terms, holidays and examination periods. Dates are saved on this device and synchronised to your Studyspace account when online.</p></div>
       <button className="primary-button" onClick={() => { setError(""); setOpen(value => !value); }}><Plus size={16}/>{open ? "Close form" : "Add period"}</button>
     </section>
 
