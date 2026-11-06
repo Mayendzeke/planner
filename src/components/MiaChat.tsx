@@ -88,6 +88,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [usageChecked, setUsageChecked] = useState(false);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
@@ -103,6 +104,13 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
       if (!userId) return;
+      try {
+        const { data: usage, error: usageError } = await supabase.functions.invoke("mia-assistant", { body: { action: "usage_status" } });
+        if (alive) {
+          setUsageChecked(true);
+          if (!usageError && typeof usage?.remainingDailyRequests === "number") setRemaining(usage.remainingDailyRequests);
+        }
+      } catch { if (alive) setUsageChecked(true); }
       const { data: conv } = await supabase.from("mia_conversations").select("id")
         .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (!alive || !conv?.id) return;
@@ -213,7 +221,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <div className="mia-brand-mark">Λ</div>
       <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMINI</span></div>
       <div className="mia-header-actions">
-        <span className="mia-remaining">{remaining === null ? "20 requests / 24h" : remaining + " left · 24h"}</span>
+        <span className="mia-remaining">{remaining === null ? (usageChecked ? "Limit unavailable" : "Checking daily limit…") : remaining + " left · 24h"}</span>
         <button className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
         {onClose && <button className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
@@ -263,7 +271,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <button type="button" onClick={()=>setText("Create a set of useful flashcards for a topic I am revising. Ask me for the subject and topic.")}>Flashcards</button>
     </div>}
     {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
-    <div className="mia-usage-note">{remaining === null ? "Daily allowance: 20 requests" : remaining + " requests remaining"} · rolling 24-hour limit</div>
+    <div className="mia-usage-note">{remaining === null ? (usageChecked ? "Daily usage limit unavailable" : "Checking your daily allowance…") : remaining + " requests remaining"} · rolling 24-hour limit</div>
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); void sendMessage();}}>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,.txt,.md,.csv,.pdf" hidden onChange={event=>{const file=event.target.files?.[0];if(file){const allowed=file.type.startsWith("image/")&&["image/jpeg","image/png","image/webp"].includes(file.type)||["application/pdf","text/plain","text/markdown","text/csv"].includes(file.type)||/\\.(pdf|txt|md|csv)$/i.test(file.name);if(!allowed){setError("Attach an image, PDF, TXT, Markdown or CSV file.");}else if(file.size>4*1024*1024){setError("Choose a file smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
       <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach an image, PDF or text file" aria-label="Attach a file"><Paperclip size={19}/></button>
