@@ -33,7 +33,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
-  const [showTools, setShowTools] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
