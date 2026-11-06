@@ -90,7 +90,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     try {
       const image = await imagePayload(attachment);
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "parse_timetable", image, conversationId },
+        body: { action: "parse_timetable", image, conversationId, message: text.trim() },
       });
       if (invokeError) throw invokeError;
       if (!data?.success) throw new Error(data?.error || "The timetable could not be read.");
@@ -99,6 +99,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       setDraft(Array.isArray(data.timetableDraft) ? data.timetableDraft : []);
       setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
       setAttachment(null);
+      setText("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "MIΛ could not read this timetable.");
     } finally { setBusy(false); }
@@ -155,7 +156,12 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       {busy && <div className="mia-message-row is-assistant"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> MIΛ is thinking…</div></div>}
       {draft.length > 0 && <section className="mia-timetable-review">
         <div className="mia-review-heading"><CalendarDays size={17}/><div><strong>Review extracted timetable</strong><span>{draft.length} entries detected · Nothing saved yet</span></div></div>
-        <div className="mia-table-scroll"><table><thead><tr><th>Day</th><th>Subject / activity</th><th>Time</th></tr></thead><tbody>{draft.map((entry,i)=><tr key={i}><td>{days[entry.day_of_week]}</td><td>{entry.subject_name || entry.title}</td><td>{entry.starts_at}–{entry.ends_at}</td></tr>)}</tbody></table></div>
+        <div className="mia-table-scroll"><table><thead><tr><th>Day</th><th>Subject / activity</th><th>Time</th></tr></thead><tbody>{draft.map((entry,i)=><tr key={i}>
+          <td><select aria-label="Edit timetable day" value={entry.day_of_week} onChange={e=>setDraft(current=>current.map((row,index)=>index===i?{...row,day_of_week:Number(e.target.value)}:row))}>{days.map((day,index)=><option key={day} value={index}>{day}</option>)}</select></td>
+          <td><input aria-label="Edit timetable subject" value={entry.subject_name || entry.title} onChange={e=>setDraft(current=>current.map((row,index)=>index===i?{...row,subject_name:e.target.value,title:e.target.value}:row))}/></td>
+          <td><div className="mia-time-edit"><input aria-label="Start time" type="time" value={entry.starts_at} onChange={e=>setDraft(current=>current.map((row,index)=>index===i?{...row,starts_at:e.target.value}:row))}/><input aria-label="End time" type="time" value={entry.ends_at} onChange={e=>setDraft(current=>current.map((row,index)=>index===i?{...row,ends_at:e.target.value}:row))}/></div></td>
+          <td><button type="button" className="mia-remove-entry" onClick={()=>setDraft(current=>current.filter((_,index)=>index!==i))} aria-label="Remove timetable entry">×</button></td>
+        </tr>)}</tbody></table></div>
         <p>Before saving, tell MIΛ which timetable this is. School lessons and your own study sessions will be stored separately.</p>
         <div className="mia-kind-options"><button className={timetableKind === "school" ? "selected" : ""} onClick={()=>setTimetableKind("school")}><BookOpen size={15}/> School timetable</button><button className={timetableKind === "personal" ? "selected" : ""} onClick={()=>setTimetableKind("personal")}><CalendarDays size={15}/> Personal study timetable</button></div>
         <button className="mia-confirm-button" disabled={!timetableKind || busy} onClick={()=>void saveTimetable()}><CheckCircle2 size={16}/> Confirm and save timetable</button>
@@ -165,11 +171,11 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     </div>
     {attachment && <div className="mia-attachment-preview"><ImageIcon size={15}/><span>{attachment.name}</span><button onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); if (attachment) void reviewTimetable(); else void sendMessage();}}>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={event=>{const file=event.target.files?.[0];if(file){if(file.size>4*1024*1024){setError("Choose an image smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={event=>{const file=event.target.files?.[0];if(file){if(file.size>4*1024*1024){setError("Choose an image smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
       <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach a timetable or study image" aria-label="Attach an image"><Paperclip size={19}/></button>
       <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(attachment)void reviewTimetable();else void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
       <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Review timetable image" : "Send message"} aria-label={attachment ? "Review timetable image" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
-    <div className="mia-footnote">Study-focused · Short answers · Your learning context stays private to your account</div>
+    <div className="mia-footnote">Study-focused · Short answers · Gemini processes prompts; avoid sharing personal details</div>
   </section>;
 }
