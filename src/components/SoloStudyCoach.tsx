@@ -203,7 +203,7 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
       </div>
     </div>}
     {draftPersistError && <p className="session-inline-error" role="alert">This browser could not save your in-progress study session. Keep this page open until you finish.</p>}
-    {notice && <p className="inline-message" role="status">{notice}</p>
+    {notice && <p className="inline-message" role="status">{notice}</p>}
     <div className="solo-study-principle"><BookOpen size={16}/><span>{hasStarted ? "Your in-progress topic and focus time are saved on this device. You can switch to another Studyspace tab and resume this session later. " : ""}Study tip: understanding comes from explaining, recalling and practising—not just rereading. Use your teacher's notes or your own saved resources as your source.</span></div>
   </div>;
 }
