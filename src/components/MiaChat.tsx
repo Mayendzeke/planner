@@ -169,6 +169,13 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
     </div>
+    {messages.length === 1 && draft.length === 0 && <div className="mia-quick-actions" aria-label="MIΛ study tools">
+      <button type="button" onClick={()=>setText("Help me understand a difficult topic in one of my subjects. Ask me which topic if needed.")}>Explain a topic</button>
+      <button type="button" onClick={()=>setText("Quiz me on one of my current subjects. Start with five questions and adapt to my answers.")}>Quiz me</button>
+      <button type="button" onClick={()=>setText("Turn my lesson notes into concise revision notes with key definitions and examples. I will attach or paste the lesson.")}>Summarise notes</button>
+      <button type="button" onClick={()=>setText("Help me create a realistic revision plan using my subjects, goals and available study time.")}>Plan revision</button>
+      <button type="button" onClick={()=>setText("Create a set of useful flashcards for a topic I am revising. Ask me for the subject and topic.")}>Flashcards</button>
+    </div>}
     {attachment && <div className="mia-attachment-preview"><ImageIcon size={15}/><span>{attachment.name}</span><button onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); if (attachment) void reviewTimetable(); else void sendMessage();}}>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={event=>{const file=event.target.files?.[0];if(file){if(file.size>4*1024*1024){setError("Choose an image smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
