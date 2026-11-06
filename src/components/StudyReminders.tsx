@@ -34,6 +34,20 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
   }, []);
 
   useEffect(() => {
+    const refreshPermission = () => {
+      setPermission(typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported");
+    };
+    window.addEventListener("focus", refreshPermission);
+    document.addEventListener("visibilitychange", refreshPermission);
+    return () => {
+      window.removeEventListener("focus", refreshPermission);
+      document.removeEventListener("visibilitychange", refreshPermission);
+    };
+  }, []);
+
+  const remindersActive = settings.enabled && permission === "granted";
+
+  useEffect(() => {
     if (!settings.enabled || permission !== "granted") return;
     const check = () => {
       const now = new Date();
@@ -88,14 +102,19 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
 
   function toggleDay(day: string) {
     const days = settings.days.includes(day) ? settings.days.filter(item => item !== day) : [...settings.days, day];
+    if (!days.length) {
+      setMessage("Choose at least one study day, or turn reminders off.");
+      return;
+    }
     update({ ...settings, days });
+    setMessage("");
   }
 
   if (!showSettings) return null;
 
   return <section className="glass-panel settings-card reminder-settings">
     <div className="section-heading"><div><h2>Study reminders</h2><p>Choose when Studyspace should nudge you to begin a study session.</p></div><BellRing size={20}/></div>
-    <div className="setting-row"><div><strong>Daily reminder</strong><span>{settings.enabled ? "Your selected study days are active." : "Turn on a browser notification for your planned study time."}</span></div><button className={settings.enabled ? "secondary-button reminder-enabled" : "primary-button"} onClick={() => settings.enabled ? update({ ...settings, enabled: false }) : void enableReminders()}>{settings.enabled ? <><Bell size={15}/> Turn off</> : <><BellRing size={15}/> Enable reminders</>}</button></div>
+    <div className="setting-row"><div><strong>Daily reminder</strong><span>{remindersActive ? "Your selected study days are active on this device." : permission === "denied" ? "Notifications are blocked by this browser. Allow them for Studyspace to use reminders." : "Turn on a browser notification for your planned study time."}</span></div><button className={remindersActive ? "secondary-button reminder-enabled" : "primary-button"} onClick={() => remindersActive ? update({ ...settings, enabled: false }) : void enableReminders()}>{remindersActive ? <><Bell size={15}/> Turn off</> : <><BellRing size={15}/> Enable reminders</>}</button></div>
     <div className="setting-row"><div><strong>Reminder time</strong><span>Uses your device's local time.</span></div><label className="goal-input"><Clock3 size={15}/><input type="time" value={settings.time} onChange={e => update({ ...settings, time: e.target.value })}/></label></div>
     <div className="reminder-days"><strong>Study days</strong><div>{DAYS.map(day => <button type="button" key={day} className={settings.days.includes(day) ? "day-chip day-chip-selected" : "day-chip"} aria-pressed={settings.days.includes(day)} onClick={() => toggleDay(day)}>{day.slice(0, 3)}</button>)}</div></div>
     {message && <p className="inline-message" role="status">{message}</p>}
