@@ -977,3 +977,25 @@ html{overflow-anchor:none}
 .timetable-add-day{display:flex;align-items:center;gap:5px;margin-top:7px;border:0;background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
 .timetable-footnote{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
 @media(max-width:760px){.timetable-week-grid{grid-template-columns:1fr}.timetable-workspace{padding:14px}.timetable-editor-grid{grid-template-columns:1fr}.timetable-wide-field{grid-column:auto}}
+
+/* Weekly school timetable: time axis at left, weekdays across the top. */
+.timetable-grid-wrap{display:grid;gap:10px;min-width:0}
+.timetable-grid-empty{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-size:11px}
+.timetable-grid-scroll{width:100%;overflow:auto;border:1px solid var(--border);border-radius:13px}
+.weekly-timetable-grid{width:100%;min-width:760px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px}
+.weekly-timetable-grid th,.weekly-timetable-grid td{padding:8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);vertical-align:top}
+.weekly-timetable-grid thead th{position:sticky;top:0;z-index:2;background:var(--panel-strong);text-align:center;font-size:10px;font-weight:750}
+.weekly-timetable-grid th.timetable-time-heading{left:0;z-index:3;width:76px}
+.weekly-timetable-grid th.timetable-time-cell{position:sticky;left:0;z-index:1;width:76px;background:var(--panel-strong);text-align:center;color:var(--text)}
+.timetable-time-cell strong,.timetable-time-cell small{display:block}.timetable-time-cell small{margin-top:3px;color:var(--muted);font-size:9px;font-weight:500}
+.weekly-timetable-grid td{height:76px;background:var(--panel)}
+.weekly-timetable-grid td.has-lessons{background:color-mix(in srgb,var(--blue) 5%,var(--panel))}
+.weekly-timetable-lesson{display:grid;gap:4px;margin:2px 0;padding:7px;border:1px solid color-mix(in srgb,var(--blue) 35%,var(--border));border-left:3px solid var(--blue);border-radius:8px;background:color-mix(in srgb,var(--blue) 10%,var(--panel-strong));overflow-wrap:anywhere}
+.weekly-timetable-lesson strong{font-size:10px}.weekly-timetable-lesson span,.weekly-timetable-lesson small{font-size:9px;color:var(--muted)}
+.weekly-timetable-lesson>div{display:flex;justify-content:flex-end;gap:4px}.weekly-timetable-lesson button{display:grid;place-items:center;width:23px;height:23px;border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.weekly-timetable-lesson.is-break{border-left-color:#65c6a5;background:color-mix(in srgb,#65c6a5 12%,var(--panel-strong))}
+.weekly-timetable-lesson.is-lunch{border-left-color:#e7ad61;background:color-mix(in srgb,#e7ad61 14%,var(--panel-strong))}
+.timetable-cell-add{width:100%;height:52px;border:1px dashed transparent;border-radius:7px;background:transparent;color:var(--muted);font-size:18px;cursor:pointer}
+.timetable-cell-add:hover{border-color:var(--border);background:var(--panel-strong)}
+.timetable-add-actions{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:640px){.timetable-workspace{padding:12px}.weekly-timetable-grid{min-width:700px}.timetable-add-actions{width:100%}.timetable-add-actions button{flex:1}}
