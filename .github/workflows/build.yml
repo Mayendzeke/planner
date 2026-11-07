@@ -53,7 +53,7 @@ jobs:
           if (!app.includes('trialStart <= now && trialExpiry > now')) {
             throw new Error('Student access must require a started and unexpired trial.')
           }
-          if (!access.includes('termsVersion: TERMS_VERSION') || !terms.includes('2026-11-07-v2')) {
+          if (!access.includes('termsVersion: TERMS_VERSION') || !terms.includes('2026-11-07-v3')) {
             throw new Error('Student enrolment and terms notice must use the current terms version.')
           }
           for (const plan of ['Weekly', '2 Weeks', 'Monthly']) {
