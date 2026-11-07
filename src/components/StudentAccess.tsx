@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 
@@ -33,6 +33,8 @@ export default function StudentAccess() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [expiredReason, setExpiredReason] = useState("");
+  const supportNumber = String(import.meta.env.VITE_STUDYSPACE_WHATSAPP || "").replace(/\\D/g, "");
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function StudentAccess() {
   }, []);
 
   async function submit(event: React.FormEvent) {
-    event.preventDefault(); setError(""); setNotice("");
+    event.preventDefault(); setError(""); setNotice(""); setExpiredReason("");
     if (!supabase) { setError("Student access is not connected to the Studyspace server. Please contact your administrator."); return; }
     if (!navigator.onLine || !online) { setError("An internet connection is required to create or access your student account. Reconnect and try again."); return; }
     if (busy) return;
@@ -79,7 +81,19 @@ export default function StudentAccess() {
         // App-level auth state listener opens the workspace after this session is stored.
       }
     } catch (reason) {
-      setError(await describeAccessError(reason));
+      const context = reason && typeof reason === "object" && "context" in reason
+        ? (reason as { context?: unknown }).context : undefined;
+      let handledAsExpiry = false;
+      if (context instanceof Response) {
+        try {
+          const payload = await context.clone().json() as { error?: unknown; subscription_expired?: unknown };
+          if (payload.subscription_expired === true) {
+            setExpiredReason(typeof payload.error === "string" ? payload.error : "Your StudySpace subscription has expired. Contact the administrator to renew access.");
+            handledAsExpiry = true;
+          }
+        } catch { /* Fall back to the standard sign-in error. */ }
+      }
+      if (!handledAsExpiry) setError(await describeAccessError(reason));
     } finally { setBusy(false); }
   }
 
@@ -100,6 +114,20 @@ export default function StudentAccess() {
         <button className="student-access-submit" type="submit" disabled={busy || !supabase || !online}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create student account"}</button>
       </form>
       {notice && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>{notice}</p></div>}
+      {expiredReason && <div className="access-expiry-backdrop" role="presentation">
+        <section className="access-expiry-dialog" role="alertdialog" aria-modal="true" aria-labelledby="access-expiry-title">
+          <button type="button" className="access-expiry-close" onClick={()=>setExpiredReason("")} aria-label="Close message"><X size={18}/></button>
+          <div className="access-expiry-symbol"><LockKeyhole size={23}/></div>
+          <span className="eyebrow">SUBSCRIPTION EXPIRED</span>
+          <h2 id="access-expiry-title">Your StudySpace access is paused</h2>
+          <p>{expiredReason}</p>
+          <p>Your Student ID and saved work are safe. Ask the administrator to renew your plan; you can continue using the same account after renewal.</p>
+          <button type="button" className="student-access-submit" disabled={!supportNumber} onClick={()=>{if(supportNumber) window.location.href="https://wa.me/"+supportNumber+"?text="+encodeURIComponent("Hello, my StudySpace subscription has expired. Please help me renew my access. My Student ID is "+studentId.trim().toUpperCase()+".");}}>
+            <MessageCircle size={17}/> {supportNumber ? "Message StudySpace on WhatsApp" : "WhatsApp support contact is being configured"}
+          </button>
+          <button type="button" className="access-expiry-secondary" onClick={()=>setExpiredReason("")}>Return to sign in</button>
+        </section>
+      </div>}
       {error && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>{error}</p></div>}
       <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID access — no student email required.</strong><br/>Your one-time enrolment PIN is only needed to create your account; it does not expire your account after enrolment. If your session expires, sign in again with the same Student ID and password. If you forget your password, contact your administrator for a secure reset. Your saved work stays linked to your account. Do not share your PIN or password.</p></div>
       {!supabase && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>Student access is not connected to the Studyspace server. Account creation and sign-in are unavailable until the administrator fixes the app configuration.</p></div>}
