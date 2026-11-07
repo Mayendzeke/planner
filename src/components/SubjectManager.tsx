@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BookOpen, Plus, Pencil, Trash2, Search, Target, CalendarDays } from "lucide-react";
 import { plannerDb, type Subject, type AcademicPeriod } from "../data/db";
 import type { StudentProfile } from "./StudentOnboarding";
+import { supabase } from "../lib/supabase";
 
 const palette = ["#7c9cff","#6bd7bd","#c4a4ff","#f2bd70","#f28ca6","#77c8ed"];
 const blank = { name:"", code:"", description:"", category:"Core", targetMark:"75", color:palette[0], periodIds:[] as number[] };
@@ -31,7 +32,21 @@ export default function SubjectManager({ onOpenPlanner, profile }: { onOpenPlann
  async function load(){try{const [s,p]=await Promise.all([plannerDb.subjects.toArray(),plannerDb.academicPeriods.toArray()]);setSubjects(s.sort((a,b)=>a.name.localeCompare(b.name)));setPeriods(p.sort((a,b)=>a.startDate.localeCompare(b.startDate)));setError("");}catch{setError("Could not load subjects from local storage.");}}
  useEffect(()=>{void load();},[]);
  function edit(s?:Subject){setEditing(s?.id??null);setDraft(s?{name:s.name,code:s.code??"",description:s.description??"",category:s.category??"Core",targetMark:String(s.targetMark??75),color:s.color,periodIds:s.periodIds??[]}:blank);setCustomName(s && !catalogFor(profile.level,profile.curriculum).includes(s.name)?s.name:"");setError("");setOpen(true);}
- async function save(e:React.FormEvent<HTMLFormElement>){e.preventDefault();const name=(editing===null && draft.name==="__custom__" ? customName : draft.name).trim(),code=draft.code.trim(),mark=Number(draft.targetMark);if(!name){setError("Enter a subject name.");return;}if(subjects.some(s=>s.id!==editing&&s.name.toLowerCase()===name.toLowerCase())){setError("That subject already exists.");return;}if(code.length>20||draft.description.length>500){setError("The code or description is too long.");return;}if(!Number.isInteger(mark)||mark<0||mark>100){setError("Target mark must be a whole number from 0 to 100.");return;}if(!palette.includes(draft.color)){setError("Choose a valid colour.");return;}if(draft.periodIds.some(id=>!periods.some(p=>p.id===id))){setError("A selected academic period is no longer available. Refresh and try again.");return;}const old=subjects.find(s=>s.id===editing);const record:Subject={id:editing??Math.max(Date.now(),...subjects.map(s=>s.id+1)),name,color:draft.color,createdAt:old?.createdAt??new Date().toISOString(),code:code||undefined,description:draft.description.trim(),category:draft.category,targetMark:mark,periodIds:[...new Set(draft.periodIds)]};setBusy(true);try{await plannerDb.subjects.put(record);setOpen(false);await load();}catch{setError("Could not save this subject. Check available browser storage.");}finally{setBusy(false);}}
+ async function save(e:React.FormEvent<HTMLFormElement>){e.preventDefault();const name=(editing===null && draft.name==="__custom__" ? customName : draft.name).trim(),code=draft.code.trim(),mark=Number(draft.targetMark);if(!name){setError("Enter a subject name.");return;}if(subjects.some(s=>s.id!==editing&&s.name.toLowerCase()===name.toLowerCase())){setError("That subject already exists.");return;}if(code.length>20||draft.description.length>500){setError("The code or description is too long.");return;}if(!Number.isInteger(mark)||mark<0||mark>100){setError("Target mark must be a whole number from 0 to 100.");return;}if(!palette.includes(draft.color)){setError("Choose a valid colour.");return;}if(draft.periodIds.some(id=>!periods.some(p=>p.id===id))){setError("A selected academic period is no longer available. Refresh and try again.");return;}const old=subjects.find(s=>s.id===editing);const record:Subject={id:editing??Math.max(Date.now(),...subjects.map(s=>s.id+1)),name,color:draft.color,createdAt:old?.createdAt??new Date().toISOString(),code:code||undefined,description:draft.description.trim(),category:draft.category,targetMark:mark,periodIds:[...new Set(draft.periodIds)]};setBusy(true);try{
+  await plannerDb.subjects.put(record);
+  if(supabase){
+   const {data:{user}}=await supabase.auth.getUser();
+   if(user){
+    if(old && old.name!==record.name){
+     const {error:removeError}=await supabase.from("student_subjects").delete().eq("learner_id",user.id).eq("name",old.name);
+     if(removeError) throw new Error("Subject saved on this device, but the old cloud subject could not be updated: "+removeError.message);
+    }
+    const {error:syncError}=await supabase.from("student_subjects").upsert({learner_id:user.id,name:record.name,target_mark:record.targetMark},{onConflict:"learner_id,name"});
+    if(syncError) throw new Error("Subject saved on this device, but cloud sync failed: "+syncError.message);
+   }
+  }
+  setOpen(false);await load();
+ }catch(reason){setError(reason instanceof Error?reason.message:"Could not save this subject. Check available browser storage.");}finally{setBusy(false);}}
  async function remove(s:Subject){if(!window.confirm("Delete “"+s.name+"”? Existing tasks and study sessions will be retained but unlinked."))return;try{await plannerDb.transaction("rw",plannerDb.subjects,plannerDb.tasks,plannerDb.sessions,async()=>{await plannerDb.subjects.delete(s.id);const [tasks,sessions]=await Promise.all([plannerDb.tasks.where("subjectId").equals(s.id).toArray(),plannerDb.sessions.where("subjectId").equals(s.id).toArray()]);await Promise.all([...tasks.map(t=>plannerDb.tasks.put({...t,subjectId:null})),...sessions.map(x=>plannerDb.sessions.put({...x,subjectId:null}))]);});await load();}catch{setError("Could not delete the subject. Your linked records have been retained.");}}
  const shown=subjects.filter(s=>(s.name+" "+(s.code??"")+" "+(s.description??"")).toLowerCase().includes(query.toLowerCase()));
  return <section className="subject-manager"><div className="subject-manager-toolbar"><div><h2>My subjects</h2><p>{subjects.length} subject{subjects.length===1?"":"s"} · Manage details, targets and academic periods.</p></div><button className="primary-button" onClick={()=>edit()}><Plus size={16}/> Add subject</button></div>
