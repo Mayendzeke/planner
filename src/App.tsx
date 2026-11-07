@@ -678,6 +678,24 @@ export default function App() {
     }
   }
 
+  async function acceptCurrentTerms() {
+    if (!supabase || !termsConsentChecked || termsAcceptedByName.trim().length < 2) return;
+    setError("");
+    const { error: acceptError } = await supabase.rpc("accept_studyspace_terms", {
+      p_terms_version: TERMS_VERSION,
+      p_accepted_by_name: termsAcceptedByName.trim(),
+      p_acceptance_role: termsAcceptanceRole,
+    });
+    if (acceptError) {
+      setError("Your acceptance could not be recorded. Please reconnect and try again.");
+      return;
+    }
+    setTermsAccepted(true);
+    setTermsConsentChecked(false);
+    setTermsAcceptedByName("");
+    setAccessRetry(value => value + 1);
+  }
+
   if (!supabase) return <StudentAccess />;
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
@@ -711,7 +729,7 @@ export default function App() {
       <div className="workspace-label">YOUR WORKSPACE</div>
       <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span></div></div>
       <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.filter(({name})=>!expiredAccess||name==="Subscription").map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><button type="button" className="nav-item install-app-link" onClick={()=>void installStudyspace()}><Download size={18}/><span>{installPrompt?"Install Studyspace":"Install / add to home screen"}</span></button>{installHelpOpen&&<div className="install-help"><strong>Install Studyspace</strong><p>On Android Chrome, open the browser menu (⋮) and choose “Install app” or “Add to Home screen”. On iPhone Safari, tap Share, then “Add to Home Screen”.</p></div>}<div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":syncStatus==="syncing"?"Syncing to Studyspace…":syncStatus==="synced"?"Synced to Studyspace":syncStatus==="offline"?"Offline · changes saved":syncStatus==="error"?"Sync needs attention":ready?"Opening cloud workspace":"Opening workspace"}</div></div>
+      <div className="sidebar-bottom">{!expiredAccess && <><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><button type="button" className="nav-item install-app-link" onClick={()=>void installStudyspace()}><Download size={18}/><span>{installPrompt?"Install StudySpace":"Install / add to home screen"}</span></button>{installHelpOpen&&<div className="install-help"><strong>Install StudySpace</strong><p>On Android Chrome, open the browser menu (⋮) and choose “Install app” or “Add to Home screen”. On iPhone Safari, tap Share, then “Add to Home Screen”.</p></div>}</>}<div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{expiredAccess?"Access paused · renew to continue":error?"Storage issue":syncStatus==="syncing"?"Syncing to Studyspace…":syncStatus==="synced"?"Synced to Studyspace":syncStatus==="offline"?"Offline · changes saved":syncStatus==="error"?"Sync needs attention":ready?"Synced to StudySpace":"Opening workspace"}</div></div>
     </aside>
     {mobileMenu&&<button className="mobile-scrim" aria-label="Close navigation overlay" onClick={()=>setMobileMenu(false)}/>}
     <main className="main-area">
