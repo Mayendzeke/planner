@@ -438,7 +438,11 @@ export default function App() {
       const additions = nextProfile.subjects.filter(name => !names.has(name.toLocaleLowerCase()));
       if (additions.length) await plannerDb.subjects.bulkAdd(additions.map((name, index) => ({ id: Date.now() + index, name, color: colors[index % colors.length], createdAt: new Date().toISOString() })));
       await refresh();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Your profile could not be saved. Check your connection and try again."); }
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "Your profile could not be saved. Check your connection and try again.";
+      setError(message);
+      throw new Error(message);
+    }
   }
 
   const subjectById = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
@@ -653,7 +657,7 @@ export default function App() {
           <div className="glass-panel week-panel"><div className="section-heading"><div><h2>Study time</h2><p>Minutes you have logged this week.</p></div><Clock3 size={20}/></div><div className="week-summary"><div><strong>{Math.floor(weekMinutes/60)}h {weekMinutes%60}m</strong><span>recorded this week</span></div><span className="week-trend">{Math.min(100,Math.round(weeklyHours/Math.max(1,goal)*100))}% of goal</span></div><div className="goal-track"><span style={{width:Math.min(100,weeklyHours/Math.max(1,goal)*100)+"%"}}/></div><div className="goal-label"><span>0h</span><span>{goal}h weekly goal</span></div><div className="session-actions"><label>Log a session<select id="quick-session-subject" defaultValue=""><option value="">General study</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,25);}}>+25 min</button><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,50);}}>+50 min</button></div><p className="subtle-note">Sessions are logged when you choose a duration. This does not run a background timer.</p></div></section>
           <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your Studyspace data travels with your account.</strong> Subjects, tasks, study sessions, academic calendar records and personal files sync to your private Studyspace account when online. This device keeps an offline copy so you can continue studying without a connection.</p><span className="note-pill">CLOUD + OFFLINE</span></section></>}
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
-        {page==="Subjects"&&<SubjectManager onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
+        {page==="Subjects"&&<SubjectManager profile={profile} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<WeeklyTest subjects={subjects}/>}
         {page==="MIΛ Studio"&&<MiaChat profile={profile} subjects={subjects} variant="studio"/>}
         {page==="Help & feedback"&&<StudentFeedback currentPage={page}/> }
