@@ -97,8 +97,8 @@
 .splash-content{position:relative;z-index:1;display:flex;align-items:center;flex-direction:column;text-align:center;padding:30px}
 .splash-logo-wrap{position:relative;width:170px;height:150px;display:grid;place-items:center;margin-bottom:17px}
 .splash-liquid-logo{width:135px;height:115px;color:var(--text);overflow:visible;filter:drop-shadow(0 15px 22px rgba(100,160,220,.2));animation:splash-float 3s ease-in-out infinite}
-.splash-liquid{animation:liquid-rise 2.5s cubic-bezier(.2,.75,.2,1) forwards}
-.splash-wave{animation:wave-drift 2.2s ease-in-out infinite alternate}
+.splash-liquid{animation:liquid-rise 5s cubic-bezier(.22,.75,.2,1) forwards}
+.splash-wave{animation:wave-drift 3.8s ease-in-out infinite alternate}
 .splash-tassel{animation:tassel-glow 1.8s ease-in-out infinite alternate}
 .splash-orbit{position:absolute;border:1px solid rgba(141,185,255,.2);border-radius:50%;pointer-events:none}
 .splash-orbit-one{inset:3px 0 0;transform:rotate(-17deg)}
@@ -107,7 +107,7 @@
 .splash-wordmark span{color:var(--mint)}
 .splash-tagline{font-size:11px;letter-spacing:.4px;color:var(--muted);margin:8px 0 27px}
 .splash-loading-track{width:170px;height:4px;border-radius:20px;background:color-mix(in srgb,var(--subtle) 22%,transparent);overflow:hidden}
-.splash-loading-track span{display:block;width:0;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--mint),var(--blue),var(--violet));animation:splash-progress 2.45s ease-out forwards}
+.splash-loading-track span{display:block;width:0;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--mint),var(--blue),var(--violet));animation:splash-progress 5.2s cubic-bezier(.22,.75,.2,1) forwards}
 .splash-loading-label{margin-top:12px;font-size:7px;letter-spacing:1.7px;color:var(--subtle);font-weight:700}
 .splash-bottom{position:absolute;bottom:25px;display:flex;align-items:center;gap:8px;font-size:8px;letter-spacing:1.6px;color:var(--subtle)}
 .splash-glow{position:absolute;width:280px;height:280px;border-radius:50%;filter:blur(90px);opacity:.13;pointer-events:none}
