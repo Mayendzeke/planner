@@ -39,6 +39,7 @@ export default function StudentAccess() {
   const [error, setError] = useState("");
   const [expiredReason, setExpiredReason] = useState("");
   const supportNumber = "26879940955";
+  const publicEnrolmentEnabled = import.meta.env.VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED === "true";
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function StudentAccess() {
     if (!navigator.onLine || !online) { setError("An internet connection is required to create or access your student account. Reconnect and try again."); return; }
     if (busy) return;
     if (mode === "enrol") {
+      if (!publicEnrolmentEnabled) { setError("New learner enrolment is temporarily closed while Study Space completes its required data-protection registration. Existing learners can still sign in."); return; }
       if (password.length < 10) { setError("Choose a password with at least 10 characters."); return; }
       if (password !== confirmPassword) { setError("The passwords do not match."); return; }
       if (!termsAccepted) { setError("Read and accept the Terms & Conditions and Privacy Notice before creating your account."); return; }
@@ -116,7 +118,8 @@ export default function StudentAccess() {
       <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
       <div className="student-access-icon"><BookOpen size={25}/></div>
       <div className="student-access-heading"><div className="eyebrow"><Sparkles size={14}/> YOUR STUDY SPACE</div><h1>{mode === "signin" ? "Welcome back." : "Join your class."}</h1><p>{mode === "signin" ? "Sign in with your Studyspace Student ID and password." : "Use the Student ID and one-time PIN issued by your administrator, then create your password."}</p></div>
-      <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} onClick={() => {setMode("enrol");setError("");setNotice("");}}>First-time enrolment</button></div>
+      <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} disabled={!publicEnrolmentEnabled} onClick={() => {setMode("enrol");setError("");setNotice("");}}>First-time enrolment</button></div>
+      {!publicEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>New learner enrolment is temporarily closed while Study Space completes its required data-protection registration. Existing learners can continue to sign in.</p></div>}
       <form className="student-access-form" onSubmit={submit}>
         <label>Student ID<span className="student-access-input"><UserRound size={16}/><input value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} type="text" placeholder="e.g. STU-AB12CD34" autoComplete="username" required minLength={12} maxLength={12} pattern="STU-[A-Z0-9]{8}" title="Use the 12-character Student ID issued by your administrator."/></span></label>
         {mode === "enrol" && <>
