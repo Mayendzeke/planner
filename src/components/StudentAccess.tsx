@@ -101,7 +101,7 @@ export default function StudentAccess() {
       </form>
       {notice && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>{notice}</p></div>}
       {error && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>{error}</p></div>}
-      <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID access — no student email required.</strong><br/>If you forget your password, contact your administrator for a secure reset. Do not share your PIN or password.</p></div>
+      <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID access — no student email required.</strong><br/>Your one-time enrolment PIN is only needed to create your account; it does not expire your account after enrolment. If your session expires, sign in again with the same Student ID and password. If you forget your password, contact your administrator for a secure reset. Your saved work stays linked to your account. Do not share your PIN or password.</p></div>
       {!supabase && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>Student access is not connected to the Studyspace server. Account creation and sign-in are unavailable until the administrator fixes the app configuration.</p></div>}
       {!online && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>An internet connection is required for first-time enrolment and sign-in.</p></div>}
     </section>
