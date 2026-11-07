@@ -206,7 +206,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
       </form>}
       {loading ? <div className="timetable-empty"><RefreshCw size={20}/> Loading your timetable…</div> : <div className="timetable-grid-wrap">
         {visibleEntries.length === 0 && <div className="timetable-grid-empty"><CalendarDays size={20}/><span>No lessons saved yet. Add lessons or import a school timetable through MIΛ.</span></div>}
-        <div className="timetable-grid-scroll"><div className="timetable-grid-zoom" style={{ zoom: timetableZoom, width: (100 / timetableZoom) + "%" }}><table className="weekly-timetable-grid">
+        <div className="timetable-grid-scroll"><div className="timetable-grid-zoom" style={{ zoom: timetableZoom }}><table className="weekly-timetable-grid">
           <thead><tr><th className="timetable-day-heading">DAY</th>{Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=><th key={start}><span>{start}</span><small>SUBJECT / ACTIVITY</small></th>)}</tr></thead>
           <tbody>{[1,2,3,4,5,6,0].map(day=><tr key={day}><th className="timetable-day-cell">{days[day]}</th>
             {Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=>{const items=visibleEntries.filter(item=>item.day_of_week===day&&timeValue(item.starts_at)===start);return <td key={start} className={items.length?"has-lessons":""}>
