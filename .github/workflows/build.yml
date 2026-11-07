@@ -62,4 +62,6 @@ jobs:
           console.log('Student trial-start, terms-version and plan contract checks passed.')
           NODE
       - name: Typecheck and build
+        env:
+          VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'
         run: npm run build
