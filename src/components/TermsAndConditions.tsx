@@ -130,13 +130,17 @@ export default function TermsAndConditions({
   onAcceptanceRoleChange: (value: TermsAcceptanceRole) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [readToEnd, setReadToEnd] = useState(false);
 
   return <section className="terms-consent-panel">
     <button type="button" className="terms-read-toggle" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>
       <span><strong>Read Terms &amp; Conditions and Privacy Notice</strong><small>Version {TERMS_VERSION} · Includes plans, MoMo payments, refunds, data and guardian consent</small></span>
       <span>{expanded ? "Hide terms" : "Read terms"}</span>
     </button>
-    {expanded && <div className="terms-document">
+    {expanded && <div className="terms-document" onScroll={event => {
+      const target = event.currentTarget;
+      if (target.scrollTop + target.clientHeight >= target.scrollHeight - 8) setReadToEnd(true);
+    }}>
       <p className="terms-intro">Please read all sections before accepting. Save or print a copy for your records.</p>
       {TERMS_SECTIONS.map(section => <section key={section.heading}>
         <h3>{section.heading}</h3>
@@ -154,9 +158,9 @@ export default function TermsAndConditions({
       <input value={acceptedByName} onChange={event => onAcceptedByNameChange(event.target.value)} maxLength={120} placeholder="Enter your full name" required/>
     </label>
     <label className="terms-checkbox-label">
-      <input type="checkbox" checked={accepted} onChange={event => onAcceptedChange(event.target.checked)}/>
+      <input type="checkbox" checked={accepted} disabled={!readToEnd} onChange={event => onAcceptedChange(event.target.checked)}/>
       <span>I have read and agree to the StudySpace Terms &amp; Conditions and Privacy Notice. I confirm that the person named above is authorised to accept them for this account. If I am accepting as a parent/legal guardian, I give the required consent for the learner’s personal information to be processed for the StudySpace learning service.</span>
     </label>
-    <p className="terms-guardian-note">Learners under 18 must have a parent or legal guardian complete this acceptance step. Do not select the adult-learner option on a child’s behalf.</p>
+    <p className="terms-guardian-note">{readToEnd ? "You have reached the end of the Terms & Conditions." : "Open the terms above and scroll to the end before ticking the agreement box."} Learners under 18 must have a parent or legal guardian complete this acceptance step. Do not select the adult-learner option on a child’s behalf.</p>
   </section>;
 }
