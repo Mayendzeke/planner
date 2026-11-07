@@ -7,7 +7,7 @@ const plans: Plan[] = [
   { id: "free_trial", name: "Free Trial", duration: "1 day", price: 0, days: 1, description: "Try Studyspace before choosing a paid plan." },
   { id: "weekly", name: "Weekly", duration: "7 days", price: 100, days: 7, description: "One week of full learner access." },
   { id: "two_weeks", name: "2 Weeks", duration: "14 days", price: 200, days: 14, description: "Two weeks of uninterrupted learning." },
-  { id: "monthly", name: "Monthly", duration: "28 days", price: 400, days: 28, description: "Four weeks of full learner access." },
+  { id: "monthly", name: "Monthly", duration: "28 days", price: 350, days: 28, description: "Four weeks of full learner access." },
 ];
 
 export default function StudentSubscription() {
