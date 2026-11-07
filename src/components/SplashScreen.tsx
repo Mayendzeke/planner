@@ -29,6 +29,7 @@ export default function SplashScreen({ theme = "dark" }: { theme?: "dark" | "lig
         <span className="splash-orbit splash-orbit-two" />
       </div>
       <div className="splash-wordmark">studyspace<span>.</span></div>
+      <p className="splash-tagline">A focused space for lessons, study plans, notes and academic progress.</p>
       <div className="splash-loading-track"><span /></div>
     </div>
   </main>;
