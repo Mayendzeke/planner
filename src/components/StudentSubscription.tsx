@@ -56,7 +56,7 @@ export default function StudentSubscription() {
       "Amount: E" + plan.price,
       "My Student ID: " + studentId,
       "",
-      "Please send the official MTN MoMo payment details. I will use my Student ID as the payment reference and send the payment confirmation here.",
+      "I will pay by MTN MoMo to Ayanda Zwane, +268 7994 0955, using my Student ID as the payment reference, then send the payment confirmation here.",
       "I understand that my learning access will be restored only after payment is verified and the plan is activated. Thank you."
     ].join("\n");
     window.location.href = "https://wa.me/" + STUDYSPACE_SUPPORT_NUMBER + "?text=" + encodeURIComponent(message);
@@ -91,10 +91,11 @@ export default function StudentSubscription() {
 
     <section className="glass-panel settings-card payment-instructions">
       <div className="section-heading"><div><h2>Payment instructions</h2><p>StudySpace currently accepts MTN MoMo only.</p></div><LockKeyhole size={20}/></div>
+      <div className="payment-recipient-card"><span className="subscription-label">TEMPORARY MTN MOMO RECIPIENT</span><strong>Ayanda Zwane</strong><b>+268 7994 0955</b><small>Personal MTN line used temporarily while Study Space arranges a dedicated business account. Confirm that MTN MoMo displays “Ayanda Zwane” before paying.</small></div>
       <ol>
-        <li>Choose your plan above. WhatsApp will open with your Student ID, plan and amount already included.</li>
-        <li>StudySpace will send you the official MTN MoMo recipient details.</li>
-        <li>Pay the exact amount and enter your Student ID as the payment reference.</li>
+        <li>Choose your plan above. WhatsApp will open with your Student ID, plan, amount and recipient details.</li>
+        <li>Pay the exact amount to Ayanda Zwane using the MTN MoMo number shown above.</li>
+        <li>Enter your exact Student ID as the payment reference.</li>
         <li>Send the payment confirmation or transaction reference to StudySpace on WhatsApp.</li>
         <li>Your access is restored after the payment is verified and your plan is activated by the administrator.</li>
       </ol>
