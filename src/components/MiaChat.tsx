@@ -19,8 +19,8 @@ function extractFlashcards(reply: string): Flashcard[] {
   const clean = (value: string) => value.replace(/\*\*/g, "").replace(/^[-*]\s*/, "").trim();
   for (const rawLine of reply.split(/\r?\n/)) {
     const line = rawLine.trim();
-    const frontMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:front|question)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
-    const backMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:back|answer)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
+    const frontMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:card\s+)?(?:front|question)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
+    const backMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:card\s+)?(?:back|answer)(?:\*\*)?\s*[:：]\s*(?:\*\*)?(.*)$/i);
     const cueMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(?:visual cue|memory cue)(?:\*\*)?\s*[:：]\s*(.*)$/i);
     if (cueMatch) { visualCue = clean(cueMatch[1]); continue; }
     if (frontMatch) {
@@ -214,7 +214,16 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         .order("created_at", { ascending: true }).limit(20);
       if (!alive) return;
       setConversationId(conv.id);
-      if (data?.length) setMessages(data.map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content })));
+      if (data?.length) {
+        const restored = data.map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content }));
+        const latestCardReply = [...restored].reverse().find(row => row.role === "assistant" && extractFlashcards(row.content).length);
+        if (latestCardReply) {
+          setFlashcards(extractFlashcards(latestCardReply.content));
+          setFlashcardIndex(0);
+          setFlashcardFlipped(false);
+        }
+        setMessages(restored.filter(row => !(row.role === "assistant" && extractFlashcards(row.content).length)));
+      }
     }
     void restore();
     return () => { alive = false; };
@@ -244,10 +253,15 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
-      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
-      setAttachment(null);
       const cards = extractFlashcards(data.reply);
-      if (cards.length) { setFlashcards(cards); setFlashcardIndex(0); setFlashcardFlipped(false); }
+      if (cards.length) {
+        setFlashcards(cards);
+        setFlashcardIndex(0);
+        setFlashcardFlipped(false);
+      } else {
+        setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
+      }
+      setAttachment(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "MIΛ could not reply. Check your connection.");
       setMessages(current => current.filter(item => item.id !== outgoingId));
