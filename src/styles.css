@@ -1143,3 +1143,28 @@ html[data-theme="light"] .timetable-editor input,html[data-theme="light"] .timet
  .weekly-timetable-lesson { padding:4px 3px; border-left-width:2px; }
  .weekly-timetable-lesson strong,.weekly-timetable-lesson span,.weekly-timetable-lesson small { font-size:8px; }
 }
+
+
+/* Subscription-expiry sign-in dialog. */
+.access-expiry-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(7,10,24,.72);backdrop-filter:blur(9px)}
+.access-expiry-dialog{position:relative;width:min(100%,440px);display:grid;gap:12px;padding:28px;border:1px solid var(--border);border-radius:22px;background:var(--panel-strong);color:var(--text);box-shadow:0 28px 90px rgba(0,0,0,.34)}
+.access-expiry-dialog h2{margin:0;font:800 23px/1.2 Manrope,system-ui,sans-serif}
+.access-expiry-dialog p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.access-expiry-symbol{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:color-mix(in srgb,var(--blue) 14%,var(--panel));color:var(--blue)}
+.access-expiry-close{position:absolute;top:12px;right:12px;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text)}
+.access-expiry-dialog .student-access-submit{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:5px}
+.access-expiry-dialog .student-access-submit:disabled{opacity:.58;cursor:not-allowed}
+.access-expiry-secondary{min-height:40px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font:600 12px inherit}
+html[data-theme="dark"] .access-expiry-dialog{color-scheme:dark}
+html[data-theme="light"] .access-expiry-dialog{color-scheme:light}
+
+/* Subject picker and timetable form fields use one tokenised surface in either theme. */
+.subject-modal input,.subject-modal select,.subject-modal textarea,
+.timetable-editor input,.timetable-editor select,.timetable-editor textarea,
+.timetable-editor-grid input,.timetable-editor-grid select,.timetable-editor-grid textarea {
+ background:var(--panel-strong);color:var(--text);border-color:var(--border);font-family:inherit;
+}
+.subject-modal select:focus,.subject-modal input:focus,.subject-modal textarea:focus,
+.timetable-editor select:focus,.timetable-editor input:focus,.timetable-editor textarea:focus {
+ outline:2px solid color-mix(in srgb,var(--blue) 42%,transparent);outline-offset:1px;
+}
