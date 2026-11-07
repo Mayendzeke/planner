@@ -56,7 +56,7 @@ jobs:
           if (!access.includes('termsVersion: TERMS_VERSION') || !terms.includes('2026-11-07-v3')) {
             throw new Error('Student enrolment and terms notice must use the current terms version.')
           }
-          for (const disclosure of ['eu-west-1', '8x8 JaaS', 'retention schedule', 'WhatsApp']) {
+          for (const disclosure of ['eu-west-1', 'Ireland', 'Edge Functions run globally', 'storage CDN content may be cached globally', '8x8 JaaS', 'retention schedule', 'WhatsApp']) {
             if (!terms.includes(disclosure)) throw new Error('Privacy notice is missing its provider or retention disclosure: ' + disclosure)
           }
           for (const plan of ['Weekly', '2 Weeks', 'Monthly']) {
