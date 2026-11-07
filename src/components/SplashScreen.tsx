@@ -29,10 +29,7 @@ export default function SplashScreen({ theme = "dark" }: { theme?: "dark" | "lig
         <span className="splash-orbit splash-orbit-two" />
       </div>
       <div className="splash-wordmark">studyspace<span>.</span></div>
-      <p className="splash-tagline">A little progress. Every day.</p>
       <div className="splash-loading-track"><span /></div>
-      <span className="splash-loading-label">PREPARING YOUR LEARNING SPACE</span>
     </div>
-    <div className="splash-bottom"><GraduationCap size={14}/> LEARN · GROW · ACHIEVE</div>
   </main>;
 }
