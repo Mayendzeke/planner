@@ -190,6 +190,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const isFloating = variant === "floating";
+  const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
 
   useEffect(() => {
     let alive = true;
@@ -361,6 +362,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <button type="button" onClick={()=>setText("Quiz me on one of my current subjects. Start with five questions and adapt to my answers.")}>Quiz me</button>
       <button type="button" onClick={()=>setText("Turn my lesson notes into concise revision notes with key definitions and examples. I will attach or paste the lesson.")}>Summarise notes</button>
       <button type="button" onClick={()=>setText("Help me create a realistic revision plan using my subjects, goals and available study time.")}>Plan revision</button>
+      {isTertiaryLearner && <button type="button" onClick={()=>setText("Help me research my college or university assignment. Start with credible academic references and source details, explain the evidence, help me develop my own argument and outline, and guide me through correct in-text citations and a reference list. Do not write the assignment for me. Ask for the assignment brief, subject and required referencing style if missing.")}>Research & references</button>}
       <button type="button" onClick={()=>setText("Create a set of useful flashcards for a topic I am revising. Ask me for the subject and topic.")}>Flashcards</button>
     </div>}
     {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
