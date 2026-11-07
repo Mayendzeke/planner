@@ -18,21 +18,20 @@ import SubjectManager from "./components/SubjectManager";
 import WeeklyTest from "./components/WeeklyTest";
 import TodaySession from "./components/TodaySession";
 import StudentFeedback from "./components/StudentFeedback";
-import MiaChat from "./components/MiaChat";
 import StudentTimetable from "./components/StudentTimetable";
 import StudentSubscription from "./components/StudentSubscription";
 import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./components/TermsAndConditions";
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 
-type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "MIΛ Studio" | "My Library" | "Academic Calendar" | "Progress" | "Help & feedback" | "Settings" | "Subscription";
+type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "My Library" | "Academic Calendar" | "Progress" | "Help & feedback" | "Settings" | "Subscription";
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
 const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
 const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Subscription", icon: CreditCard }, { name: "Today's Session", icon: Sparkles }, { name: "Subjects", icon: BookOpen },
-  { name: "Planner", icon: CalendarDays }, { name: "Timetable", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "MIΛ Studio", icon: Sparkles }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Help & feedback", icon: LifeBuoy }
+  { name: "Planner", icon: CalendarDays }, { name: "Timetable", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Help & feedback", icon: LifeBuoy }
 ];
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
@@ -94,7 +93,6 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
-  const [miaOpen, setMiaOpen] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"checking" | "syncing" | "synced" | "offline" | "error">("checking");
@@ -744,7 +742,7 @@ export default function App() {
     <main className="main-area">
       <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects" disabled={expiredAccess}/><kbd>/</kbd></label><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><div className="top-avatar"><GraduationCap size={17}/></div></div></header>
       <div className={"page-content "+(expiredAccess && page!=="Subscription" ? "access-locked-content" : "")} aria-disabled={expiredAccess && page!=="Subscription"}>
-        <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your school week, organised.":page==="Study & Exams"?"Test your knowledge.":page==="MIΛ Studio"?"Meet your learning companion.":page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View and update your school lessons and personal study sessions.":page==="Study & Exams"?"Practise with multiple choice, word puzzles, fill-in-the-blanks and quick checks.":page==="MIΛ Studio"?"Ask questions, understand lessons, revise and organise your learning with MIΛ.":page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your totals are calculated from your own activity.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
+        <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your school week, organised.":page==="Study & Exams"?"Test your knowledge."page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View and update your school lessons and personal study sessions.":page==="Study & Exams"?"Practise with multiple choice, word puzzles, fill-in-the-blanks and quick checks."page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your totals are calculated from your own activity.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
         {error&&<div className="alert error-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div>}
         {!ready?<section className="glass-panel loading-panel"><div className="loader"/><strong>Opening your study space…</strong><p>Your local records are being loaded.</p></section>:<>
         {page==="Overview"&&<><section className="stats-grid">
@@ -758,7 +756,6 @@ export default function App() {
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<WeeklyTest subjects={subjects}/>}
-        {page==="MIΛ Studio"&&<MiaChat profile={profile} subjects={subjects} variant="studio"/>}
         {page==="Help & feedback"&&<StudentFeedback currentPage={page}/> }
         {page==="Subscription"&&<StudentSubscription/>}
         {page==="My Library"&&<StudentLibrary subjects={subjects}/>}
@@ -798,8 +795,6 @@ export default function App() {
         <button className="access-expiry-secondary" onClick={() => setTrialReminder(false)}>Continue studying</button>
       </section>
     </div>}
-    {!expiredAccess && page!=="MIΛ Studio"&&<button className="mia-floating-launcher" onClick={()=>setMiaOpen(open=>!open)} aria-label={miaOpen?"Close MIΛ assistant":"Open MIΛ assistant"} title="Ask MIΛ"><span>Λ</span><small>MIΛ</small></button>}
-    {!expiredAccess && page!=="MIΛ Studio"&&miaOpen&&<div className="mia-floating-panel"><MiaChat profile={profile} subjects={subjects} variant="floating" onClose={()=>setMiaOpen(false)}/></div>}
   </div>;
 }
 
