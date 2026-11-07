@@ -34,7 +34,7 @@ export default function StudentAccess() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [expiredReason, setExpiredReason] = useState("");
-  const supportNumber = String(import.meta.env.VITE_STUDYSPACE_WHATSAPP || "").replace(/\\D/g, "");
+  const supportNumber = "26879940955";
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
 
   useEffect(() => {
