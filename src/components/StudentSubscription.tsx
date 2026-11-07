@@ -1,37 +1,40 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock3, CreditCard, ShieldCheck } from "lucide-react";
+import { Clock3, CreditCard, ShieldCheck, MessageCircle, LockKeyhole } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Plan = { id: string; name: string; duration: string; price: number; days: number; description: string };
 const plans: Plan[] = [
-  { id: "free_trial", name: "Free Trial", duration: "1 day", price: 0, days: 1, description: "Enjoy the full premium StudySpace experience free for one day." },
-  { id: "weekly", name: "Weekly", duration: "7 days", price: 100, days: 7, description: "One week of full learner access." },
-  { id: "two_weeks", name: "2 Weeks", duration: "14 days", price: 200, days: 14, description: "Two weeks of uninterrupted learning." },
-  { id: "monthly", name: "Monthly", duration: "28 days", price: 350, days: 28, description: "Premium 28-day access with the highest daily MIΛ allowance." },
+  { id: "weekly", name: "Weekly", duration: "7 days", price: 100, days: 7, description: "Seven consecutive days of full learner access." },
+  { id: "two_weeks", name: "2 Weeks", duration: "14 days", price: 200, days: 14, description: "Fourteen consecutive days of uninterrupted learning." },
+  { id: "monthly", name: "Monthly", duration: "28 days", price: 350, days: 28, description: "Twenty-eight days of full learning access." },
 ];
+
+const STUDYSPACE_SUPPORT_NUMBER = "26879940955";
 
 export default function StudentSubscription() {
   const [tier, setTier] = useState("");
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState("weekly");
-  const [message, setMessage] = useState("");
-  const [copying, setCopying] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let alive = true;
     async function load() {
-      if (!supabase) { if (alive) { setLoading(false); setMessage("Subscription details are unavailable because Studyspace is not connected."); } return; }
+      if (!supabase) { if (alive) { setLoading(false); setError("Subscription details are unavailable because StudySpace is not connected."); } return; }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { if (alive) setLoading(false); return; }
-      const { data, error } = await supabase.from("profiles")
-        .select("subscription_tier,subscription_expires_at")
+      const { data, error: queryError } = await supabase.from("profiles")
+        .select("student_id,subscription_tier,subscription_expires_at,trial_expires_at")
         .eq("id", user.id).single();
       if (!alive) return;
-      if (error) setMessage("We could not load your subscription details. Please try again while online.");
+      if (queryError) setError("We could not load your subscription details. Please reconnect and try again.");
       else {
-        setTier(data?.subscription_tier || "");
+        setStudentId(String(data?.student_id || ""));
+        setTier(String(data?.subscription_tier || ""));
         setExpiresAt(data?.subscription_expires_at || null);
+        setTrialExpiresAt(data?.trial_expires_at || null);
       }
       setLoading(false);
     }
@@ -39,52 +42,64 @@ export default function StudentSubscription() {
     return () => { alive = false; };
   }, []);
 
-  const currentPlan = plans.find(plan => plan.id === tier || plan.name.toLowerCase() === tier.toLowerCase());
-  const expiryDate = expiresAt ? new Date(expiresAt) : null;
-  const expired = expiryDate ? expiryDate.getTime() <= Date.now() : false;
+  const paidExpiry = expiresAt ? new Date(expiresAt) : null;
+  const trialExpiry = trialExpiresAt ? new Date(trialExpiresAt) : null;
+  const currentExpiry = tier ? paidExpiry : trialExpiry;
+  const currentExpired = currentExpiry ? currentExpiry.getTime() <= Date.now() : true;
   const formatDate = (date: Date) => date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-  async function copyRequest() {
-    const plan = plans.find(item => item.id === selected);
-    if (!plan) return;
-    const request = "Hello, I would like to request the Studyspace " + plan.name + " plan (" + plan.duration + ", E" + plan.price + "). Please confirm availability and activate it on my existing Student ID. Thank you.";
-    setCopying(true);
-    try {
-      await navigator.clipboard.writeText(request);
-      setMessage("Request copied. Send it to your Studyspace administrator to arrange payment and activation.");
-    } catch {
-      setMessage(request);
-    } finally { setCopying(false); }
+  function requestPlan(plan: Plan) {
+    if (!studentId) { setError("Your Student ID could not be loaded. Please sign out and sign in again, or contact StudySpace support."); return; }
+    const message = [
+      "Hello StudySpace, I would like to request the " + plan.name + " plan.",
+      "Plan duration: " + plan.duration,
+      "Amount: E" + plan.price,
+      "My Student ID: " + studentId,
+      "",
+      "Please send the official MTN MoMo payment details. I will use my Student ID as the payment reference and send the payment confirmation here.",
+      "I understand that my learning access will be restored only after payment is verified and the plan is activated. Thank you."
+    ].join("\n");
+    window.location.href = "https://wa.me/" + STUDYSPACE_SUPPORT_NUMBER + "?text=" + encodeURIComponent(message);
   }
 
   return <div className="settings-stack subscription-stack">
     <section className="glass-panel settings-card subscription-current">
-      <div className="section-heading"><div><h2>Current subscription</h2><p>Your Student ID stays the same when your plan changes.</p></div><CreditCard size={21}/></div>
+      <div className="section-heading"><div><h2>StudySpace access</h2><p>Your Student ID stays the same when you renew or change plans.</p></div><CreditCard size={21}/></div>
       {loading ? <p className="subtle-note">Loading your subscription…</p> : <>
         <div className="subscription-current-grid">
-          <div><span className="subscription-label">CURRENT TIER</span><strong>{currentPlan?.name || tier || "Not assigned"}</strong></div>
-          <div><span className="subscription-label">ACCESS STATUS</span><strong className={expired ? "subscription-expired" : "subscription-active"}>{expired ? "Expired" : expiresAt ? "Active until expiry" : "No expiry set"}</strong></div>
-          <div><span className="subscription-label">ACCESS ENDS</span><strong>{expiryDate ? formatDate(expiryDate) : "Not set"}</strong></div>
+          <div><span className="subscription-label">STUDENT ID</span><strong>{studentId || "Unavailable"}</strong></div>
+          <div><span className="subscription-label">CURRENT PLAN</span><strong>{tier || (trialExpiry ? "Free 48-hour trial" : "No active plan")}</strong></div>
+          <div><span className="subscription-label">ACCESS STATUS</span><strong className={currentExpired ? "subscription-expired" : "subscription-active"}>{currentExpired ? "Paused / expired" : "Active"}</strong></div>
+          <div><span className="subscription-label">ACCESS ENDS</span><strong>{currentExpiry ? formatDate(currentExpiry) : "Not available"}</strong></div>
         </div>
-        <p className="subscription-note"><ShieldCheck size={16}/> Choosing a plan here does not charge you or change your access automatically. Your administrator confirms payment and activates the selected plan.</p>
+        <p className="subscription-note"><ShieldCheck size={16}/> Selecting a plan opens WhatsApp with your Student ID and plan details. It does not charge you or activate access automatically.</p>
       </>}
     </section>
 
     <section className="glass-panel settings-card">
-      <div className="section-heading"><div><h2>Choose a plan</h2><p>Select the access period you want to request.</p></div><Clock3 size={20}/></div>
+      <div className="section-heading"><div><h2>Choose your plan</h2><p>Choose one option below to send your request to StudySpace on WhatsApp.</p></div><Clock3 size={20}/></div>
       <div className="subscription-plans">
-        {plans.map(plan => <button type="button" key={plan.id} className={"subscription-plan " + (plan.id === "monthly" ? "subscription-plan-premium " : "") + (selected === plan.id ? "selected" : "")} onClick={() => { setSelected(plan.id); setMessage(""); }}>
-          <span className="subscription-plan-top"><strong>{plan.name}{plan.id === "monthly" ? <small className="subscription-premium-tag">PREMIUM</small> : null}</strong><span>{selected === plan.id ? <CheckCircle2 size={18}/> : null}</span></span>
-          <span className="subscription-price">{plan.price === 0 ? "Free" : "E" + plan.price}</span>
+        {plans.map(plan => <button type="button" key={plan.id} className={"subscription-plan " + (plan.id === "monthly" ? "subscription-plan-premium" : "")} onClick={() => requestPlan(plan)} disabled={loading || !studentId}>
+          <span className="subscription-plan-top"><strong>{plan.name}{plan.id === "monthly" ? <small className="subscription-premium-tag">28 DAYS</small> : null}</strong><span><MessageCircle size={17}/></span></span>
+          <span className="subscription-price">E{plan.price}</span>
           <span className="subscription-duration">{plan.duration}</span>
           <span className="subscription-description">{plan.description}</span>
+          <span className="subscription-plan-action">Request on WhatsApp <MessageCircle size={14}/></span>
         </button>)}
       </div>
-      <div className="subscription-request">
-        <button type="button" className="primary-button" onClick={() => void copyRequest()} disabled={copying || loading}>{copying ? "Preparing request…" : "Copy plan request"}</button>
-        <p className="subtle-note">Share the copied request with your administrator. Your existing account and saved work remain linked to your Student ID.</p>
-        {message && <div className="subscription-message" role="status">{message}</div>}
-      </div>
     </section>
+
+    <section className="glass-panel settings-card payment-instructions">
+      <div className="section-heading"><div><h2>Payment instructions</h2><p>StudySpace currently accepts MTN MoMo only.</p></div><LockKeyhole size={20}/></div>
+      <ol>
+        <li>Choose your plan above. WhatsApp will open with your Student ID, plan and amount already included.</li>
+        <li>StudySpace will send you the official MTN MoMo recipient details.</li>
+        <li>Pay the exact amount and enter your Student ID as the payment reference.</li>
+        <li>Send the payment confirmation or transaction reference to StudySpace on WhatsApp.</li>
+        <li>Your access is restored after the payment is verified and your plan is activated by the administrator.</li>
+      </ol>
+      <p className="subscription-note"><ShieldCheck size={16}/> Do not pay a different number or share your MTN MoMo PIN or one-time security codes. A payment message alone does not unlock your account.</p>
+    </section>
+    {error && <div className="subscription-message" role="alert">{error}</div>}
   </div>;
 }
