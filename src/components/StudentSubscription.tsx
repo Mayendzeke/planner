@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 
 type Plan = { id: string; name: string; duration: string; price: number; days: number; description: string };
 const plans: Plan[] = [
-  { id: "free_trial", name: "Free Trial", duration: "1 day", price: 0, days: 1, description: "Try Studyspace before choosing a paid plan." },
+  { id: "free_trial", name: "Free Trial", duration: "1 day", price: 0, days: 1, description: "Enjoy the full premium StudySpace experience free for one day." },
   { id: "weekly", name: "Weekly", duration: "7 days", price: 100, days: 7, description: "One week of full learner access." },
   { id: "two_weeks", name: "2 Weeks", duration: "14 days", price: 200, days: 14, description: "Two weeks of uninterrupted learning." },
   { id: "monthly", name: "Monthly", duration: "28 days", price: 350, days: 28, description: "Premium 28-day access with the highest daily MIΛ allowance." },
