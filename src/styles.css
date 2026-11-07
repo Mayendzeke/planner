@@ -1239,6 +1239,11 @@ html[data-theme="light"] .access-expiry-dialog{color-scheme:light}
 .access-lock-dialog .primary-button,.trial-reminder-dialog .primary-button{width:100%;margin-top:13px;min-height:42px}
 .trial-reminder-overlay{position:fixed;z-index:30;inset:0;display:grid;place-items:center;padding:20px;background:rgba(3,8,18,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .trial-reminder-dialog .access-expiry-secondary{margin-top:10px}
+.payment-recipient-card{display:grid;gap:5px;margin:4px 0 15px;padding:13px 15px;border:1px solid rgba(121,226,196,.25);border-radius:12px;background:rgba(121,226,196,.07)}
+.payment-recipient-card .subscription-label{font-size:9px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.payment-recipient-card strong{font-size:15px;color:var(--text)}
+.payment-recipient-card b{font-size:14px;color:var(--mint);letter-spacing:.04em}
+.payment-recipient-card small{font-size:10px;line-height:1.6;color:var(--muted)}
 .payment-instructions ol{margin:0;padding-left:21px;display:grid;gap:10px}
 .payment-instructions li{font-size:10px;line-height:1.65;color:var(--muted);padding-left:3px}
 .payment-instructions .subscription-note{margin-top:16px}
