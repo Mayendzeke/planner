@@ -42,5 +42,24 @@ jobs:
             console.log('Production dependency audit passed: no vulnerable production packages.')
           }
           NODE
+      - name: Verify subscription and terms access contracts
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const app = readFileSync('src/App.tsx', 'utf8')
+          const access = readFileSync('src/components/StudentAccess.tsx', 'utf8')
+          const terms = readFileSync('src/components/TermsAndConditions.tsx', 'utf8')
+          const subscription = readFileSync('src/components/StudentSubscription.tsx', 'utf8')
+          if (!app.includes('trialStart <= now && trialExpiry > now')) {
+            throw new Error('Student access must require a started and unexpired trial.')
+          }
+          if (!access.includes('termsVersion: TERMS_VERSION') || !terms.includes('2026-11-07-v2')) {
+            throw new Error('Student enrolment and terms notice must use the current terms version.')
+          }
+          for (const plan of ['Weekly', '2 Weeks', 'Monthly']) {
+            if (!subscription.includes('name: "' + plan + '"')) throw new Error('Student subscription plan is missing: ' + plan)
+          }
+          console.log('Student trial-start, terms-version and plan contract checks passed.')
+          NODE
       - name: Typecheck and build
         run: npm run build
