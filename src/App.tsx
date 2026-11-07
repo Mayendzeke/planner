@@ -33,6 +33,7 @@ const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Subscription", icon: CreditCard }, { name: "Today's Session", icon: Sparkles }, { name: "Subjects", icon: BookOpen },
   { name: "Planner", icon: CalendarDays }, { name: "Timetable", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "MIΛ Studio", icon: Sparkles }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Help & feedback", icon: LifeBuoy }
 ];
+const STUDYSPACE_SUPPORT_NUMBER = String(import.meta.env.VITE_STUDYSPACE_WHATSAPP || "").replace(/\\D/g, "");
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 const dateLabel = (value: string) => {
@@ -625,7 +626,7 @@ export default function App() {
   }
 
   if (!supabase) return <StudentAccess />;
-  if (expiredAccess) return <main className="student-access-shell"><section className="student-access-card"><div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div><div className="student-access-heading"><h1>Access paused</h1><p>Your paid access has expired or your account has been disabled. Your saved work remains linked to this Student ID. Contact your administrator to renew or reactivate your account, then sign in again.</p></div><button className="student-access-submit" type="button" onClick={() => { setExpiredAccess(false); }}>Return to sign in</button></section></main>;
+  if (expiredAccess) return <main className="student-access-shell"><section className="student-access-card"><div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div><div className="student-access-heading"><h1>Access paused</h1><p>Your subscription has expired or your account has been disabled. Your Student ID and saved work remain safe. Contact the administrator to renew or reactivate your access.</p></div><button className="student-access-submit" type="button" disabled={!STUDYSPACE_SUPPORT_NUMBER} onClick={() => { if(STUDYSPACE_SUPPORT_NUMBER) window.location.href="https://wa.me/"+STUDYSPACE_SUPPORT_NUMBER+"?text="+encodeURIComponent("Hello, my StudySpace access is paused. Please help me renew or reactivate my account."); }}>Contact StudySpace on WhatsApp</button><button className="access-expiry-secondary" type="button" onClick={() => { setExpiredAccess(false); }}>Return to sign in</button></section></main>;
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
   if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
