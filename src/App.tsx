@@ -630,7 +630,7 @@ export default function App() {
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
   if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
-  if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
+  if (!profile) return <StudentOnboarding onComplete={finishOnboarding} />;
   if (!ready || !splashElapsed) return <SplashScreen theme={theme} />;
 
   return <div className="app-shell" data-theme={theme}>
