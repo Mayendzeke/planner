@@ -176,7 +176,7 @@ export default function App() {
       const trialStart = data.trial_started_at ? Date.parse(data.trial_started_at) : NaN;
       const trialExpiry = data.trial_expires_at ? Date.parse(data.trial_expires_at) : NaN;
       const hasPaidPlan = Boolean(data.subscription_tier && Number.isFinite(paidExpiry) && paidExpiry > now);
-      const hasTrial = Boolean(!data.subscription_tier && Number.isFinite(trialStart) && Number.isFinite(trialExpiry) && trialExpiry > now);
+      const hasTrial = Boolean(!data.subscription_tier && Number.isFinite(trialStart) && Number.isFinite(trialExpiry) && trialStart <= now && trialExpiry > now);
       const isActiveAccount = data.account_status === "active";
       const locked = !isActiveAccount || (!hasPaidPlan && !hasTrial);
       const acceptedCurrentTerms = Boolean(data.terms_accepted_at && data.terms_version === TERMS_VERSION);
