@@ -33,7 +33,7 @@ const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Subscription", icon: CreditCard }, { name: "Today's Session", icon: Sparkles }, { name: "Subjects", icon: BookOpen },
   { name: "Planner", icon: CalendarDays }, { name: "Timetable", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "MIΛ Studio", icon: Sparkles }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Help & feedback", icon: LifeBuoy }
 ];
-const STUDYSPACE_SUPPORT_NUMBER = String(import.meta.env.VITE_STUDYSPACE_WHATSAPP || "").replace(/\\D/g, "");
+const STUDYSPACE_SUPPORT_NUMBER = "26879940955";
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 const dateLabel = (value: string) => {
