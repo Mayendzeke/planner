@@ -68,7 +68,13 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
   const visibleEntries = useMemo(() => entries.filter(item => item.timetable_kind === kind), [entries, kind]);
 
 
-  function openNew(day = 1, start = "08:00", end = "09:00") {
+  function defaultEndTime(start: string) {
+    const [hours, minutes] = start.split(":").map(Number);
+    const total = Math.min(23 * 60 + 59, (hours || 0) * 60 + (minutes || 0) + 60);
+    return String(Math.floor(total / 60)).padStart(2, "0") + ":" + String(total % 60).padStart(2, "0");
+  }
+
+  function openNew(day = 1, start = "08:00", end = defaultEndTime(start)) {
     setEditingId(null);
     setDraft({ ...blank(), day_of_week: day, starts_at: start, ends_at: end, subject_name: subjects[0]?.name ?? "" });
     setEditorOpen(true);
@@ -208,7 +214,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
                 <strong>{entry.subject_name||entry.title}</strong><span>{timeValue(entry.starts_at)}–{timeValue(entry.ends_at)}</span>{entry.location&&<small>{entry.location}</small>}
                 <div>{kind==="personal"&&<button type="button" className="subtle-button" onClick={()=>void toggleReady(entry)}>{(entry.notes||"").includes("[READY_FOR_STUDY]")?"Ready":"Mark ready"}</button>}<button type="button" onClick={()=>openEdit(entry)} aria-label={"Edit "+entry.title}><Pencil size={12}/></button><button type="button" onClick={()=>void removeEntry(entry)} aria-label={"Remove "+entry.title}><Trash2 size={12}/></button></div>
               </article>)}
-              {!items.length&&<button type="button" className="timetable-cell-add" onClick={()=>openNew(day,start,"09:00")} aria-label={"Add lesson "+days[day]+" at "+start}>+</button>}
+              {!items.length&&<button type="button" className="timetable-cell-add" onClick={()=>openNew(day,start)} aria-label={"Add lesson "+days[day]+" at "+start}>+</button>}
             </td>})}
           </tr>)}</tbody>
         </table></div></div>
