@@ -64,6 +64,8 @@ export default function App() {
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [ready, setReady] = useState(false);
+  const [splashElapsed, setSplashElapsed] = useState(false);
+  const [expiredAccess, setExpiredAccess] = useState(false);
   const [error, setError] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     try { return localStorage.getItem("studyspace-theme") === "light" ? "light" : "dark"; } catch { return "dark"; }
@@ -107,11 +109,34 @@ export default function App() {
       setCloudAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) suppressCloudSyncRef.current = false;
+      if (session) { suppressCloudSyncRef.current = false; setExpiredAccess(false); }
       setCloudUserId(session?.user.id ?? null);
       setCloudAuthReady(true);
     });
     return () => { alive = false; subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (!cloudUserId || !supabase) return;
+    let alive = true;
+    const checkPaidAccess = async () => {
+      const { data, error: checkError } = await supabase!.from("profiles").select("account_status,subscription_expires_at").eq("id", cloudUserId).single();
+      if (!alive || checkError || !data) return;
+      const expired = data.account_status !== "active" || (data.subscription_expires_at && new Date(data.subscription_expires_at).getTime() <= Date.now());
+      if (expired) {
+        setExpiredAccess(true);
+        suppressCloudSyncRef.current = true;
+        await supabase!.auth.signOut();
+      }
+    };
+    void checkPaidAccess();
+    const timer = window.setInterval(() => void checkPaidAccess(), 30000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [cloudUserId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSplashElapsed(true), 5200);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Restore the cloud profile when a student signs in on a new device.
@@ -581,11 +606,12 @@ export default function App() {
   }
 
   if (!supabase) return <StudentAccess />;
+  if (expiredAccess) return <main className="student-access-shell"><section className="student-access-card"><div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div><div className="student-access-heading"><h1>Access paused</h1><p>Your paid access has expired or your account has been disabled. Your saved work remains linked to this Student ID. Contact your administrator to renew or reactivate your account, then sign in again.</p></div><button className="student-access-submit" type="button" onClick={() => { setExpiredAccess(false); }}>Return to sign in</button></section></main>;
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
   if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
   if (!profile) return <StudentOnboarding onComplete={nextProfile => void finishOnboarding(nextProfile)} />;
-  if (!ready) return <SplashScreen theme={theme} />;
+  if (!ready || !splashElapsed) return <SplashScreen theme={theme} />;
 
   return <div className="app-shell" data-theme={theme}>
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
