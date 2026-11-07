@@ -1,5 +1,3 @@
-import { GraduationCap } from "lucide-react";
-
 export default function SplashScreen({ theme = "dark" }: { theme?: "dark" | "light" }) {
   return <main className="splash-screen" data-theme={theme} role="status" aria-live="polite" aria-busy="true" aria-label="Studyspace is loading">
     <div className="splash-glow splash-glow-a" />
