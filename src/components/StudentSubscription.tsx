@@ -7,7 +7,7 @@ const plans: Plan[] = [
   { id: "free_trial", name: "Free Trial", duration: "1 day", price: 0, days: 1, description: "Try Studyspace before choosing a paid plan." },
   { id: "weekly", name: "Weekly", duration: "7 days", price: 100, days: 7, description: "One week of full learner access." },
   { id: "two_weeks", name: "2 Weeks", duration: "14 days", price: 200, days: 14, description: "Two weeks of uninterrupted learning." },
-  { id: "monthly", name: "Monthly", duration: "28 days", price: 350, days: 28, description: "Four weeks of full learner access." },
+  { id: "monthly", name: "Monthly", duration: "28 days", price: 350, days: 28, description: "Premium 28-day access with the highest daily MIΛ allowance." },
 ];
 
 export default function StudentSubscription() {
@@ -73,8 +73,8 @@ export default function StudentSubscription() {
     <section className="glass-panel settings-card">
       <div className="section-heading"><div><h2>Choose a plan</h2><p>Select the access period you want to request.</p></div><Clock3 size={20}/></div>
       <div className="subscription-plans">
-        {plans.map(plan => <button type="button" key={plan.id} className={"subscription-plan " + (selected === plan.id ? "selected" : "")} onClick={() => { setSelected(plan.id); setMessage(""); }}>
-          <span className="subscription-plan-top"><strong>{plan.name}</strong><span>{selected === plan.id ? <CheckCircle2 size={18}/> : null}</span></span>
+        {plans.map(plan => <button type="button" key={plan.id} className={"subscription-plan " + (plan.id === "monthly" ? "subscription-plan-premium " : "") + (selected === plan.id ? "selected" : "")} onClick={() => { setSelected(plan.id); setMessage(""); }}>
+          <span className="subscription-plan-top"><strong>{plan.name}{plan.id === "monthly" ? <small className="subscription-premium-tag">PREMIUM</small> : null}</strong><span>{selected === plan.id ? <CheckCircle2 size={18}/> : null}</span></span>
           <span className="subscription-price">{plan.price === 0 ? "Free" : "E" + plan.price}</span>
           <span className="subscription-duration">{plan.duration}</span>
           <span className="subscription-description">{plan.description}</span>
