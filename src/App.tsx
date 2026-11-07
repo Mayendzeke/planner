@@ -120,8 +120,22 @@ export default function App() {
     if (!cloudUserId || !supabase) return;
     let alive = true;
     const checkPaidAccess = async () => {
+      const expiryCacheKey = "studyspace-subscription-expiry:" + cloudUserId;
       const { data, error: checkError } = await supabase!.from("profiles").select("account_status,subscription_expires_at").eq("id", cloudUserId).single();
-      if (!alive || checkError || !data) return;
+      if (!alive) return;
+      if (checkError || !data) {
+        // Offline mode may use a previously verified expiry date, but never
+        // assume an unknown paid-through date is valid after it was cached.
+        const cachedExpiry = localStorage.getItem(expiryCacheKey);
+        if (cachedExpiry && new Date(cachedExpiry).getTime() <= Date.now()) {
+          setExpiredAccess(true);
+          suppressCloudSyncRef.current = true;
+          await supabase!.auth.signOut();
+        }
+        return;
+      }
+      if (data.subscription_expires_at) localStorage.setItem(expiryCacheKey, data.subscription_expires_at);
+      else localStorage.removeItem(expiryCacheKey);
       const expired = data.account_status !== "active" || (data.subscription_expires_at && new Date(data.subscription_expires_at).getTime() <= Date.now());
       if (expired) {
         setExpiredAccess(true);
