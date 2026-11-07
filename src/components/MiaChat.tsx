@@ -7,7 +7,13 @@ import { supabase } from "../lib/supabase";
 import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
 
-type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources?: { title: string; uri: string }[];
+  searchSuggestionsHtml?: string;
+};
 type Flashcard = { front: string; back: string; visualCue?: string };
 type MiaAttachment = { name: string; mimeType: string; data?: string; textContent?: string };
 function extractFlashcards(reply: string): Flashcard[] {
@@ -254,12 +260,35 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       setConversationId(data.conversationId);
       setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
       const cards = extractFlashcards(data.reply);
+      const groundingSources = Array.isArray(data.sources)
+        ? data.sources.filter((source: any) => source && typeof source.title === "string"
+          && typeof source.uri === "string" && source.uri.startsWith("https://"))
+          .slice(0, 6)
+          .map((source: any) => ({ title: source.title.slice(0, 160), uri: source.uri }))
+        : [];
+      const searchSuggestionsHtml = typeof data.searchSuggestionsHtml === "string"
+        && data.searchSuggestionsHtml.length <= 30000 ? data.searchSuggestionsHtml : undefined;
       if (cards.length) {
         setFlashcards(cards);
         setFlashcardIndex(0);
         setFlashcardFlipped(false);
+        if (groundingSources.length || searchSuggestionsHtml) {
+          setMessages(current => [...current, {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: "I checked current sources for this syllabus-related request.",
+            sources: groundingSources,
+            searchSuggestionsHtml,
+          }]);
+        }
       } else {
-        setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
+        setMessages(current => [...current, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: data.reply,
+          sources: groundingSources,
+          searchSuggestionsHtml,
+        }]);
       }
       setAttachment(null);
     } catch (reason) {
@@ -338,7 +367,21 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     <div className="mia-messages" ref={scrollRef}>
       {messages.map(message => <article key={message.id} className={"mia-message-row " + (message.role === "user" ? "is-user" : "is-assistant")}>
         {message.role === "assistant" && <div className="mia-message-avatar">Λ</div>}
-        <div className="mia-message-bubble">{message.content}</div>
+        <div className="mia-message-bubble">
+          {message.content}
+          {message.role === "assistant" && !!message.sources?.length && <div className="mia-grounding-sources">
+            <strong>Sources checked</strong>
+            {message.sources.map((source, index) => <a key={source.uri + index} href={source.uri} target="_blank" rel="noopener noreferrer">{source.title}</a>)}
+          </div>}
+          {message.role === "assistant" && message.searchSuggestionsHtml && <iframe
+            className="mia-search-suggestions-frame"
+            title="Google Search suggestions"
+            srcDoc={message.searchSuggestionsHtml}
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+          />}
+        </div>
       </article>)}
       {busy && <div className="mia-message-row is-assistant"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> MIΛ is thinking…</div></div>}
       {draft.length > 0 && <section className="mia-timetable-review">
