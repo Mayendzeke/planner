@@ -983,8 +983,8 @@ html{overflow-anchor:none}
 /* Weekly school timetable: time axis at left, weekdays across the top. */
 .timetable-grid-wrap{display:grid;gap:10px;min-width:0}
 .timetable-grid-empty{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-size:11px}
-.timetable-grid-scroll{width:100%;overflow:hidden;border:1px solid var(--border);border-radius:13px}
-.timetable-grid-zoom{width:100%;max-width:100%;margin-inline:auto}
+.timetable-grid-scroll{display:flex;justify-content:center;align-items:flex-start;width:100%;overflow:hidden;border:1px solid var(--border);border-radius:13px}
+.timetable-grid-zoom{flex:0 0 100%;width:100%;max-width:100%;margin-inline:auto}
 .weekly-timetable-grid{width:100%;min-width:0;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px}
 .weekly-timetable-grid th,.weekly-timetable-grid td{padding:8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);vertical-align:top}
 .weekly-timetable-grid thead th{position:sticky;top:0;z-index:2;background:var(--panel-strong);text-align:center;font-size:10px;font-weight:750}
@@ -1097,6 +1097,6 @@ html{overflow-anchor:none}
 .timetable-zoom-button:disabled{opacity:.35;cursor:not-allowed}
 
 /* Final responsive timetable sizing: legacy breakpoints must not restore a wider-than-screen grid. */
-.timetable-grid-scroll{width:100%;max-width:100%;overflow:hidden}
-.timetable-grid-zoom{width:100%;max-width:none}
+.timetable-grid-scroll{display:flex;justify-content:center;align-items:flex-start;width:100%;max-width:100%;overflow:hidden}
+.timetable-grid-zoom{flex:0 0 100%;width:100%;max-width:none}
 .weekly-timetable-grid{width:100%;min-width:0}
