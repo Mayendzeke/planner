@@ -102,6 +102,7 @@ export default function App() {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [syncRequested, setSyncRequested] = useState(0);
   const suppressCloudSyncRef = useRef(false);
+  const lastAuthUserIdRef = useRef<string | null>(null);
   // The fixed app shell owns its scroll position. Reset only that surface when
   // changing tabs; do not alter document scroll restoration or window scroll.
   useLayoutEffect(() => {
@@ -115,21 +116,30 @@ export default function App() {
     let alive = true;
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
-      setCloudUserId(data.session?.user.id ?? null);
+      const initialUserId = data.session?.user.id ?? null;
+      lastAuthUserIdRef.current = initialUserId;
+      setCloudUserId(initialUserId);
       setCloudAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        suppressCloudSyncRef.current = false;
-        setExpiredAccess(false);
-        setTermsAccepted(null);
-        setAccessStatusError("");
-      } else {
-        setTermsAccepted(null);
-        setExpiredAccess(false);
-        setTrialReminder(false);
+      const nextUserId = session?.user.id ?? null;
+      const identityChanged = nextUserId !== lastAuthUserIdRef.current;
+      if (identityChanged) {
+        lastAuthUserIdRef.current = nextUserId;
+        if (session) {
+          suppressCloudSyncRef.current = false;
+          setExpiredAccess(false);
+          setTermsAccepted(null);
+          setAccessStatusError("");
+        } else {
+          setTermsAccepted(null);
+          setExpiredAccess(false);
+          setTrialReminder(false);
+        }
       }
-      setCloudUserId(session?.user.id ?? null);
+      // Token refreshes for the same user must not clear the already-checked
+      // terms state or the app would remain on the splash screen indefinitely.
+      setCloudUserId(nextUserId);
       setCloudAuthReady(true);
     });
     return () => { alive = false; subscription.unsubscribe(); };
