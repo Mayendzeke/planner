@@ -19,7 +19,7 @@ function catalogFor(level:string,curriculum:string):string[] {
 }
 type Draft = typeof blank;
 
-export default function SubjectManager({ onOpenPlanner, profile }: { onOpenPlanner:(name:string)=>void; profile:StudentProfile }) {
+export default function SubjectManager({ onOpenPlanner, onSubjectsChanged, profile }: { onOpenPlanner:(name:string)=>void; onSubjectsChanged?:()=>void; profile:StudentProfile }) {
  const [subjects,setSubjects]=useState<Subject[]>([]);
  const [periods,setPeriods]=useState<AcademicPeriod[]>([]);
  const [draft,setDraft]=useState<Draft>(blank);
@@ -45,7 +45,7 @@ export default function SubjectManager({ onOpenPlanner, profile }: { onOpenPlann
     if(syncError) throw new Error("Subject saved on this device, but cloud sync failed: "+syncError.message);
    }
   }
-  setOpen(false);await load();
+  setOpen(false);await load();onSubjectsChanged?.();
  }catch(reason){setError(reason instanceof Error?reason.message:"Could not save this subject. Check available browser storage.");}finally{setBusy(false);}}
  async function remove(s:Subject){if(!window.confirm("Delete “"+s.name+"”? Existing tasks and study sessions will be retained but unlinked."))return;try{await plannerDb.transaction("rw",plannerDb.subjects,plannerDb.tasks,plannerDb.sessions,async()=>{await plannerDb.subjects.delete(s.id);const [tasks,sessions]=await Promise.all([plannerDb.tasks.where("subjectId").equals(s.id).toArray(),plannerDb.sessions.where("subjectId").equals(s.id).toArray()]);await Promise.all([...tasks.map(t=>plannerDb.tasks.put({...t,subjectId:null})),...sessions.map(x=>plannerDb.sessions.put({...x,subjectId:null}))]);});await load();}catch{setError("Could not delete the subject. Your linked records have been retained.");}}
  const shown=subjects.filter(s=>(s.name+" "+(s.code??"")+" "+(s.description??"")).toLowerCase().includes(query.toLowerCase()));
