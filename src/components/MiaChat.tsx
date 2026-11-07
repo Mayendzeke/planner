@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles } from "lucide-react";
 import { strFromU8, unzipSync } from "fflate";
+import * as pdfjs from "pdfjs-dist";
+pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 import { supabase } from "../lib/supabase";
 import type { StudentProfile } from "./StudentOnboarding";
 import type { Subject } from "../data/db";
@@ -89,16 +91,58 @@ function extractOfficeText(buffer: ArrayBuffer, extension: string): string {
 
 async function filePayload(file: File): Promise<MiaAttachment> {
   const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
-  const mimeType = file.type || ({ pdf: "application/pdf", txt: "text/plain", md: "text/markdown", csv: "text/csv", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }[extension] ?? "application/octet-stream");
-  if (["docx", "pptx", "xlsx"].includes(extension)) { const textContent = extractOfficeText(buffer, extension).trim(); if (!textContent) throw new Error("No readable text was found in this office document."); return { name: file.name, mimeType: "text/plain", textContent: textContent.slice(0, 50000) }; }
+  const mimeType = file.type || ({
+    pdf: "application/pdf", txt: "text/plain", md: "text/markdown", csv: "text/csv",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp",
+  }[extension] ?? "application/octet-stream");
+
+  if (["docx", "pptx", "xlsx"].includes(extension)) {
+    const textContent = extractOfficeText(buffer, extension).trim();
+    if (!textContent) throw new Error("No readable text was found in this office document.");
+    return { name: file.name, mimeType: "text/plain", textContent: textContent.slice(0, 50000) };
+  }
+
+  if (extension === "pdf" || mimeType === "application/pdf") {
+    const document = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+    try {
+      const pages: string[] = [];
+      for (let number = 1; number <= Math.min(document.numPages, 30); number += 1) {
+        const page = await document.getPage(number);
+        const text = await page.getTextContent();
+        const extracted = text.items.map((item: unknown) => {
+          if (!item || typeof item !== "object" || !("str" in item)) return "";
+          const value = (item as { str?: unknown }).str;
+          return typeof value === "string" ? value : "";
+        }).filter(Boolean);
+        pages.push(extracted.join(" "));
+        if (pages.join("\n").length >= 48000) break;
+      }
+      const textContent = pages.join("\n").slice(0, 50000).trim();
+      if (textContent.length < 30) {
+        throw new Error("This PDF has no selectable text. Scanned PDFs are not readable here yet; use a text-based PDF or paste the relevant text.");
+      }
+      return { name: file.name, mimeType: "text/plain", textContent };
+    } finally {
+      await document.destroy();
+    }
+  }
+
   if (mimeType.startsWith("text/") || ["text/plain", "text/markdown", "text/csv", "application/json", "application/xml"].includes(mimeType)) {
     return { name: file.name, mimeType, textContent: (await file.text()).slice(0, 50000) };
   }
-  return { name: file.name, mimeType, data: btoa(binary) };
+
+  if (["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return { name: file.name, mimeType, data: btoa(binary) };
+  }
+
+  throw new Error("This attachment format is not supported by MIΛ.");
 }
 
 async function functionErrorMessage(error: unknown): Promise<string> {
@@ -208,7 +252,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       setMessages(current => current.filter(item => item.id !== outgoingId));
       setText(value);
       setAttachment(file);
-      setText(value);
     } finally { setBusy(false); inputRef.current?.focus(); }
   }
 
