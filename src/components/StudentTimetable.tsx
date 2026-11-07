@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, Minus, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 
@@ -41,6 +41,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [timetableZoom, setTimetableZoom] = useState(1);
 
   async function loadEntries() {
     if (!supabase) { setLoading(false); setError("StudySpace is not connected. Sign in again."); return; }
@@ -165,6 +166,14 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
         </div>
         <div className="timetable-add-actions"><button type="button" className="subtle-button" onClick={()=>openNew()}><Plus size={15}/> Add lesson</button><button type="button" className="subtle-button" onClick={()=>{setEditingId(null);setDraft({...blank(),subject_name:"",title:"Break",starts_at:"10:00",ends_at:"10:15"});setEditorOpen(true);}}>+ Break</button><button type="button" className="subtle-button" onClick={()=>{setEditingId(null);setDraft({...blank(),subject_name:"",title:"Lunch",starts_at:"12:30",ends_at:"13:15"});setEditorOpen(true);}}>+ Lunch</button></div>
       </div>
+      <div className="timetable-view-controls">
+        <span>Timetable zoom</span>
+        <div className="timetable-zoom-controls" role="group" aria-label="Timetable zoom controls">
+          <button type="button" className="timetable-zoom-button" aria-label="Zoom out" title="Zoom out" onClick={() => setTimetableZoom(value => Math.max(0.45, Math.round((value - 0.1) * 100) / 100))} disabled={timetableZoom <= 0.45}><Minus size={15}/></button>
+          <button type="button" className="timetable-zoom-reset" onClick={() => setTimetableZoom(1)} aria-label="Reset timetable zoom">{Math.round(timetableZoom * 100)}%</button>
+          <button type="button" className="timetable-zoom-button" aria-label="Zoom in" title="Zoom in" onClick={() => setTimetableZoom(value => Math.min(1.5, Math.round((value + 0.1) * 100) / 100))} disabled={timetableZoom >= 1.5}><Plus size={15}/></button>
+        </div>
+      </div>
       {notice && <p className="inline-message" role="status">{notice}</p>}
       {error && <p className="alert error-alert" role="alert">{error}</p>}
       {editorOpen && <form className="timetable-editor" onSubmit={saveEntry}>
@@ -191,7 +200,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
       </form>}
       {loading ? <div className="timetable-empty"><RefreshCw size={20}/> Loading your timetable…</div> : <div className="timetable-grid-wrap">
         {visibleEntries.length === 0 && <div className="timetable-grid-empty"><CalendarDays size={20}/><span>No lessons saved yet. Add lessons or import a school timetable through MIΛ.</span></div>}
-        <div className="timetable-grid-scroll"><table className="weekly-timetable-grid">
+        <div className="timetable-grid-scroll"><div className="timetable-grid-zoom" style={{ zoom: timetableZoom }}><table className="weekly-timetable-grid">
           <thead><tr><th className="timetable-day-heading">DAY</th>{Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=><th key={start}><span>{start}</span><small>SUBJECT / ACTIVITY</small></th>)}</tr></thead>
           <tbody>{[1,2,3,4,5,6,0].map(day=><tr key={day}><th className="timetable-day-cell">{days[day]}</th>
             {Array.from(new Set(visibleEntries.map(item=>timeValue(item.starts_at)))).sort().map(start=>{const items=visibleEntries.filter(item=>item.day_of_week===day&&timeValue(item.starts_at)===start);return <td key={start} className={items.length?"has-lessons":""}>
@@ -202,7 +211,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
               {!items.length&&<button type="button" className="timetable-cell-add" onClick={()=>openNew(day,start,"09:00")} aria-label={"Add lesson "+days[day]+" at "+start}>+</button>}
             </td>})}
           </tr>)}</tbody>
-        </table></div>
+        </table></div></div>
       </div>}
     </section>
     <p className="timetable-footnote">Changes are saved to your StudySpace account and appear here the next time you sign in. Imported timetable entries can also be corrected after review.</p>
