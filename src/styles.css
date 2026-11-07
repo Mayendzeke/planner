@@ -1095,3 +1095,8 @@ html{overflow-anchor:none}
 .timetable-zoom-button,.timetable-zoom-reset{display:grid;place-items:center;min-width:30px;height:29px;padding:0 7px;border:0;border-radius:7px;background:transparent;color:var(--text);font-size:11px;font-weight:700}
 .timetable-zoom-button:hover,.timetable-zoom-reset:hover{background:var(--panel-strong)}
 .timetable-zoom-button:disabled{opacity:.35;cursor:not-allowed}
+
+/* Final responsive timetable sizing: legacy breakpoints must not restore a wider-than-screen grid. */
+.timetable-grid-scroll{width:100%;max-width:100%;overflow:hidden}
+.timetable-grid-zoom{width:100%;max-width:none}
+.weekly-timetable-grid{width:100%;min-width:0}
