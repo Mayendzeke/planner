@@ -48,8 +48,9 @@ function catalogFor(level: string, curriculum: string) {
   return core;
 }
 
-export default function StudentOnboarding({ onComplete }: { onComplete: (profile: StudentProfile) => void }) {
+export default function StudentOnboarding({ onComplete }: { onComplete: (profile: StudentProfile) => Promise<void> | void }) {
   const [step, setStep] = useState(0);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [profile, setProfile] = useState<StudentProfile>(emptyProfile);
   const [subjectSearch, setSubjectSearch] = useState("");
   const [customSubject, setCustomSubject] = useState("");
@@ -84,7 +85,8 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
     }));
   }
 
-  function next() {
+  async function next() {
+    if (savingProfile) return;
     setError("");
     if (step === 0 && !profile.fullName.trim()) { setError("Please enter the student's name."); return; }
     if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim())) { setError("Please enter a grade or year and academic year."); return; }
@@ -122,14 +124,21 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
           };
         });
       });
-      onComplete({
-        ...profile,
-        subjects: [...new Set(profile.subjects)],
-        timetableEntries: [
-          ...timetableEntries.map(entry => ({ ...entry, timetable_kind: "school" as const })),
-          ...generatedStudyEntries
-        ]
-      });
+      setSavingProfile(true);
+      try {
+        await onComplete({
+          ...profile,
+          subjects: [...new Set(profile.subjects)],
+          timetableEntries: [
+            ...timetableEntries.map(entry => ({ ...entry, timetable_kind: "school" as const })),
+            ...generatedStudyEntries
+          ]
+        });
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Your profile could not be saved. Check your connection and try again.");
+      } finally {
+        setSavingProfile(false);
+      }
       return;
     }
     setStep(current => Math.min(3, current + 1));
@@ -199,7 +208,7 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
       {error && <p className="onboarding-error" role="alert">{error}</p>}
       <div className="onboarding-actions">
         {step > 0 && <button className="secondary-button" onClick={() => { setError(""); setStep(current => current - 1); }}><ArrowLeft size={15}/> Back</button>}
-        <button className="primary-button onboarding-next" onClick={next}>{step === 3 ? <><BookOpen size={16}/> Create my study space</> : <>Continue <ArrowRight size={15}/></>}</button>
+        <button className="primary-button onboarding-next" onClick={() => void next()} disabled={savingProfile}>{savingProfile ? "Saving your profile…" : step === 3 ? <><BookOpen size={16}/> Create my study space</> : <>Continue <ArrowRight size={15}/></>}</button>
       </div>
       <p className="onboarding-privacy">Your account profile is saved securely to Studyspace. Planner activity is stored on this device in this release.</p>
     </section>
