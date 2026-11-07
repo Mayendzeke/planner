@@ -1123,3 +1123,23 @@ html{overflow-anchor:none}
 .subscription-request .subtle-note{margin:0;line-height:1.5}
 .subscription-message{width:100%;padding:12px 14px;border:1px solid var(--panel-border,rgba(255,255,255,.14));border-radius:12px;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
 @media(max-width:640px){.subscription-current-grid{grid-template-columns:1fr;gap:9px}.subscription-current-grid>div{padding:13px}.subscription-plans{grid-template-columns:1fr}.subscription-plan{padding:15px}}
+
+
+/* Timetable cells and form controls inherit the selected StudySpace theme. */
+.weekly-timetable-grid { table-layout:fixed; width:100%; min-width:0; }
+.weekly-timetable-grid th,.weekly-timetable-grid td { min-width:0; }
+.weekly-timetable-grid td { padding:3px; }
+.weekly-timetable-lesson { min-width:0; max-width:100%; padding:5px 4px; gap:3px; overflow:hidden; overflow-wrap:anywhere; word-break:break-word; }
+.weekly-timetable-lesson strong,.weekly-timetable-lesson span,.weekly-timetable-lesson small { min-width:0; max-width:100%; font-size:clamp(8px,1vw,10px); line-height:1.25; overflow-wrap:anywhere; word-break:break-word; }
+.timetable-editor input,.timetable-editor select,.timetable-editor textarea,.timetable-editor-grid input,.timetable-editor-grid select,.timetable-editor-grid textarea,.timetable-grid-wrap input,.timetable-grid-wrap select {
+ width:100%; min-width:0; border:1px solid var(--border); border-radius:10px;
+ background:var(--panel-strong); color:var(--text); font-family:inherit; font-size:13px; font-weight:500;
+}
+html[data-theme="dark"] .timetable-editor input,html[data-theme="dark"] .timetable-editor select,html[data-theme="dark"] .timetable-editor textarea,html[data-theme="dark"] .timetable-editor-grid input,html[data-theme="dark"] .timetable-editor-grid select,html[data-theme="dark"] .timetable-grid-wrap select { color-scheme:dark; }
+html[data-theme="light"] .timetable-editor input,html[data-theme="light"] .timetable-editor select,html[data-theme="light"] .timetable-editor textarea,html[data-theme="light"] .timetable-editor-grid input,html[data-theme="light"] .timetable-editor-grid select,html[data-theme="light"] .timetable-grid-wrap select { color-scheme:light; }
+.timetable-editor input:focus,.timetable-editor select:focus,.timetable-editor-grid input:focus,.timetable-editor-grid select:focus { outline:2px solid color-mix(in srgb,var(--blue) 45%,transparent); outline-offset:1px; }
+@media(max-width:640px) {
+ .weekly-timetable-grid th,.weekly-timetable-grid td { padding:3px 2px; }
+ .weekly-timetable-lesson { padding:4px 3px; border-left-width:2px; }
+ .weekly-timetable-lesson strong,.weekly-timetable-lesson span,.weekly-timetable-lesson small { font-size:8px; }
+}
