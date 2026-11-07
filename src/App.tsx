@@ -3,7 +3,7 @@ import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
   LifeBuoy, Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
-  Trash2, TrendingUp, Upload, X, Flame, CreditCard
+  Trash2, TrendingUp, Upload, X, Flame, CreditCard, ShieldCheck
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
@@ -34,7 +34,6 @@ const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Subscription", icon: CreditCard }, { name: "Today's Session", icon: Sparkles }, { name: "Subjects", icon: BookOpen },
   { name: "Planner", icon: CalendarDays }, { name: "Timetable", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "MIΛ Studio", icon: Sparkles }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Help & feedback", icon: LifeBuoy }
 ];
-const STUDYSPACE_SUPPORT_NUMBER = "26879940955";
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const localDay = (value: string) => { const d = new Date(value); if (Number.isNaN(d.getTime())) return ""; return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 const dateLabel = (value: string) => {
