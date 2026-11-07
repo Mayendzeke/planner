@@ -21,6 +21,7 @@ import StudentFeedback from "./components/StudentFeedback";
 import MiaChat from "./components/MiaChat";
 import StudentTimetable from "./components/StudentTimetable";
 import StudentSubscription from "./components/StudentSubscription";
+import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./components/TermsAndConditions";
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 
@@ -68,6 +69,14 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [splashElapsed, setSplashElapsed] = useState(false);
   const [expiredAccess, setExpiredAccess] = useState(false);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessStatusError, setAccessStatusError] = useState("");
+  const [accessRetry, setAccessRetry] = useState(0);
+  const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null);
+  const [termsConsentChecked, setTermsConsentChecked] = useState(false);
+  const [termsAcceptedByName, setTermsAcceptedByName] = useState("");
+  const [termsAcceptanceRole, setTermsAcceptanceRole] = useState<TermsAcceptanceRole>("parent_guardian");
+  const [trialReminder, setTrialReminder] = useState(false);
   const [error, setError] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     try { return localStorage.getItem("studyspace-theme") === "light" ? "light" : "dark"; } catch { return "dark"; }
@@ -111,7 +120,16 @@ export default function App() {
       setCloudAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) { suppressCloudSyncRef.current = false; setExpiredAccess(false); }
+      if (session) {
+        suppressCloudSyncRef.current = false;
+        setExpiredAccess(false);
+        setTermsAccepted(null);
+        setAccessStatusError("");
+      } else {
+        setTermsAccepted(null);
+        setExpiredAccess(false);
+        setTrialReminder(false);
+      }
       setCloudUserId(session?.user.id ?? null);
       setCloudAuthReady(true);
     });
@@ -119,37 +137,67 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!cloudUserId || !supabase) return;
+    if (!cloudUserId || !supabase) {
+      setAccessLoading(false);
+      setTermsAccepted(null);
+      setExpiredAccess(false);
+      setAccessStatusError("");
+      return;
+    }
     let alive = true;
-    const checkPaidAccess = async () => {
-      const expiryCacheKey = "studyspace-subscription-expiry:" + cloudUserId;
-      const { data, error: checkError } = await supabase!.from("profiles").select("account_status,subscription_expires_at").eq("id", cloudUserId).single();
+    setAccessLoading(true);
+    setAccessStatusError("");
+
+    const checkAccess = async () => {
+      const { data, error: checkError } = await supabase!
+        .from("profiles")
+        .select("student_id,account_status,subscription_tier,subscription_expires_at,trial_started_at,trial_expires_at,trial_reminder_shown_at,terms_accepted_at,terms_version")
+        .eq("id", cloudUserId)
+        .single();
+
       if (!alive) return;
       if (checkError || !data) {
-        // Offline mode may use a previously verified expiry date, but never
-        // assume an unknown paid-through date is valid after it was cached.
-        const cachedExpiry = localStorage.getItem(expiryCacheKey);
-        if (cachedExpiry && new Date(cachedExpiry).getTime() <= Date.now()) {
-          setExpiredAccess(true);
-          suppressCloudSyncRef.current = true;
-          await supabase!.auth.signOut();
-        }
-        return;
-      }
-      if (data.subscription_expires_at) localStorage.setItem(expiryCacheKey, data.subscription_expires_at);
-      else localStorage.removeItem(expiryCacheKey);
-      const expired = data.account_status !== "active" || (data.subscription_expires_at && new Date(data.subscription_expires_at).getTime() <= Date.now());
-      if (expired) {
+        setAccessStatusError("StudySpace could not verify this account’s access status. Reconnect and retry. Learning features remain unavailable until access is verified.");
+        setAccessLoading(false);
         setExpiredAccess(true);
         suppressCloudSyncRef.current = true;
-        await supabase!.auth.signOut();
+        return;
+      }
+
+      const now = Date.now();
+      const paidExpiry = data.subscription_expires_at ? Date.parse(data.subscription_expires_at) : NaN;
+      const trialStart = data.trial_started_at ? Date.parse(data.trial_started_at) : NaN;
+      const trialExpiry = data.trial_expires_at ? Date.parse(data.trial_expires_at) : NaN;
+      const hasPaidPlan = Boolean(data.subscription_tier && Number.isFinite(paidExpiry) && paidExpiry > now);
+      const hasTrial = Boolean(!data.subscription_tier && Number.isFinite(trialStart) && Number.isFinite(trialExpiry) && trialExpiry > now);
+      const isActiveAccount = data.account_status === "active";
+      const locked = !isActiveAccount || (!hasPaidPlan && !hasTrial);
+      const acceptedCurrentTerms = Boolean(data.terms_accepted_at && data.terms_version === TERMS_VERSION);
+
+      setTermsAccepted(acceptedCurrentTerms);
+      setExpiredAccess(locked);
+      suppressCloudSyncRef.current = locked;
+      setAccessStatusError("");
+      setAccessLoading(false);
+
+      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialStart + 24 * 60 * 60 * 1000) {
+        const { data: marked, error: reminderError } = await supabase!.rpc("mark_studyspace_trial_reminder_shown");
+        if (alive && !reminderError && marked === true) setTrialReminder(true);
       }
     };
-    void checkPaidAccess();
-    const timer = window.setInterval(() => void checkPaidAccess(), 30000);
-    return () => { alive = false; window.clearInterval(timer); };
-  }, [cloudUserId]);
 
+    void checkAccess();
+    const timer = window.setInterval(() => void checkAccess(), 30000);
+    const onVisibility = () => { if (document.visibilityState === "visible") void checkAccess(); };
+    window.addEventListener("focus", onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onVisibility);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [cloudUserId, accessRetry]);
   useEffect(() => {
     const timer = window.setTimeout(() => setSplashElapsed(true), 5200);
     return () => window.clearTimeout(timer);
@@ -161,6 +209,11 @@ export default function App() {
     if (!cloudUserId) {
       setProfile(null);
       setProfileOwnerId(null);
+      return;
+    }
+    if (termsAccepted !== true) {
+      setProfile(null);
+      setProfileOwnerId(cloudUserId);
       return;
     }
     let alive = true;
@@ -245,7 +298,7 @@ export default function App() {
     };
     void loadProfile();
     return () => { alive = false; };
-  }, [cloudUserId]);
+  }, [cloudUserId, termsAccepted]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -332,7 +385,7 @@ export default function App() {
   // Sync on workspace open, reconnect, tab return and while the app is active.
   // IndexedDB remains the offline cache; Supabase provides cross-device data.
   useEffect(() => {
-    if (!cloudUserId || profileOwnerId !== cloudUserId || !profile || !ready) {
+    if (!cloudUserId || profileOwnerId !== cloudUserId || !profile || !ready || expiredAccess || accessLoading) {
       if (!cloudUserId) setSyncStatus("checking");
       return;
     }
@@ -387,7 +440,7 @@ export default function App() {
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [cloudUserId, profileOwnerId, profile, ready, goal, syncRequested]);
+  }, [cloudUserId, profileOwnerId, profile, ready, goal, syncRequested, expiredAccess, accessLoading]);
 
 
   async function finishOnboarding(nextProfile: StudentProfile) {
@@ -626,9 +679,27 @@ export default function App() {
   }
 
   if (!supabase) return <StudentAccess />;
-  if (expiredAccess) return <main className="student-access-shell"><section className="student-access-card"><div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div><div className="student-access-heading"><h1>Access paused</h1><p>Your subscription has expired or your account has been disabled. Your Student ID and saved work remain safe. Contact the administrator to renew or reactivate your access.</p></div><button className="student-access-submit" type="button" disabled={!STUDYSPACE_SUPPORT_NUMBER} onClick={() => { if(STUDYSPACE_SUPPORT_NUMBER) window.location.href="https://wa.me/"+STUDYSPACE_SUPPORT_NUMBER+"?text="+encodeURIComponent("Hello, my StudySpace access is paused. Please help me renew or reactivate my account."); }}>Contact StudySpace on WhatsApp</button><button className="access-expiry-secondary" type="button" onClick={() => { setExpiredAccess(false); }}>Return to sign in</button></section></main>;
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
+  if (accessLoading) return <SplashScreen theme={theme} />;
+  if (accessStatusError) return <main className="terms-gate-shell"><section className="terms-gate-card"><h1>Unable to verify access</h1><p>{accessStatusError}</p><button className="primary-button" onClick={() => setAccessRetry(value => value + 1)}>Retry access check</button><button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button></section></main>;
+  if (termsAccepted === null) return <SplashScreen theme={theme} />;
+  if (termsAccepted === false) return <main className="terms-gate-shell"><section className="terms-gate-card">
+    <div className="eyebrow"><ShieldCheck size={14}/> STUDYSPACE AGREEMENT</div>
+    <h1>Before you enter your study space</h1>
+    <p>Please review the Terms &amp; Conditions and Privacy Notice. Learners under 18 must have a parent or legal guardian complete this acceptance step.</p>
+    <TermsAndConditions
+      accepted={termsConsentChecked}
+      onAcceptedChange={setTermsConsentChecked}
+      acceptedByName={termsAcceptedByName}
+      onAcceptedByNameChange={setTermsAcceptedByName}
+      acceptanceRole={termsAcceptanceRole}
+      onAcceptanceRoleChange={setTermsAcceptanceRole}
+    />
+    {error && <p className="alert error-alert" role="alert">{error}</p>}
+    <button className="primary-button terms-accept-button" disabled={!termsConsentChecked || termsAcceptedByName.trim().length < 2} onClick={() => void acceptCurrentTerms()}>Accept and continue</button>
+    <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
+  </section></main>;
   if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
   if (!profile) return <StudentOnboarding onComplete={finishOnboarding} />;
   if (!ready || !splashElapsed) return <SplashScreen theme={theme} />;
@@ -639,13 +710,13 @@ export default function App() {
       <div className="brand"><div className="brand-mark"><GraduationCap size={23}/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
       <div className="workspace-label">YOUR WORKSPACE</div>
       <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span></div></div>
-      <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
+      <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.filter(({name})=>!expiredAccess||name==="Subscription").map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
       <div className="sidebar-bottom"><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><button type="button" className="nav-item install-app-link" onClick={()=>void installStudyspace()}><Download size={18}/><span>{installPrompt?"Install Studyspace":"Install / add to home screen"}</span></button>{installHelpOpen&&<div className="install-help"><strong>Install Studyspace</strong><p>On Android Chrome, open the browser menu (⋮) and choose “Install app” or “Add to Home screen”. On iPhone Safari, tap Share, then “Add to Home Screen”.</p></div>}<div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{error?"Storage issue":syncStatus==="syncing"?"Syncing to Studyspace…":syncStatus==="synced"?"Synced to Studyspace":syncStatus==="offline"?"Offline · changes saved":syncStatus==="error"?"Sync needs attention":ready?"Opening cloud workspace":"Opening workspace"}</div></div>
     </aside>
     {mobileMenu&&<button className="mobile-scrim" aria-label="Close navigation overlay" onClick={()=>setMobileMenu(false)}/>}
     <main className="main-area">
-      <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects"/><kbd>/</kbd></label><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><div className="top-avatar"><GraduationCap size={17}/></div></div></header>
-      <div className="page-content">
+      <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects" disabled={expiredAccess}/><kbd>/</kbd></label><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><div className="top-avatar"><GraduationCap size={17}/></div></div></header>
+      <div className={"page-content "+(expiredAccess && page!=="Subscription" ? "access-locked-content" : "")} aria-disabled={expiredAccess && page!=="Subscription"}>
         <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your school week, organised.":page==="Study & Exams"?"Test your knowledge.":page==="MIΛ Studio"?"Meet your learning companion.":page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View and update your school lessons and personal study sessions.":page==="Study & Exams"?"Practise with multiple choice, word puzzles, fill-in-the-blanks and quick checks.":page==="MIΛ Studio"?"Ask questions, understand lessons, revise and organise your learning with MIΛ.":page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your totals are calculated from your own activity.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
         {error&&<div className="alert error-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div>}
         {!ready?<section className="glass-panel loading-panel"><div className="loader"/><strong>Opening your study space…</strong><p>Your local records are being loaded.</p></section>:<>
@@ -680,8 +751,28 @@ export default function App() {
     </main>
     {taskOpen&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setTaskOpen(false);}}><section className="task-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-heading"><div><span className="eyebrow">YOUR NEXT STEP</span><h2 id="task-modal-title">{editingTask===null?"Add a study task":"Edit study task"}</h2></div><button className="icon-button" aria-label="Close form" onClick={()=>setTaskOpen(false)}><X size={19}/></button></div><form onSubmit={e=>void saveTask(e)}><label className="field-label">Task title<input autoFocus required maxLength={160} value={taskForm.title} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} placeholder="e.g. Revise chapter 3"/></label><div className="form-grid"><label className="field-label">Subject<select value={taskForm.subjectId} onChange={e=>setTaskForm({...taskForm,subjectId:e.target.value})}><option value="">No subject</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="field-label">Task type<select value={taskForm.kind} onChange={e=>setTaskForm({...taskForm,kind:e.target.value as PlannerTask["kind"]})}>{["Study","Assignment","Exam","Reading","Other"].map(v=><option key={v}>{v}</option>)}</select></label><label className="field-label">Deadline<input type="datetime-local" value={taskForm.dueAt} onChange={e=>setTaskForm({...taskForm,dueAt:e.target.value})}/></label><label className="field-label">Estimated minutes<input type="number" min="5" max="1440" step="5" value={taskForm.minutes} onChange={e=>setTaskForm({...taskForm,minutes:e.target.value})}/></label><label className="field-label">Priority<select value={taskForm.priority} onChange={e=>setTaskForm({...taskForm,priority:e.target.value as PlannerTask["priority"]})}>{["High","Medium","Low"].map(v=><option key={v}>{v}</option>)}</select></label></div><label className="field-label">Notes (optional)<textarea rows={3} maxLength={1500} value={taskForm.notes} onChange={e=>setTaskForm({...taskForm,notes:e.target.value})} placeholder="Add instructions or details"/></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={()=>setTaskOpen(false)}>Cancel</button><button type="submit" className="primary-button"><Check size={16}/>{editingTask===null?"Save task":"Save changes"}</button></div></form><p className="privacy-hint"><span className="status-dot"/> Saved on this device and synchronised to your Studyspace account when online.</p></section></div>}
     {subjectOpen&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSubjectOpen(false);}}><section className="task-modal glass-panel subject-modal" role="dialog" aria-modal="true" aria-labelledby="subject-modal-title"><div className="modal-heading"><div><span className="eyebrow">BUILD YOUR WORKSPACE</span><h2 id="subject-modal-title">Add a subject</h2></div><button className="icon-button" aria-label="Close form" onClick={()=>setSubjectOpen(false)}><X size={19}/></button></div><form onSubmit={e=>void addSubject(e)}><label className="field-label">Subject name<input autoFocus required maxLength={80} value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Biology"/></label><div className="field-label">Choose a colour<div className="color-options">{colors.map(c=><button type="button" key={c} aria-label={"Choose "+c} aria-pressed={subjectColor===c} className={subjectColor===c?"color-choice active-color":"color-choice"} style={{background:c}} onClick={()=>setSubjectColor(c)}/>)}</div></div><div className="modal-actions"><button type="button" className="secondary-button" onClick={()=>setSubjectOpen(false)}>Cancel</button><button type="submit" className="primary-button"><Plus size={16}/> Add subject</button></div></form></section></div>}
-    {page!=="MIΛ Studio"&&<button className="mia-floating-launcher" onClick={()=>setMiaOpen(open=>!open)} aria-label={miaOpen?"Close MIΛ assistant":"Open MIΛ assistant"} title="Ask MIΛ"><span>Λ</span><small>MIΛ</small></button>}
-    {page!=="MIΛ Studio"&&miaOpen&&<div className="mia-floating-panel"><MiaChat profile={profile} subjects={subjects} variant="floating" onClose={()=>setMiaOpen(false)}/></div>}
+    {expiredAccess && page !== "Subscription" && <div className="access-lock-overlay" role="dialog" aria-modal="true" aria-labelledby="access-lock-title">
+      <section className="access-lock-dialog">
+        <div className="access-lock-symbol"><LockKeyhole size={24}/></div>
+        <span className="eyebrow">STUDYSPACE ACCESS PAUSED</span>
+        <h2 id="access-lock-title">Your learning space is locked</h2>
+        <p>Your free trial or paid plan has ended. Your Student ID, profile and saved work remain linked to your account, but learning features are paused until a paid plan is activated.</p>
+        <p>Open Subscriptions to choose a plan. You will be taken to WhatsApp to send your Student ID and selected plan to StudySpace.</p>
+        <button className="primary-button" onClick={() => { setPage("Subscription"); setMobileMenu(false); }}>Choose a subscription plan</button>
+      </section>
+    </div>}
+    {trialReminder && !expiredAccess && <div className="trial-reminder-overlay" role="dialog" aria-modal="true" aria-labelledby="trial-reminder-title">
+      <section className="trial-reminder-dialog">
+        <div className="access-lock-symbol"><Clock3 size={23}/></div>
+        <span className="eyebrow">24-HOUR TRIAL REMINDER</span>
+        <h2 id="trial-reminder-title">Your free trial is halfway through</h2>
+        <p>You have enjoyed 24 hours of free StudySpace access. There are 24 hours remaining. Choose a plan now to avoid interruption when your trial ends.</p>
+        <button className="primary-button" onClick={() => { setTrialReminder(false); setPage("Subscription"); }}>Choose a plan</button>
+        <button className="access-expiry-secondary" onClick={() => setTrialReminder(false)}>Continue studying</button>
+      </section>
+    </div>}
+    {!expiredAccess && page!=="MIΛ Studio"&&<button className="mia-floating-launcher" onClick={()=>setMiaOpen(open=>!open)} aria-label={miaOpen?"Close MIΛ assistant":"Open MIΛ assistant"} title="Ask MIΛ"><span>Λ</span><small>MIΛ</small></button>}
+    {!expiredAccess && page!=="MIΛ Studio"&&miaOpen&&<div className="mia-floating-panel"><MiaChat profile={profile} subjects={subjects} variant="floating" onClose={()=>setMiaOpen(false)}/></div>}
   </div>;
 }
 
