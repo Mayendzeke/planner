@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, TrendingUp, Target, Award, BookOpen, Sparkles, ChartNoAxesCombined, ShieldCheck, Clock3 } from "lucide-react";
+import { RefreshCw, TrendingUp, Target, Award, BookOpen, Sparkles, TrendingUp, ShieldCheck, Clock3 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Assessment = {
@@ -36,7 +36,6 @@ function Sparkline({rows}:{rows:Assessment[]}){
 }
 
 export default function StudentProgressPage(){
-  const [userId,setUserId]=useState("");
   const [assessments,setAssessments]=useState<Assessment[]>([]);
   const [memory,setMemory]=useState<Memory|null>(null);
   const [events,setEvents]=useState<EventRow[]>([]);
@@ -50,7 +49,7 @@ export default function StudentProgressPage(){
     try{
       const {data:auth,error:authError}=await supabase.auth.getUser();
       if(authError||!auth.user)throw new Error("Your student session has expired. Sign in again.");
-      const id=auth.user.id;setUserId(id);
+      const id=auth.user.id;
       const [results,mia,eventRows]=await Promise.all([
         supabase.rpc("get_student_assessment_progress"),
         supabase.from("mia_learning_memory").select("strengths,difficulties,goals,recent_topics,updated_at").eq("learner_id",id).maybeSingle(),
