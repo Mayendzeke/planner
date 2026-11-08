@@ -151,7 +151,7 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
             ...timetableEntries.map(entry => ({ ...entry, timetable_kind: "school" as const })),
             ...generatedStudyEntries
           ]
-        });
+        }, avatarFile);
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : "Your profile could not be saved. Check your connection and try again.");
       } finally {
