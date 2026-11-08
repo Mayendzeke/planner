@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg"],
+      includeAssets: ["favicon.svg", "student-icon-192.png", "student-icon-512.png"],
       manifest: {
         name: "StudySpace — Student Academic Planner",
         short_name: "SS Student",
@@ -16,10 +16,16 @@ export default defineConfig({
         theme_color: "#242938",
         background_color: "#242938",
         display: "standalone",
+        display_override: ["standalone", "minimal-ui"],
         orientation: "portrait",
         start_url: "/planner/",
         scope: "/planner/",
-        icons: [{ src: "/planner/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }]
+        prefer_related_applications: false,
+        icons: [
+          { src: "/planner/student-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+          { src: "/planner/student-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: "/planner/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }
+        ]
       },
       workbox: {
         navigateFallback: "/planner/index.html",
