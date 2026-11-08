@@ -125,6 +125,7 @@ export default function TermsAndConditions({
   onAcceptanceRoleChange,
   adultLearnerOnly = false,
   hideAcceptanceName = false,
+  readOnly = false,
 }: {
   accepted: boolean;
   onAcceptedChange: (value: boolean) => void;
@@ -134,6 +135,7 @@ export default function TermsAndConditions({
   onAcceptanceRoleChange: (value: TermsAcceptanceRole) => void;
   adultLearnerOnly?: boolean;
   hideAcceptanceName?: boolean;
+  readOnly?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [readToEnd, setReadToEnd] = useState(false);
@@ -163,10 +165,10 @@ export default function TermsAndConditions({
     {!hideAcceptanceName && <label className="terms-name-label">Full name of the person accepting
       <input value={acceptedByName} onChange={event => onAcceptedByNameChange(event.target.value)} maxLength={120} placeholder="Enter your full name" required/>
     </label>}
-    <label className="terms-checkbox-label">
+    {!readOnly && <label className="terms-checkbox-label">
       <input type="checkbox" checked={accepted} disabled={!readToEnd} onChange={event => onAcceptedChange(event.target.checked)}/>
       <span>I have read and agree to the StudySpace Terms &amp; Conditions and Privacy Notice. I confirm that the person named above is authorised to accept them for this account. If I am accepting as a parent/legal guardian, I give the required consent for the learner’s personal information to be processed for the StudySpace learning service.</span>
-    </label>
-    <p className="terms-guardian-note">{readToEnd ? "You have reached the end of the Terms & Conditions." : "Open the terms above and scroll to the end before ticking the agreement box."} Learners under 18 must have a parent or legal guardian complete this acceptance step. Do not select the adult-learner option on a child’s behalf.</p>
+    </label>}
+    <p className="terms-guardian-note">{readOnly ? "Read-only copy for review. A learner under 18 cannot accept these terms. A parent or legal guardian must give consent in person through an authorised StudySpace representative." : readToEnd ? "You have reached the end of the Terms & Conditions." : "Open the terms above and scroll to the end before ticking the agreement box." + " Learners under 18 must have a parent or legal guardian complete this acceptance step. Do not select the adult-learner option on a child’s behalf."}</p>
   </section>;
 }
