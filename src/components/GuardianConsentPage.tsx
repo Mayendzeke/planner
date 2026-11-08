@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { CheckCircle2, GraduationCap, ShieldCheck, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import TermsAndConditions, { type TermsAcceptanceRole } from "./TermsAndConditions";
+import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./TermsAndConditions";
 
 type InviteData = {
   studentId: string;
   name: string;
 };
 
-const TERMS_VERSION = "2026-11-07-v3";
 const RELATIONSHIPS = [
   { value: "mother", label: "Mother" },
   { value: "father", label: "Father" },
