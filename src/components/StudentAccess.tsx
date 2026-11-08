@@ -80,7 +80,8 @@ export default function StudentAccess() {
       if (!publicEnrolmentEnabled) { setError("New learner enrolment is temporarily closed while Study Space completes its required data-protection registration. Existing learners can still sign in."); return; }
       if (fullName.trim().length < 2) { setError("Enter the learner’s full legal name."); return; }
       if (preferredName.trim().length > 80) { setError("The preferred name is too long."); return; }
-      if (!dateOfBirth || !isAdultOnDate(dateOfBirth) && new Date(dateOfBirth + "T00:00:00") > new Date()) { setError("Enter a valid date of birth."); return; }
+      const parsedDateOfBirth = new Date(dateOfBirth + "T00:00:00");
+      if (!dateOfBirth || Number.isNaN(parsedDateOfBirth.getTime()) || parsedDateOfBirth > new Date()) { setError("Enter a valid date of birth."); return; }
       if (password.length < 10) { setError("Choose a password with at least 10 characters."); return; }
       if (password !== confirmPassword) { setError("The passwords do not match."); return; }
       if (adultRegistration && !termsAccepted) { setError("Read and personally accept the Terms & Conditions and Privacy Notice before creating your account."); return; }
