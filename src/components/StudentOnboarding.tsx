@@ -177,7 +177,7 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
       {step === 0 && <div className="onboarding-fields">
         <div className="onboarding-avatar-choice">
           <div className="onboarding-avatar-preview">{avatarPreview ? <img src={avatarPreview} alt="Selected profile picture"/> : <UserRound size={28}/>}</div>
-          <div><strong>Profile picture <span className="field-optional">OPTIONAL</span></strong><p>Choose a PNG, JPG or WebP image up to 2 MB. A StudySpace avatar will appear when you skip this.</p>
+          <div><strong>Profile picture <span className="field-optional">OPTIONAL</span></strong><p>Choose a PNG, JPG or WebP image up to 2 MB. It is stored privately and can be viewed by you and authorised StudySpace administrators only. A generated avatar appears when you skip this.</p>
             <label className="secondary-button onboarding-avatar-upload"><ImagePlus size={15}/>{avatarFile ? "Change picture" : "Upload picture"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseAvatar(event.target.files?.[0] || null)}/></label>
             {avatarFile && <button className="text-button" type="button" onClick={() => setAvatarFile(null)}>Remove picture</button>}
           </div>
