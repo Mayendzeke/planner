@@ -1377,3 +1377,93 @@ select option, select optgroup {
 
 .avatar span{display:grid;place-items:center;width:100%;height:100%;font-size:12px;font-weight:800;letter-spacing:.03em;color:var(--text);background:linear-gradient(140deg,rgba(125,157,255,.34),rgba(105,216,189,.3))}
 .top-avatar-button span{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;font-size:11px;font-weight:800;color:var(--text);background:linear-gradient(140deg,rgba(125,157,255,.34),rgba(105,216,189,.3))}
+
+
+/* Student read-only progress, shared Monitor timetable and private messages. */
+.student-shared-timetable{margin-top:18px;padding:20px;min-width:0}
+.student-shared-count{padding:6px 9px;border-radius:9px;background:var(--panel-strong);color:var(--muted);font-size:10px;font-weight:800}
+.student-shared-days{display:grid;gap:13px}
+.student-shared-days>article{display:grid;grid-template-columns:105px minmax(0,1fr);gap:12px;align-items:start;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong)}
+.student-shared-days h4{margin:5px 0 0;font-size:12px}
+.student-shared-days>article>div{display:grid;gap:8px;min-width:0}
+.student-shared-days>article>div>section{display:grid;grid-template-columns:105px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px;border-radius:10px;background:var(--panel);min-width:0}
+.student-shared-time{font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--accent,var(--mint))}
+.student-shared-days section>div{display:grid;gap:4px;min-width:0}
+.student-shared-days section strong{font-size:11px;overflow-wrap:anywhere}
+.student-shared-days section small{font-size:9px;color:var(--muted);overflow-wrap:anywhere}
+.student-shared-days section p{margin:2px 0 0;font-size:10px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+.student-shared-readonly{padding:5px 7px;border-radius:8px;background:var(--panel-strong);color:var(--muted);font-size:8px;font-weight:800;white-space:nowrap}
+.student-shared-empty{display:grid;place-items:center;gap:7px;min-height:130px;padding:20px;text-align:center;color:var(--muted)}
+.student-shared-empty strong{color:var(--text);font-size:12px}.student-shared-empty span{font-size:10px;line-height:1.5}
+.student-cloud-progress{display:grid;gap:16px;margin-top:20px;min-width:0}
+.student-progress-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.student-progress-head h2{margin:3px 0 5px;font:800 19px Manrope,sans-serif}
+.student-progress-head p{max-width:640px;margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+.student-progress-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.student-progress-stat-grid article{display:grid;gap:7px;min-width:0;padding:15px;border:1px solid var(--border);border-radius:15px;background:var(--panel);box-shadow:var(--raised-small)}
+.student-progress-stat-grid article>span{color:var(--muted);font-size:8px;letter-spacing:.08em;font-weight:850}
+.student-progress-stat-grid strong{font:800 clamp(22px,3vw,29px) Manrope,sans-serif;overflow-wrap:anywhere}
+.student-progress-stat-grid small{color:var(--muted);font-size:9px;line-height:1.4}
+.student-progress-record-panel{padding:19px;min-width:0}
+.student-progress-chart-wrap{width:100%;min-width:0}
+.student-progress-chart-wrap svg{display:block;width:100%;height:auto;overflow:visible}
+.student-progress-gridline{stroke:var(--border);stroke-width:1;stroke-dasharray:3 5}
+.student-progress-axis-label{fill:var(--muted);font-size:10px}
+.student-progress-line{stroke:var(--accent,var(--mint))}
+.student-progress-dot{fill:var(--accent,var(--mint));stroke:var(--panel);stroke-width:2}
+.student-progress-chart-caption{display:flex;justify-content:space-between;margin:2px 7px 12px;color:var(--muted);font-size:8px}
+.student-progress-chart-empty,.student-progress-empty{padding:22px;text-align:center;color:var(--muted);font-size:11px;line-height:1.55}
+.student-progress-assessment-list{display:grid;gap:8px;margin-top:10px}
+.student-progress-assessment-list>article{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(150px,.8fr);align-items:center;gap:15px;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong);min-width:0}
+.student-progress-assessment-list>article>div:first-child{display:grid;gap:4px;min-width:0}
+.student-progress-assessment-list>article strong{font-size:11px;overflow-wrap:anywhere}
+.student-progress-assessment-list>article span,.student-progress-assessment-list>article small{color:var(--muted);font-size:9px;line-height:1.45;overflow-wrap:anywhere}
+.student-progress-score{font:800 18px Manrope,sans-serif!important;color:var(--accent,var(--mint))}
+.student-cohort-compare{display:grid;gap:4px;min-width:0;padding-left:12px;border-left:1px solid var(--border)}
+.student-cohort-compare strong{font-size:13px}
+.student-cohort-compare small{font-size:8px!important}
+.student-cohort-track,.student-progress-subject-track{height:6px;overflow:hidden;border-radius:10px;background:var(--border)}
+.student-cohort-track i,.student-progress-subject-track i{display:block;height:100%;border-radius:inherit;background:var(--accent,var(--mint))}
+.student-progress-subjects{display:grid;gap:10px}
+.student-progress-subjects article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.student-progress-subjects article>div:first-child{display:grid;gap:3px;min-width:0}
+.student-progress-subjects article strong{font-size:11px}.student-progress-subjects article span{font-size:9px;color:var(--muted)}
+.student-progress-subjects article>strong{font-size:13px}
+.student-progress-subject-track{grid-column:1/-1}
+.student-mia-progress-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.student-mia-progress-grid article{min-width:0;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong)}
+.student-mia-progress-grid article>div{display:flex;align-items:center;gap:8px;font-size:11px}
+.student-mia-progress-grid ul,.student-mia-goals ul{display:grid;gap:7px;margin:12px 0 0;padding-left:17px;color:var(--muted);font-size:10px;line-height:1.55}
+.student-mia-progress-grid p,.student-mia-goals p{margin:10px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
+.student-mia-strengths>div{color:var(--mint)}.student-mia-focus>div{color:var(--accent)}
+.student-mia-goals{margin-top:13px;padding:12px;border-radius:11px;background:var(--panel-strong)}
+.student-mia-goals>strong{font-size:10px}
+.student-progress-privacy,.student-peer-safety-note{display:flex;align-items:flex-start;gap:7px;margin:14px 0 0;color:var(--muted);font-size:9px;line-height:1.55}
+.student-progress-privacy svg,.student-peer-safety-note svg{flex:0 0 auto}
+.student-progress-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:9px}
+.student-progress-footer span:first-child{display:flex;align-items:center;gap:5px}
+.student-messages-page{display:grid;gap:13px;min-width:0}
+.student-messages-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.student-messages-intro h2{margin:3px 0 5px;font:800 18px Manrope,sans-serif}
+.student-messages-intro p{margin:0;max-width:590px;color:var(--muted);font-size:11px;line-height:1.55}
+.student-message-layout{display:grid;grid-template-columns:minmax(230px,.72fr) minmax(0,1.5fr);min-height:610px;overflow:hidden;border:1px solid var(--border);border-radius:16px;background:var(--panel);box-shadow:var(--raised-small)}
+.student-message-contacts{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border);background:var(--panel-strong)}
+.student-message-contact-head{display:flex;justify-content:space-between;align-items:center;padding:15px;font-size:11px}
+.student-message-contact-head span{color:var(--muted);font-size:9px}
+.student-message-contacts>.monitor-contact-search{margin:0 10px 10px}
+.student-message-contact-list{display:grid;gap:3px;align-content:start;max-height:250px;overflow:auto;padding:0 7px 12px}
+.student-peer-search,.student-peer-invites{display:grid;gap:8px;padding:11px;margin:0 10px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel)}
+.student-peer-search>strong,.student-peer-invites>strong{font-size:10px}
+.student-peer-search>p{margin:0;color:var(--muted);font-size:9px}
+.student-peer-search article,.student-peer-invites article{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid var(--border);min-width:0}
+.student-peer-search article>div:first-child,.student-peer-invites article>div:first-child{display:grid;gap:3px;min-width:0}
+.student-peer-search article strong,.student-peer-invites article strong{font-size:10px;overflow-wrap:anywhere}
+.student-peer-search article small,.student-peer-invites article small{font-size:8px;color:var(--muted)}
+.student-peer-search .secondary-button,.student-peer-invites .secondary-button{padding:6px 8px;font-size:8px;white-space:nowrap}
+.student-peer-invites article>div:last-child{display:flex;align-items:center;gap:5px}
+.student-peer-invites .text-button{font-size:8px}
+.student-peer-status{font-size:8px;color:var(--muted);font-weight:800;white-space:nowrap}
+.student-peer-safety-note{padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel)}
+@media(max-width:880px){.student-progress-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.student-progress-assessment-list>article{grid-template-columns:minmax(0,1fr) auto}.student-cohort-compare{grid-column:1/-1;padding:9px 0 0;border-left:0;border-top:1px solid var(--border)}}
+@media(max-width:680px){.student-shared-days>article{grid-template-columns:1fr;gap:7px}.student-shared-days>article>div>section{grid-template-columns:85px minmax(0,1fr);gap:8px}.student-shared-readonly{grid-column:2;justify-self:start}.student-progress-head{align-items:stretch}.student-progress-head .secondary-button{justify-content:center}.student-mia-progress-grid{grid-template-columns:1fr}.student-message-layout{grid-template-columns:1fr;min-height:unset}.student-message-contacts{border-right:0;border-bottom:1px solid var(--border)}.student-message-contact-list{max-height:180px}.student-peer-search,.student-peer-invites{max-height:230px;overflow:auto}.monitor-conversation{min-height:500px}}
+@media(max-width:450px){.student-progress-stat-grid{gap:8px}.student-progress-stat-grid article{padding:11px}.student-progress-assessment-list>article{padding:10px}.student-progress-record-panel{padding:14px}.student-shared-timetable{padding:14px}}
