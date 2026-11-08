@@ -16,19 +16,26 @@ export default function StudentAssignmentNotifications({ userId }: { userId: str
         const body = assignment.due_at
           ? "Your teacher has set new work. Due " + new Date(assignment.due_at).toLocaleString() + "."
           : "Your teacher has assigned new work. Open Study & Exams to review it.";
-        const notify = () => {
-          const notification = new Notification("New StudySpace homework", {
+        const notify = async () => {
+          const options: NotificationOptions = {
             body,
             icon: "/planner/favicon.svg",
             tag: assignment.id ? "studyspace-assignment-" + assignment.id : "studyspace-new-assignment",
-          });
-          notification.onclick = () => {
-            window.focus();
-            window.dispatchEvent(new CustomEvent("studyspace-open-assigned-work"));
-            notification.close();
+            data: { destination: "/planner/" },
           };
+          try {
+            if ("serviceWorker" in navigator) {
+              const registration = await navigator.serviceWorker.ready;
+              await registration.showNotification("New StudySpace homework", options);
+            } else {
+              new Notification("New StudySpace homework", options);
+            }
+          } catch {
+            // A browser may allow permission but block notifications at OS level.
+            // Do not interrupt the learner's live workspace.
+          }
         };
-        notify();
+        void notify();
       })
       .subscribe();
     return () => { void supabase?.removeChannel(channel); };
