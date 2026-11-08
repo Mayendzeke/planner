@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, CheckCheck, UserPlus, ShieldCheck, X, AlertCircle, Camera } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import StudyspaceGroupsPanel from "./StudyspaceGroupsPanel";
 
 type Contact={contact_id:string;display_name:string;grade:string;contact_type:"teacher"|"student"};
 type Message={id:string;sender_id:string;recipient_id:string;body:string;attachment_path:string|null;attachment_name:string;attachment_mime:string;attachment_size:number;created_at:string;read_at:string|null};
@@ -13,6 +14,7 @@ const ext=(file:File)=>({"image/jpeg":"jpg","image/png":"png","image/webp":"webp
 
 export default function StudentMessagesPage(){
   const [userId,setUserId]=useState("");
+  const [mailbox,setMailbox]=useState<"inbox"|"sent"|"groups">("inbox");
   const [contacts,setContacts]=useState<Contact[]>([]);
   const [messages,setMessages]=useState<Message[]>([]);
   const [selected,setSelected]=useState("");
@@ -83,7 +85,7 @@ export default function StudentMessagesPage(){
   const draftWords=draft.trim()?draft.trim().split(/\s+/).length:0;
   const thread=messages.filter(m=>(m.sender_id===userId&&m.recipient_id===selected)||(m.sender_id===selected&&m.recipient_id===userId));
   const selectedContact=contacts.find(c=>c.contact_id===selected);
-  const visibleContacts=useMemo(()=>contacts.filter(c=>(c.display_name+" "+c.grade).toLowerCase().includes(search.toLowerCase())),[contacts,search]);
+  const visibleContacts=useMemo(()=>contacts.filter(c=>(mailbox!=="sent"||messages.some(m=>m.sender_id===userId&&m.recipient_id===c.contact_id))&&(c.display_name+" "+c.grade).toLowerCase().includes(search.toLowerCase())),[contacts,search,messages,mailbox,userId]);
   const unread=new Map<string,number>();messages.filter(m=>m.recipient_id===userId&&!m.read_at).forEach(m=>unread.set(m.sender_id,(unread.get(m.sender_id)||0)+1));
   useEffect(()=>{
     if(!selected||!userId||!supabase)return;
@@ -189,7 +191,12 @@ export default function StudentMessagesPage(){
       <div><button type="button" className="secondary-button" onClick={()=>setHomeworkHelpOpen(false)} disabled={helpBusy}>Cancel</button><button type="button" className="primary-button" onClick={()=>void submitHomeworkHelp()} disabled={helpBusy||(!helpQuestion.trim()&&!helpFile)}>{helpBusy?"Sending…":"Send request"} <Send size={14}/></button></div>
     </section>}
     {error&&<p className="inline-message error-message" role="alert"><AlertCircle size={15}/>{error}</p>}{notice&&<p className="inline-message" role="status">{notice}</p>}
-    <div className="student-message-layout">
+    <nav className="ss-mailbox-tabs" aria-label="Message folders">
+      <button className={mailbox==="inbox"?"is-active":""} onClick={()=>setMailbox("inbox")}><MessageCircle size={14}/> Inbox</button>
+      <button className={mailbox==="sent"?"is-active":""} onClick={()=>setMailbox("sent")}><Send size={14}/> Sent</button>
+      <button className={mailbox==="groups"?"is-active":""} onClick={()=>setMailbox("groups")}><Users size={14}/> Groups</button>
+    </nav>
+    {mailbox==="groups"?<StudyspaceGroupsPanel/>:<div className="student-message-layout">
       <aside className="student-message-contacts">
         <div className="student-message-contact-head"><strong>Conversations</strong><span>{contacts.length}</span></div>
         <label className="monitor-contact-search"><Search size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Find or add a student"/></label>
@@ -208,6 +215,7 @@ export default function StudentMessagesPage(){
         </>:<div className="monitor-message-empty"><MessageCircle size={28}/><strong>{loading?"Opening your messages…":"Choose a conversation"}</strong><span>Start with your teacher or connect with another learner after an accepted invitation.</span></div>}
       </section>
     </div>
+    }
     <p className="student-peer-safety-note"><ShieldCheck size={14}/> Peer chat is only enabled when both students are adults or have verified guardian consent. Teacher messages remain available. Use messages for learning and keep personal information private.</p>
   </div>;
 }
