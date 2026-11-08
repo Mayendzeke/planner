@@ -65,12 +65,16 @@ export default function StudentProfileEditor({ profile, onSaved }: {
       });
       if (profileError) throw new Error("Your profile could not be updated: " + profileError.message);
 
+      const { data: currentGoal, error: currentGoalError } = await supabase.from("student_goals")
+        .select("reminder_settings").eq("learner_id", learnerId).maybeSingle();
+      if (currentGoalError) throw new Error("Your profile was saved, but reminder preferences could not be preserved: " + currentGoalError.message);
       const { error: goalError } = await supabase.from("student_goals").upsert({
         learner_id: learnerId,
         goal_text: draft.goals,
         target_mark: targetMark,
         weekly_hours: weeklyHours,
         preferred_days: draft.preferredDays,
+        reminder_settings: currentGoal?.reminder_settings ?? { enabled: false, time: "16:00", days: draft.preferredDays },
         updated_at: new Date().toISOString(),
       }, { onConflict: "learner_id" });
       if (goalError) throw new Error("Your profile was saved, but study goals could not be saved: " + goalError.message);
