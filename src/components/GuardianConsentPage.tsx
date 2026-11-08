@@ -26,6 +26,7 @@ export default function GuardianConsentPage() {
   const [relationshipDetails, setRelationshipDetails] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [testimonialMarketingConsent, setTestimonialMarketingConsent] = useState(false);
   const [termsAcceptedByName, setTermsAcceptedByName] = useState("");
   const [termsAcceptanceRole, setTermsAcceptanceRole] = useState<TermsAcceptanceRole>("parent_guardian");
   const [error, setError] = useState("");
@@ -78,6 +79,7 @@ export default function GuardianConsentPage() {
         guardianPhone: guardianPhone.trim(),
         guardianConsent: true,
         termsVersion: TERMS_VERSION,
+        testimonialMarketingConsent,
       },
     });
     if (invokeError || !data?.success) {
@@ -131,6 +133,7 @@ export default function GuardianConsentPage() {
             adultLearnerOnly
             hideAcceptanceName
           />
+          <label className="testimonial-consent"><input type="checkbox" checked={testimonialMarketingConsent} onChange={event => setTestimonialMarketingConsent(event.target.checked)}/><span><strong>Optional: I authorise limited marketing use of the learner’s testimonial.</strong><small>If the learner submits a testimonial, StudySpace may use its words and the learner’s preferred name in promotional images. Student ID, contact details and profile photo will not be used. This permission is voluntary and declining does not affect account approval or learning access.</small></span></label>
           <div className="guardian-consent-online-note"><Users size={18}/><p>Submitting this online form does not immediately open the learner’s account. StudySpace will review the submission and approve it in Monitor. If you prefer to give consent in person, you may meet an authorised StudySpace representative instead.</p></div>
           <button className="student-access-submit" type="submit" disabled={busy || !termsAccepted || guardianFullName.trim().length < 2 || guardianPhone.trim().length < 7 || (relationship === "other" && relationshipDetails.trim().length < 2)}>{busy ? "Submitting consent…" : "Submit guardian consent"}</button>
         </form>
