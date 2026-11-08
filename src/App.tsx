@@ -729,9 +729,9 @@ export default function App() {
 
   if (new URLSearchParams(window.location.search).has("studyspace_terms")) return <TermsReviewPage />;
   if (new URLSearchParams(window.location.search).has("guardian_consent")) return <GuardianConsentPage />;
-  if (!supabase) return <StudentAccess />;
+  if (!supabase) return <StudentAccess installAvailable={Boolean(installPrompt)} onInstall={() => void installStudyspace()} />;
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
-  if (!cloudAuthenticated) return <StudentAccess />;
+  if (!cloudAuthenticated) return <StudentAccess installAvailable={Boolean(installPrompt)} onInstall={() => void installStudyspace()} />;
   if (accessLoading) return <SplashScreen theme={theme} />;
   if (adminAccountDetected) return <main className="terms-gate-shell"><section className="terms-gate-card">
     <div className="eyebrow"><ShieldCheck size={14}/> ADMINISTRATOR ACCOUNT DETECTED</div>
