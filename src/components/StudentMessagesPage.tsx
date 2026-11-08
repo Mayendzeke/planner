@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, CheckCheck, UserPlus, ShieldCheck, X, AlertCircle, Camera, Users } from "lucide-react";
+import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, UserPlus, ShieldCheck, X, AlertCircle, Camera, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import StudyspaceGroupsPanel from "./StudyspaceGroupsPanel";
 
