@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, TrendingUp, Target, Award, BookOpen, Sparkles, TrendingUp, ShieldCheck, Clock3 } from "lucide-react";
+import { RefreshCw, TrendingUp, Target, Award, BookOpen, Sparkles, ShieldCheck, Clock3 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Assessment = {
@@ -82,7 +82,7 @@ export default function StudentProgressPage(){
   },[assessments]);
 
   return <div className="student-cloud-progress">
-    <section className="student-progress-head"><div><span className="eyebrow"><ChartNoAxesCombined size={14}/> YOUR ACADEMIC RECORD</span><h2>Progress and achievements</h2><p>Your assessment history, learning patterns and MIA study guidance. This page is read-only; your teacher manages official records.</p></div><button type="button" className="secondary-button" onClick={()=>void refresh()} disabled={loading}><RefreshCw size={15}/>{loading?"Refreshing…":"Refresh records"}</button></section>
+    <section className="student-progress-head"><div><span className="eyebrow"><TrendingUp size={14}/> YOUR ACADEMIC RECORD</span><h2>Progress and achievements</h2><p>Your assessment history, learning patterns and MIA study guidance. This page is read-only; your teacher manages official records.</p></div><button type="button" className="secondary-button" onClick={()=>void refresh()} disabled={loading}><RefreshCw size={15}/>{loading?"Refreshing…":"Refresh records"}</button></section>
     {error&&<p className="inline-message error-message" role="alert">{error}</p>}
     <section className="student-progress-stat-grid">
       <article><span>RECORDED TESTS</span><strong>{assessments.length}</strong><small>Published assessments submitted</small></article>
