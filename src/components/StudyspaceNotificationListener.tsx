@@ -111,10 +111,13 @@ export default function StudyspaceNotificationListener() {
         filter: "learner_id=eq." + userId,
       }, payload => {
         const row = payload.new as { group_id?: string; membership_source?: string };
-        if (!row.group_id || !["auto_match", "class_auto"].includes(row.membership_source || "")) return;
+        if (!row.group_id || !["auto_match", "class_auto", "admin"].includes(row.membership_source || "")) return;
+        const body = row.membership_source === "admin"
+          ? "Your StudySpace Monitor administrator added you to a study group."
+          : "A group has been added because your StudySpace profile matches its class or subject.";
         void showStudyspaceNotification(
           userId, "group_activity", "You've joined a study group",
-          "A group has been added because your StudySpace profile matches its class or subject.",
+          body,
           "studyspace-group-joined-" + row.group_id,
           import.meta.env.BASE_URL + "favicon.svg",
           row.group_id,
