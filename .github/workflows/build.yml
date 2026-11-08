@@ -66,5 +66,5 @@ jobs:
           NODE
       - name: Typecheck and build
         env:
-          VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'
+          VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'true'
         run: npm run build
