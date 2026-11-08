@@ -1467,3 +1467,35 @@ select option, select optgroup {
 @media(max-width:880px){.student-progress-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.student-progress-assessment-list>article{grid-template-columns:minmax(0,1fr) auto}.student-cohort-compare{grid-column:1/-1;padding:9px 0 0;border-left:0;border-top:1px solid var(--border)}}
 @media(max-width:680px){.student-shared-days>article{grid-template-columns:1fr;gap:7px}.student-shared-days>article>div>section{grid-template-columns:85px minmax(0,1fr);gap:8px}.student-shared-readonly{grid-column:2;justify-self:start}.student-progress-head{align-items:stretch}.student-progress-head .secondary-button{justify-content:center}.student-mia-progress-grid{grid-template-columns:1fr}.student-message-layout{grid-template-columns:1fr;min-height:unset}.student-message-contacts{border-right:0;border-bottom:1px solid var(--border)}.student-message-contact-list{max-height:180px}.student-peer-search,.student-peer-invites{max-height:230px;overflow:auto}.monitor-conversation{min-height:500px}}
 @media(max-width:450px){.student-progress-stat-grid{gap:8px}.student-progress-stat-grid article{padding:11px}.student-progress-assessment-list>article{padding:10px}.student-progress-record-panel{padding:14px}.student-shared-timetable{padding:14px}}
+
+
+/* Message thread components shared with the Monitor inbox. */
+.monitor-conversation{display:flex;flex-direction:column;min-width:0;min-height:500px}
+.monitor-conversation-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid var(--border);background:var(--panel-strong)}
+.monitor-conversation-head>div{display:flex;align-items:center;gap:10px;min-width:0}
+.monitor-conversation-head>div>div{display:grid;gap:3px;min-width:0}
+.monitor-conversation-head strong{font-size:11px}.monitor-conversation-head small{font-size:9px;color:var(--muted)}
+.monitor-secure-label{display:flex;align-items:center;gap:5px;color:var(--mint);font-size:9px;font-weight:800;white-space:nowrap}
+.monitor-contact-item{display:flex;align-items:center;gap:9px;width:100%;min-width:0;padding:10px;border:0;border-radius:10px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.monitor-contact-item:hover,.monitor-contact-item.is-active{background:var(--panel);box-shadow:var(--raised-small)}
+.monitor-contact-avatar{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(140deg,rgba(125,157,255,.32),rgba(105,216,189,.28));color:var(--text);font-size:12px;font-weight:800}
+.monitor-contact-copy{display:grid;gap:4px;min-width:0;flex:1}
+.monitor-contact-copy strong{font-size:10px;overflow-wrap:anywhere}
+.monitor-contact-copy small{font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px}
+.monitor-contact-unread{width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:#fff;font-size:9px;font-style:normal}
+.monitor-message-list{display:flex;flex:1;flex-direction:column;gap:10px;min-height:320px;max-height:550px;overflow:auto;padding:15px;background:var(--panel)}
+.monitor-message-bubble{align-self:flex-start;max-width:min(82%,520px);min-width:90px;padding:10px 12px;border:1px solid var(--border);border-radius:13px 13px 13px 4px;background:var(--panel-strong);overflow-wrap:anywhere}
+.monitor-message-bubble.is-outgoing{align-self:flex-end;border-color:color-mix(in srgb,var(--accent) 35%,var(--border));border-radius:13px 13px 4px 13px;background:color-mix(in srgb,var(--accent) 9%,var(--panel-strong))}
+.monitor-message-bubble p{margin:0;color:var(--text);font-size:11px;line-height:1.55;white-space:pre-wrap}
+.monitor-message-bubble time{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:7px;color:var(--muted);font-size:8px}
+.monitor-message-attachment{display:flex;align-items:center;gap:8px;padding:8px;border-radius:9px;background:var(--panel);color:var(--accent);text-decoration:none}
+.monitor-message-attachment span{display:grid;gap:3px;font-size:10px;overflow-wrap:anywhere}.monitor-message-attachment small{font-size:8px;color:var(--muted)}
+.monitor-message-composer{padding:11px 13px;border-top:1px solid var(--border);background:var(--panel-strong)}
+.monitor-message-compose-row{display:flex;align-items:flex-end;gap:8px;min-width:0}
+.monitor-message-compose-row textarea{flex:1;min-width:0;max-height:120px;resize:vertical;padding:10px;border:1px solid var(--border);border-radius:11px;background:var(--panel);color:var(--text);font:inherit;font-size:11px;line-height:1.5}
+.monitor-message-limits{display:flex;justify-content:space-between;gap:8px;margin:7px 2px 0;color:var(--muted);font-size:8px}
+.monitor-message-file{display:flex;align-items:center;gap:7px;margin-bottom:8px;padding:7px 9px;border-radius:9px;background:var(--panel);font-size:9px;color:var(--muted)}
+.monitor-message-file button{margin-left:auto;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.monitor-message-empty{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;min-height:140px;padding:20px;text-align:center;color:var(--muted);font-size:10px}
+.monitor-message-empty strong{color:var(--text);font-size:12px}
+@media(max-width:680px){.monitor-conversation{min-height:480px}.monitor-message-list{min-height:280px}.monitor-message-bubble{max-width:90%}}
