@@ -1279,3 +1279,68 @@ html[data-theme="light"] .access-expiry-dialog{color-scheme:light}
 .guardian-consent-success{width:56px;height:56px;display:grid;place-items:center;border-radius:16px;background:rgba(67,190,135,.12);color:#4fcb98;margin:1.1rem 0}
 .guardian-consent-card .terms-consent-panel{margin:1rem 0}
 @media(max-width:600px){.guardian-consent-form-grid{grid-template-columns:1fr}.guardian-link-actions{flex-direction:column}}
+
+/* StudySpace design-system consistency: native controls must follow the active theme. */
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+input, select, textarea, button { accent-color: var(--mint); }
+select option, select optgroup {
+  background-color: var(--panel-strong);
+  color: var(--text);
+}
+.field-label input,
+.field-label select,
+.field-label textarea,
+.subject-search input,
+.subject-modal input,
+.subject-modal select,
+.subject-modal textarea,
+.subject-period-field,
+.timetable-editor input,
+.timetable-editor select,
+.timetable-editor textarea,
+.timetable-editor-grid input,
+.timetable-editor-grid select,
+.timetable-editor-grid textarea {
+  color: var(--text);
+  border-color: var(--border);
+}
+.field-label input,
+.field-label select,
+.field-label textarea,
+.subject-modal input,
+.subject-modal select,
+.subject-modal textarea {
+  background-color: var(--panel-strong);
+}
+.field-label input::placeholder,
+.field-label textarea::placeholder,
+.subject-modal input::placeholder,
+.subject-modal textarea::placeholder {
+  color: var(--subtle);
+  opacity: 1;
+}
+.subject-period-field {
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+.subject-period-field legend { color: var(--text); }
+.subject-period-field label { color: var(--muted); }
+.subject-period-field input[type="checkbox"] {
+  accent-color: var(--mint);
+  color-scheme: inherit;
+}
+.subject-modal .color-choice {
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.subject-modal .modal-actions .primary-button,
+.timetable-form-actions .primary-button {
+  background: linear-gradient(135deg, var(--mint), color-mix(in srgb, var(--mint) 72%, var(--blue)));
+  border-color: color-mix(in srgb, var(--mint) 55%, var(--border));
+  color: #102c2c;
+}
+:root[data-theme="light"] .subject-modal .modal-actions .primary-button,
+:root[data-theme="light"] .timetable-form-actions .primary-button {
+  color: #102c2c;
+}
