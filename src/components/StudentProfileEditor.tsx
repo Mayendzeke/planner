@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { BookOpen, Pencil, Save, X } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { BookOpen, ImagePlus, Pencil, Save, UserRound, X } from "lucide-react";
 import type { StudentProfile } from "./StudentOnboarding";
 import { supabase } from "../lib/supabase";
 
@@ -7,9 +7,10 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 const LEVELS = ["Primary school", "Secondary school", "High school / Sixth form", "College", "University", "Other"];
 const CURRICULA = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
 
-export default function StudentProfileEditor({ profile, onSaved }: {
+export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" }: {
   profile: StudentProfile;
   onSaved: (next: StudentProfile) => void;
+  avatarUrl?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<StudentProfile>(profile);
@@ -17,6 +18,25 @@ export default function StudentProfileEditor({ profile, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+
+  useEffect(() => {
+    if (!avatarFile) { setAvatarPreview(""); return; }
+    const url = URL.createObjectURL(avatarFile);
+    setAvatarPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatarFile]);
+
+  function chooseAvatar(file: File | null) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) { setError("Choose a PNG, JPG or WebP profile picture."); return; }
+    if (file.size > 2 * 1024 * 1024) { setError("Your profile picture must be 2 MB or smaller."); return; }
+    setAvatarFile(file);
+    setRemoveAvatar(false);
+    setError("");
+  }
 
   function update<K extends keyof StudentProfile>(key: K, value: StudentProfile[K]) {
     setDraft(current => ({ ...current, [key]: value }));
@@ -100,6 +120,31 @@ export default function StudentProfileEditor({ profile, onSaved }: {
         if (addError) throw new Error("Your profile was saved, but new subjects could not be added: " + addError.message);
       }
 
+      let savedAvatarPath = draft.avatarPath || null;
+      let uploadedAvatarPath: string | null = null;
+      if (avatarFile) {
+        const extension = avatarFile.type === "image/png" ? "png" : avatarFile.type === "image/webp" ? "webp" : "jpg";
+        uploadedAvatarPath = learnerId + "/avatar-" + crypto.randomUUID() + "." + extension;
+        const { error: uploadError } = await supabase.storage.from("studyspace-avatars").upload(uploadedAvatarPath, avatarFile, {
+          contentType: avatarFile.type, cacheControl: "3600", upsert: false,
+        });
+        if (uploadError) throw new Error("Your profile picture could not be uploaded: " + uploadError.message);
+        savedAvatarPath = uploadedAvatarPath;
+      }
+      if (avatarFile || removeAvatar) {
+        const { error: avatarError } = await supabase.rpc("update_studyspace_learner_avatar", {
+          p_avatar_path: removeAvatar ? null : savedAvatarPath,
+        });
+        if (avatarError) {
+          if (uploadedAvatarPath) await supabase.storage.from("studyspace-avatars").remove([uploadedAvatarPath]);
+          throw new Error("Your profile picture could not be saved: " + avatarError.message);
+        }
+        if (profile.avatarPath && profile.avatarPath !== savedAvatarPath) {
+          const { error: removeError } = await supabase.storage.from("studyspace-avatars").remove([profile.avatarPath]);
+          if (removeError) setNotice("Your profile was saved. The previous profile picture could not be removed from storage.");
+        }
+      }
+
       const next: StudentProfile = {
         ...draft,
         fullName: draft.fullName.trim(),
@@ -112,9 +157,12 @@ export default function StudentProfileEditor({ profile, onSaved }: {
         targetMark: String(targetMark),
         weeklyHours: String(weeklyHours),
         subjects: [...desired],
+        avatarPath: savedAvatarPath || undefined,
       };
       onSaved(next);
       setDraft(next);
+      setAvatarFile(null);
+      setRemoveAvatar(false);
       setEditing(false);
       setNotice("Your profile and academic plan have been updated.");
     } catch (reason) {
@@ -127,6 +175,8 @@ export default function StudentProfileEditor({ profile, onSaved }: {
   function cancel() {
     setDraft(profile);
     setCustomSubject("");
+    setAvatarFile(null);
+    setRemoveAvatar(false);
     setError("");
     setEditing(false);
   }
@@ -137,6 +187,7 @@ export default function StudentProfileEditor({ profile, onSaved }: {
       <BookOpen size={20}/>
     </div>
     {!editing ? <>
+      <div className="profile-editor-identity"><div className="profile-editor-avatar">{avatarUrl ? <img src={avatarUrl} alt="Your profile"/> : <UserRound size={28}/>}</div><div><strong>{profile.preferredName || profile.fullName}</strong><span>{profile.fullName}</span></div></div>
       <div className="privacy-list">
         <p><strong>{profile.preferredName || profile.fullName}</strong> · {profile.level}{profile.grade ? " · " + profile.grade : ""}</p>
         <p>{profile.institution || "School / institution not added"} · {profile.curriculum || "Curriculum not set"} · Academic year {profile.academicYear || "not set"}</p>
@@ -145,10 +196,12 @@ export default function StudentProfileEditor({ profile, onSaved }: {
       </div>
       <div className="setting-row"><div><strong>Update learner details</strong><span>Changes sync to your StudySpace account when online.</span></div><button type="button" className="secondary-button" onClick={() => { setDraft(profile); setEditing(true); setError(""); setNotice(""); }}><Pencil size={15}/> Edit profile</button></div>
     </> : <form className="onboarding-fields" onSubmit={event => void save(event)}>
+      <div className="profile-editor-photo-edit"><div className="profile-editor-avatar">{avatarPreview ? <img src={avatarPreview} alt="New profile picture preview"/> : avatarUrl && !removeAvatar ? <img src={avatarUrl} alt="Current profile picture"/> : <UserRound size={28}/>}</div><div><strong>Profile picture</strong><small>Optional · PNG, JPG or WebP · up to 2 MB</small><div className="profile-editor-photo-actions"><label className="secondary-button"><ImagePlus size={14}/>{avatarFile ? "Change picture" : "Upload picture"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseAvatar(event.target.files?.[0] || null)}/></label>{(profile.avatarPath || avatarFile) && <button className="text-button" type="button" onClick={() => { setAvatarFile(null); setRemoveAvatar(true); setError(""); }}>Remove picture</button>}</div></div></div>
+      <p className="profile-locked-note">Full name and country are protected account details. To correct either one, contact the StudySpace administrator. Date of birth and guardian-verification details are not editable here.</p>
       <div className="onboarding-two-col">
-        <label className="field-label">Full name<input required maxLength={120} value={draft.fullName} onChange={event => update("fullName", event.target.value)}/></label>
+        <label className="field-label">Full name<input readOnly value={draft.fullName} aria-readonly="true"/></label>
         <label className="field-label">Preferred name<input maxLength={80} value={draft.preferredName} onChange={event => update("preferredName", event.target.value)}/></label>
-        <label className="field-label">Country<input maxLength={80} value={draft.country} onChange={event => update("country", event.target.value)}/></label>
+        <label className="field-label">Country<input readOnly value={draft.country} aria-readonly="true"/></label>
         <label className="field-label">School / institution<input maxLength={160} value={draft.institution} onChange={event => update("institution", event.target.value)}/></label>
         <label className="field-label">Education level<select value={draft.level} onChange={event => update("level", event.target.value)}>{LEVELS.map(level => <option key={level}>{level}</option>)}</select></label>
         <label className="field-label">Grade / year<input maxLength={80} value={draft.grade} onChange={event => update("grade", event.target.value)}/></label>
