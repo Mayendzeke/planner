@@ -10,6 +10,7 @@ import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage"
 import { syncStudentWorkspace } from "./lib/cloudSync";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentAccess from "./components/StudentAccess";
+import GuardianConsentPage from "./components/GuardianConsentPage";
 import StudentLibrary from "./components/StudentLibrary";
 import AcademicCalendar from "./components/AcademicCalendar";
 import UpcomingCalendar from "./components/UpcomingCalendar";
@@ -703,6 +704,7 @@ export default function App() {
     setAccessRetry(value => value + 1);
   }
 
+  if (new URLSearchParams(window.location.search).has("guardian_consent")) return <GuardianConsentPage />;
   if (!supabase) return <StudentAccess />;
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
