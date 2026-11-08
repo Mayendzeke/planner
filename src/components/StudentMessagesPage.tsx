@@ -88,14 +88,14 @@ export default function StudentMessagesPage(){
   const thread=messages.filter(m=>(m.sender_id===userId&&m.recipient_id===selected)||(m.sender_id===selected&&m.recipient_id===userId));
   const selectedContact=contacts.find(c=>c.contact_id===selected);
   useEffect(()=>{
-    if(!supabase||!userId)return;
+    if(!supabase||!userId||mailbox==="groups")return;
     const heartbeat=()=>{if(document.visibilityState==="visible")void supabase!.from("studyspace_user_presence").upsert({user_id:userId,last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:"user_id"});};
     heartbeat();
     const timer=window.setInterval(heartbeat,45000);
     window.addEventListener("focus",heartbeat);
     document.addEventListener("visibilitychange",heartbeat);
     return()=>{window.clearInterval(timer);window.removeEventListener("focus",heartbeat);document.removeEventListener("visibilitychange",heartbeat);};
-  },[userId]);
+  },[userId,mailbox]);
   const visibleContacts=useMemo(()=>contacts.filter(c=>(mailbox!=="sent"||messages.some(m=>m.sender_id===userId&&m.recipient_id===c.contact_id))&&(c.display_name+" "+c.grade).toLowerCase().includes(search.toLowerCase())),[contacts,search,messages,mailbox,userId]);
   const presenceLabel=(id:string)=>presence[id]==="online"?"Online":presence[id]?"Last seen "+new Date(presence[id]).toLocaleString():"Offline";
   const unread=new Map<string,number>();messages.filter(m=>m.recipient_id===userId&&!m.read_at).forEach(m=>unread.set(m.sender_id,(unread.get(m.sender_id)||0)+1));
