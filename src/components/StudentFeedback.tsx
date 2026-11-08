@@ -72,7 +72,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
         testimonial_private_consent: category === "Testimonial" && testimonialConsent,
       });
       if (insertError) throw new Error("Your feedback could not be saved: " + insertError.message);
-      setNotice({ kind: "success", text: "Thank you. Your feedback has been sent privately to the Studyspace team." });
+      setNotice({ kind: "success", text: category === "Testimonial" ? "Thank you. Your testimonial has been sent to the private Testimonials inbox in StudySpace Monitor." : "Thank you. Your feedback has been sent privately to the Studyspace team." });
       setMessage("");
       setContactEmail("");
       setFile(null);
