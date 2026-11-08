@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { studentStorageKey } from "../lib/studentStorage";
+import { showStudyspaceNotification } from "../lib/studyspaceNotifications";
 import { Bell, BellRing, Clock3, ShieldCheck } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -17,7 +18,7 @@ function readSettings(): ReminderSettings {
   } catch { return defaultSettings; }
 }
 
-export default function StudyReminders({ preferredDays = [], showSettings = true }: { preferredDays?: string[]; showSettings?: boolean }) {
+export default function StudyReminders({ preferredDays = [], showSettings = true, userId }: { preferredDays?: string[]; showSettings?: boolean; userId: string | null }) {
   const [settings, setSettings] = useState<ReminderSettings>(() => {
     const saved = readSettings();
     let hasSavedSettings = false;
@@ -61,18 +62,15 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
       const storageKey = studentStorageKey(key);
       try {
         if (localStorage.getItem(storageKey) === settings.time) return;
-        const options: NotificationOptions = {
-          body: "It's your planned study time. Open your study space and take one small step.",
-          icon: "/planner/favicon.svg",
-          tag: "studyspace-daily-study",
-          data: { destination: "/planner/" },
-        };
-        if ("serviceWorker" in navigator) {
-          const registration = await navigator.serviceWorker.ready;
-          await registration.showNotification("Your Studyspace session is ready", options);
-        } else {
-          new Notification("Your Studyspace session is ready", options);
-        }
+        if (!userId) return;
+        await showStudyspaceNotification(
+          userId,
+          "study_reminders",
+          "Your StudySpace session is ready",
+          "It's your planned study time. Open your study space and take one small step.",
+          "studyspace-daily-study",
+          import.meta.env.BASE_URL + "favicon.svg",
+        );
         localStorage.setItem(storageKey, settings.time);
       } catch {
         setMessage("The browser could not deliver this reminder. Check this site's notification permission and keep Studyspace open around your selected study time.");
