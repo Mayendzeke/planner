@@ -53,6 +53,32 @@ export default function StudyspaceNotificationListener() {
         );
       })
       .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "exercise_attempts",
+        filter: "learner_id=eq." + userId,
+      }, payload => {
+        const row = payload.new as { id?: string; marked_at?: string | null };
+        if (!row.id || !row.marked_at) return;
+        void showStudyspaceNotification(
+          userId, "assessment_updates", "Assessment result available",
+          "Your teacher has marked an assessment. Open Study & Exams to review your result.",
+          "studyspace-result-" + row.id,
+          import.meta.env.BASE_URL + "favicon.svg",
+        );
+      })
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "student_timetable_entries",
+        filter: "learner_id=eq." + userId,
+      }, payload => {
+        const row = payload.new as { id?: string; title?: string; subject_name?: string };
+        if (!row.id) return;
+        void showStudyspaceNotification(
+          userId, "timetable_updates", "Timetable updated",
+          [row.title, row.subject_name].filter(Boolean).join(" · ") || "A new class has been added to your timetable.",
+          "studyspace-timetable-" + row.id,
+          import.meta.env.BASE_URL + "favicon.svg",
+        );
+      })
+      .on("postgres_changes", {
         event: "INSERT", schema: "public", table: "studyspace_group_invites",
         filter: "invitee_id=eq." + userId,
       }, payload => {
