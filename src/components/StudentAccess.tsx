@@ -138,9 +138,12 @@ export default function StudentAccess() {
       let handledAsExpiry = false;
       if (context instanceof Response) {
         try {
-          const payload = await context.clone().json() as { error?: unknown; subscription_expired?: unknown };
+          const payload = await context.clone().json() as { error?: unknown; subscription_expired?: unknown; guardian_verification_pending?: unknown };
           if (payload.subscription_expired === true) {
             setExpiredReason(typeof payload.error === "string" ? payload.error : "Your StudySpace subscription has expired. Contact the administrator to renew access.");
+            handledAsExpiry = true;
+          } else if (payload.guardian_verification_pending === true) {
+            setError(typeof payload.error === "string" ? payload.error : "Your account is pending guardian verification. Ask a StudySpace representative for help.");
             handledAsExpiry = true;
           }
         } catch { /* Fall back to the standard sign-in error. */ }
