@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, Check, CheckCheck, UserPlus, ShieldCheck, X, AlertCircle, Camera } from "lucide-react";
+import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, CheckCheck, UserPlus, ShieldCheck, X, AlertCircle, Camera } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Contact={contact_id:string;display_name:string;grade:string;contact_type:"teacher"|"student"};
