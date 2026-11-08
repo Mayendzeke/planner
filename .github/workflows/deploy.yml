@@ -93,6 +93,7 @@ jobs:
           if (!feedbackPage.includes('Testimonial') || !feedbackPage.includes('testimonial_private_consent')) throw new Error('The learner testimonial form and its private-consent requirement are missing.')
           if (!profileEditor.includes('update_studyspace_learner_avatar') || !profileEditor.includes('readOnly value={draft.fullName}') || !profileEditor.includes('readOnly value={draft.country}')) throw new Error('Learner profile photo and protected identity-field controls are missing.')
           if (!onboarding.includes('avatarFile') || !onboarding.includes('accept="image/png,image/jpeg,image/webp"')) throw new Error('Optional profile-photo onboarding is incomplete.')
+          if (!onboarding.includes('stored privately') || !profileEditor.includes('Private to you and authorised administrators')) throw new Error('Learners must be told that uploaded profile photos are private.')
           if (!accountSecurity.includes('scope: "others"') || !accountSecurity.includes('updateUser({ password })')) throw new Error('Learner account security controls are incomplete.')
           console.log('Terms v6, connected learner homework, server-owned fallback timing and closed public enrolment checks passed.')
           NODE
