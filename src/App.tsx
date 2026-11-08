@@ -70,6 +70,7 @@ export default function App() {
   const [splashElapsed, setSplashElapsed] = useState(false);
   const [expiredAccess, setExpiredAccess] = useState(false);
   const [accessLoading, setAccessLoading] = useState(false);
+  const [adminAccountDetected, setAdminAccountDetected] = useState(false);
   const [accessStatusError, setAccessStatusError] = useState("");
   const [accessRetry, setAccessRetry] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null);
@@ -150,6 +151,7 @@ export default function App() {
       setAccessLoading(false);
       setTermsAccepted(null);
       setExpiredAccess(false);
+      setAdminAccountDetected(false);
       setAccessStatusError("");
       return;
     }
@@ -160,7 +162,7 @@ export default function App() {
     const checkAccess = async () => {
       const { data, error: checkError } = await supabase!
         .from("profiles")
-        .select("student_id,account_status,subscription_tier,subscription_expires_at,trial_started_at,trial_expires_at,trial_reminder_shown_at,terms_accepted_at,terms_version")
+        .select("role,student_id,account_status,subscription_tier,subscription_expires_at,trial_started_at,trial_expires_at,trial_reminder_shown_at,terms_accepted_at,terms_version")
         .eq("id", cloudUserId)
         .single();
 
@@ -172,6 +174,16 @@ export default function App() {
         suppressCloudSyncRef.current = true;
         return;
       }
+
+      if (data.role === "admin") {
+        setAdminAccountDetected(true);
+        setTermsAccepted(true);
+        setExpiredAccess(false);
+        setAccessLoading(false);
+        suppressCloudSyncRef.current = true;
+        return;
+      }
+      setAdminAccountDetected(false);
 
       const now = Date.now();
       const paidExpiry = data.subscription_expires_at ? Date.parse(data.subscription_expires_at) : NaN;
@@ -711,6 +723,13 @@ export default function App() {
   if (!cloudAuthReady) return <SplashScreen theme={theme} />;
   if (!cloudAuthenticated) return <StudentAccess />;
   if (accessLoading) return <SplashScreen theme={theme} />;
+  if (adminAccountDetected) return <main className="terms-gate-shell"><section className="terms-gate-card">
+    <div className="eyebrow"><ShieldCheck size={14}/> ADMINISTRATOR ACCOUNT DETECTED</div>
+    <h1>Welcome to StudySpace.</h1>
+    <p>This is an administrator account, not a learner account. Administrator tools, MIA and Classroom Studio are available in StudySpace Monitor. You do not need to accept learner terms here.</p>
+    <a className="primary-button terms-accept-button" href="https://mayendzeke.github.io/studyspace-monitor/">Open StudySpace Monitor</a>
+    <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
+  </section></main>;
   if (accessStatusError) return <main className="terms-gate-shell"><section className="terms-gate-card"><h1>Unable to verify access</h1><p>{accessStatusError}</p><button className="primary-button" onClick={() => setAccessRetry(value => value + 1)}>Retry access check</button><button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button></section></main>;
   if (termsAccepted === null) return <SplashScreen theme={theme} />;
   if (termsAccepted === false) return <main className="terms-gate-shell"><section className="terms-gate-card">
