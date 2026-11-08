@@ -1499,3 +1499,15 @@ select option, select optgroup {
 .monitor-message-empty{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;min-height:140px;padding:20px;text-align:center;color:var(--muted);font-size:10px}
 .monitor-message-empty strong{color:var(--text);font-size:12px}
 @media(max-width:680px){.monitor-conversation{min-height:480px}.monitor-message-list{min-height:280px}.monitor-message-bubble{max-width:90%}}
+
+.student-message-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.student-homework-quick-request{display:grid;gap:10px;padding:16px;margin:0 0 14px}
+.student-homework-quick-request>div:first-child{display:grid;gap:4px}
+.student-homework-quick-request>div:first-child strong{font-size:12px}
+.student-homework-quick-request p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+.student-homework-quick-request textarea{width:100%;min-width:0;padding:11px;border:1px solid var(--border);border-radius:11px;background:var(--panel-strong);color:var(--text);font:inherit;font-size:11px;resize:vertical}
+.student-homework-attach{display:flex;align-items:center;gap:8px;padding:10px;border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-size:9px;cursor:pointer;min-width:0}
+.student-homework-attach span{min-width:0;overflow-wrap:anywhere}
+.student-homework-attach input{margin-left:auto;max-width:160px;min-width:0;font-size:9px}
+.student-homework-quick-request>div:last-child{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media(max-width:520px){.student-message-head-actions{width:100%}.student-message-head-actions>*{flex:1;justify-content:center}.student-homework-attach{align-items:flex-start;flex-wrap:wrap}.student-homework-attach input{max-width:100%;width:100%}}
