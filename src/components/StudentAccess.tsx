@@ -98,7 +98,7 @@ export default function StudentAccess() {
             preferredName: preferredName.trim() || fullName.trim(),
             dateOfBirth,
             termsAccepted: adultRegistration ? termsAccepted : false,
-            termsVersion: adultRegistration ? TERMS_VERSION : undefined,
+            termsVersion: TERMS_VERSION,
             acceptedByName: adultRegistration ? fullName.trim() : "",
             acceptanceRole: adultRegistration ? "adult_learner" : "",
           }
