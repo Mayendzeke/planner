@@ -80,7 +80,7 @@ export default function StudentMessagesPage(){
     if(p.error||c.error||co.error){setError(p.error?.message||c.error?.message||co.error?.message||"Friend list could not be updated.");return;}
     setPending((p.data??[]) as Invite[]);setContacts((c.data??[]) as Contact[]);setConnections((co.data??[]) as Connection[]);
   }
-  const draftWords=draft.trim()?draft.trim().split(/\\s+/).length:0;
+  const draftWords=draft.trim()?draft.trim().split(/\s+/).length:0;
   const thread=messages.filter(m=>(m.sender_id===userId&&m.recipient_id===selected)||(m.sender_id===selected&&m.recipient_id===userId));
   const selectedContact=contacts.find(c=>c.contact_id===selected);
   const visibleContacts=useMemo(()=>contacts.filter(c=>(c.display_name+" "+c.grade).toLowerCase().includes(search.toLowerCase())),[contacts,search]);
