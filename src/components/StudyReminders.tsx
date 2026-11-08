@@ -49,7 +49,7 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
 
   useEffect(() => {
     if (!settings.enabled || permission !== "granted") return;
-    const check = () => {
+    const check = async () => {
       const now = new Date();
       const day = DAYS[(now.getDay() + 6) % 7];
       const [hour, minute] = settings.time.split(":").map(Number);
@@ -58,21 +58,28 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
       const delta = now.getTime() - target.getTime();
       if (!settings.days.includes(day) || delta < 0 || delta > 5 * 60 * 1000) return;
       const key = "studyspace-reminder-fired-" + now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
+      const storageKey = studentStorageKey(key);
       try {
-        if (localStorage.getItem(studentStorageKey(key)) === settings.time) return;
-        localStorage.setItem(studentStorageKey(key), settings.time);
-        const notification = new Notification("Your Studyspace session is ready", {
+        if (localStorage.getItem(storageKey) === settings.time) return;
+        const options: NotificationOptions = {
           body: "It's your planned study time. Open your study space and take one small step.",
           icon: "/planner/favicon.svg",
           tag: "studyspace-daily-study",
-        });
-        notification.onclick = () => { window.focus(); notification.close(); };
+          data: { destination: "/planner/" },
+        };
+        if ("serviceWorker" in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          await registration.showNotification("Your Studyspace session is ready", options);
+        } else {
+          new Notification("Your Studyspace session is ready", options);
+        }
+        localStorage.setItem(storageKey, settings.time);
       } catch {
-        setMessage("The browser could not store the reminder check. Your study workspace is still available.");
+        setMessage("The browser could not deliver this reminder. Check this site's notification permission and keep Studyspace open around your selected study time.");
       }
     };
-    check();
-    const timer = window.setInterval(check, 20_000);
+    void check();
+    const timer = window.setInterval(() => void check(), 20_000);
     return () => window.clearInterval(timer);
   }, [settings, permission]);
 
