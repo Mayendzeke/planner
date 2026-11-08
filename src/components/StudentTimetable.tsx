@@ -17,6 +17,7 @@ type Entry = {
   notes: string;
   source: "manual" | "mia_image_import";
 };
+type TeacherEntry = { id:string; title:string; subject_name:string; education_level:string; grade:string; curriculum:string; course:string; day_of_week:number; starts_at:string; ends_at:string; location:string; notes:string };
 type Editor = {
   subject_name: string;
   title: string;
@@ -33,6 +34,7 @@ const timeValue = (value: string) => value.slice(0, 5);
 export default function StudentTimetable({ subjects = [] }: { subjects?: Subject[] }) {
   const [kind, setKind] = useState<TimetableKind>("school");
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [teacherEntries, setTeacherEntries] = useState<TeacherEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -51,19 +53,36 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData.user) throw new Error("Your student session has expired. Sign in again.");
       setOwnerId(userData.user.id);
-      const { data, error: queryError } = await supabase.from("student_timetable_entries")
-        .select("id,learner_id,timetable_kind,subject_name,title,day_of_week,starts_at,ends_at,location,notes,source")
-        .eq("learner_id", userData.user.id)
-        .order("day_of_week", { ascending: true })
-        .order("starts_at", { ascending: true });
+      const [{ data, error: queryError }, shared] = await Promise.all([
+        supabase.from("student_timetable_entries")
+          .select("id,learner_id,timetable_kind,subject_name,title,day_of_week,starts_at,ends_at,location,notes,source")
+          .eq("learner_id", userData.user.id)
+          .order("day_of_week", { ascending: true })
+          .order("starts_at", { ascending: true }),
+        supabase.from("teacher_timetable_entries")
+          .select("id,title,subject_name,education_level,grade,curriculum,course,day_of_week,starts_at,ends_at,location,notes")
+          .eq("is_active", true)
+          .order("day_of_week", { ascending: true })
+          .order("starts_at", { ascending: true }),
+      ]);
       if (queryError) throw queryError;
+      if (shared.error) throw shared.error;
       setEntries((data ?? []) as Entry[]);
+      setTeacherEntries((shared.data ?? []) as TeacherEntry[]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Your timetable could not be loaded.");
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { void loadEntries(); }, []);
+  useEffect(() => {
+    void loadEntries();
+    if (!supabase) return;
+    const channel = supabase.channel("student-teacher-timetable")
+      .on("postgres_changes", { event: "*", schema: "public", table: "teacher_timetable_entries" }, () => { void loadEntries(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "teacher_timetable_members" }, () => { void loadEntries(); })
+      .subscribe();
+    return () => { void supabase?.removeChannel(channel); };
+  }, []);
 
   const visibleEntries = useMemo(() => entries.filter(item => item.timetable_kind === kind), [entries, kind]);
 
@@ -220,6 +239,19 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
         </table></div></div>
       </div>}
     </section>
-    <p className="timetable-footnote">Changes are saved to your StudySpace account and appear here the next time you sign in. Imported timetable entries can also be corrected after review.</p>
+    <section className="glass-panel student-shared-timetable">
+      <div className="section-heading"><div><h3>Classes shared by your teacher</h3><p>These lessons are published by Studyspace Monitor and are read-only in the student app.</p></div><span className="student-shared-count">{teacherEntries.length} class{teacherEntries.length===1?"":"es"}</span></div>
+      {teacherEntries.length ? <div className="student-shared-days">
+        {[1,2,3,4,5,6,0].map(day=>{
+          const dayEntries=teacherEntries.filter(item=>item.day_of_week===day).sort((a,b)=>timeValue(a.starts_at).localeCompare(timeValue(b.starts_at)));
+          return dayEntries.length ? <article key={day}><h4>{days[day]}</h4><div>{dayEntries.map(item=><section key={item.id}>
+            <span className="student-shared-time">{timeValue(item.starts_at)}–{timeValue(item.ends_at)}</span>
+            <div><strong>{item.title}</strong><small>{item.subject_name}{item.grade?" · "+item.grade:""}{item.course?" · "+item.course:""}</small>{item.location&&<small>{item.location}</small>}{item.notes&&<p>{item.notes}</p>}</div>
+            <span className="student-shared-readonly">Teacher set</span>
+          </section>)}</div></article> : null;
+        })}
+      </div> : <div className="student-shared-empty"><CalendarDays size={21}/><strong>No teacher-published classes yet</strong><span>When your teacher assigns you to a weekly teaching period, it will appear here automatically.</span></div>}
+    </section>
+    <p className="timetable-footnote">Your own school and personal entries are separate from teacher-published lessons. Teacher-published classes are controlled by your teacher and synchronised to this view.</p>
   </div>;
 }
