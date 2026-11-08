@@ -19,6 +19,7 @@ import StudyReminders from "./components/StudyReminders";
 import SubjectManager from "./components/SubjectManager";
 import WeeklyTest from "./components/WeeklyTest";
 import AssignedAssessments from "./components/AssignedAssessments";
+import SchoolHomeworkHelp from "./components/SchoolHomeworkHelp";
 import TodaySession from "./components/TodaySession";
 import StudentFeedback from "./components/StudentFeedback";
 import StudentTimetable from "./components/StudentTimetable";
@@ -779,7 +780,7 @@ export default function App() {
           <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your Studyspace data travels with your account.</strong> Subjects, tasks, study sessions, academic calendar records and personal files sync to your private Studyspace account when online. This device keeps an offline copy so you can continue studying without a connection.</p><span className="note-pill">CLOUD + OFFLINE</span></section></>}
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
-        {page==="Study & Exams"&&<><AssignedAssessments/><WeeklyTest subjects={subjects}/></>}
+        {page==="Study & Exams"&&<><SchoolHomeworkHelp/><AssignedAssessments/><WeeklyTest subjects={subjects}/></>}
         {page==="Help & feedback"&&<StudentFeedback currentPage={page}/> }
         {page==="Subscription"&&<StudentSubscription/>}
         {page==="My Library"&&<StudentLibrary subjects={subjects}/>}
