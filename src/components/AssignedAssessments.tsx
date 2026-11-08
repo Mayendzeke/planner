@@ -138,7 +138,7 @@ export default function AssignedAssessments() {
 
   return <section className="assigned-assessments glass-panel">
     <div className="section-heading">
-      <div><span className="eyebrow">FROM YOUR TEACHER</span><h2>Assigned assessments</h2><p>Tests and assignments published to your Studyspace account.</p></div>
+      <div><span className="eyebrow">FROM YOUR TEACHER</span><h2>Assigned by my teacher</h2><p>Interactive homework and assessments published to your StudySpace account.</p></div>
       <div className="assigned-assessment-actions"><button type="button" className="icon-button" title="Refresh assignments" aria-label="Refresh assignments" onClick={()=>void refresh()} disabled={loading}><LoaderCircle size={17}/></button><ClipboardCheck size={21}/></div>
     </div>
     {error&&<div className="assigned-assessment-error" role="alert"><AlertCircle size={16}/>{error}</div>}
