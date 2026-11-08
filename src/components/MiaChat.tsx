@@ -359,7 +359,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
     <header className="mia-header">
       <div className="mia-brand-mark">Λ</div>
-      <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · DUAL AI ROUTING</span></div>
+      <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMMA 4</span></div>
       <div className="mia-header-actions">
         <span className="mia-remaining">{remaining === null ? (usageChecked ? "Limit unavailable" : "Checking daily limit…") : remaining + " left · 24h"}</span>
         <button className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
@@ -433,6 +433,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
       <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
-    <div className="mia-footnote">Study-focused · Short answers · Gemini and Cloudflare Workers AI may process prompts; avoid sharing personal details</div>
+    <div className="mia-footnote">Study-focused · Short answers · Cloudflare Workers AI processes prompts; avoid sharing personal details</div>
   </section>;
 }
