@@ -156,13 +156,13 @@ export default function TermsAndConditions({
       </section>)}
       <p className="terms-version-note">StudySpace Terms &amp; Conditions · {TERMS_VERSION}</p>
     </div>}
-    {!adultLearnerOnly && <label className="terms-role-label">Who is accepting these terms?
+    {!readOnly && !adultLearnerOnly && <label className="terms-role-label">Who is accepting these terms?
       <select value={acceptanceRole} onChange={event => onAcceptanceRoleChange(event.target.value as TermsAcceptanceRole)}>
         <option value="adult_learner">I am the learner and I am 18 or older</option>
         <option value="parent_guardian">I am the parent/legal guardian accepting for a learner under 18</option>
       </select>
     </label>}
-    {!hideAcceptanceName && <label className="terms-name-label">Full name of the person accepting
+    {!readOnly && !hideAcceptanceName && <label className="terms-name-label">Full name of the person accepting
       <input value={acceptedByName} onChange={event => onAcceptedByNameChange(event.target.value)} maxLength={120} placeholder="Enter your full name" required/>
     </label>}
     {!readOnly && <label className="terms-checkbox-label">
