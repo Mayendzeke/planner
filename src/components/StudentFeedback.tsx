@@ -96,7 +96,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
     <a className="student-feedback-whatsapp" href={"https://wa.me/" + SUPPORT_WHATSAPP} target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Contact us on WhatsApp · +268 7994 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
     <form onSubmit={event => void submit(event)} className="student-feedback-form">
       <label className="field-label">What is this about?
-        <select value={category} onChange={event => setCategory(event.target.value as (typeof categories)[number])}>
+        <select value={category} onChange={event => { const next = event.target.value as (typeof categories)[number]; setCategory(next); if (next !== "Testimonial") setTestimonialConsent(false); }}>
           {categories.map(item => <option key={item}>{item}</option>)}
         </select>
       </label>
