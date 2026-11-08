@@ -80,6 +80,19 @@ export default function StudyspaceNotificationListener() {
         );
       })
       .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "student_timetable_entries",
+        filter: "learner_id=eq." + userId,
+      }, payload => {
+        const row = payload.new as { id?: string; title?: string; subject_name?: string };
+        if (!row.id) return;
+        void showStudyspaceNotification(
+          userId, "timetable_updates", "Timetable changed",
+          [row.title, row.subject_name].filter(Boolean).join(" · ") || "One of your class entries has changed.",
+          "studyspace-timetable-update-" + row.id,
+          import.meta.env.BASE_URL + "favicon.svg",
+        );
+      })
+      .on("postgres_changes", {
         event: "INSERT", schema: "public", table: "studyspace_group_invites",
         filter: "invitee_id=eq." + userId,
       }, payload => {
