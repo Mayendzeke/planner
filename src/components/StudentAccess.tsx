@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./TermsAndConditions";
 
 
 async function describeAccessError(reason: unknown): Promise<string> {
@@ -30,11 +31,15 @@ export default function StudentAccess() {
   const [pin, setPin] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAcceptedByName, setTermsAcceptedByName] = useState("");
+  const [termsAcceptanceRole, setTermsAcceptanceRole] = useState<TermsAcceptanceRole>("parent_guardian");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [expiredReason, setExpiredReason] = useState("");
   const supportNumber = "26879940955";
+  const publicEnrolmentEnabled = import.meta.env.VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED === "true";
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
 
   useEffect(() => {
@@ -53,8 +58,11 @@ export default function StudentAccess() {
     if (!navigator.onLine || !online) { setError("An internet connection is required to create or access your student account. Reconnect and try again."); return; }
     if (busy) return;
     if (mode === "enrol") {
+      if (!publicEnrolmentEnabled) { setError("New learner enrolment is temporarily closed while Study Space completes its required data-protection registration. Existing learners can still sign in."); return; }
       if (password.length < 10) { setError("Choose a password with at least 10 characters."); return; }
       if (password !== confirmPassword) { setError("The passwords do not match."); return; }
+      if (!termsAccepted) { setError("Read and accept the Terms & Conditions and Privacy Notice before creating your account."); return; }
+      if (termsAcceptedByName.trim().length < 2) { setError("Enter the full name of the adult learner or parent/legal guardian accepting the terms."); return; }
     }
     setBusy(true);
     try {
@@ -62,12 +70,19 @@ export default function StudentAccess() {
         const { data, error: invokeError } = await supabase.functions.invoke("enrol-learner", {
           // Compatibility fields let an older deployed Edge Function accept the request;
           // the authenticated onboarding step immediately replaces these placeholders.
-          body: { studentId: studentId.trim().toUpperCase(), pin, password, fullName: "Student", preferredName: "Student" }
+          body: {
+            studentId: studentId.trim().toUpperCase(), pin, password,
+            fullName: "Student", preferredName: "Student",
+            termsAccepted, termsVersion: TERMS_VERSION,
+            acceptedByName: termsAcceptedByName.trim(),
+            acceptanceRole: termsAcceptanceRole,
+          }
         });
         if (invokeError) throw invokeError;
         if (!data?.success) throw new Error(data?.error || "The account could not be created.");
         setNotice("Your account is ready. Sign in with your Student ID and password.");
         setMode("signin"); setPin(""); setConfirmPassword(""); setPassword("");
+        setTermsAccepted(false); setTermsAcceptedByName("");
       } else {
         const { data, error: invokeError } = await supabase.functions.invoke("student-sign-in", {
           body: { studentId: studentId.trim().toUpperCase(), password }
@@ -103,14 +118,25 @@ export default function StudentAccess() {
       <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
       <div className="student-access-icon"><BookOpen size={25}/></div>
       <div className="student-access-heading"><div className="eyebrow"><Sparkles size={14}/> YOUR STUDY SPACE</div><h1>{mode === "signin" ? "Welcome back." : "Join your class."}</h1><p>{mode === "signin" ? "Sign in with your Studyspace Student ID and password." : "Use the Student ID and one-time PIN issued by your administrator, then create your password."}</p></div>
-      <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} onClick={() => {setMode("enrol");setError("");setNotice("");}}>First-time enrolment</button></div>
+      <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} disabled={!publicEnrolmentEnabled} onClick={() => {setMode("enrol");setError("");setNotice("");}}>First-time enrolment</button></div>
+      {!publicEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>New learner enrolment is temporarily closed while Study Space completes its required data-protection registration. Existing learners can continue to sign in.</p></div>}
       <form className="student-access-form" onSubmit={submit}>
         <label>Student ID<span className="student-access-input"><UserRound size={16}/><input value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} type="text" placeholder="e.g. STU-AB12CD34" autoComplete="username" required minLength={12} maxLength={12} pattern="STU-[A-Z0-9]{8}" title="Use the 12-character Student ID issued by your administrator."/></span></label>
         {mode === "enrol" && <>
           <label>One-time enrolment PIN<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,8))} type="text" inputMode="numeric" autoComplete="one-time-code" minLength={8} maxLength={8} pattern="[0-9]{8}" placeholder="Enter your 8-digit PIN" required/><small>This invitation is assigned to your Student ID and can only be used once.</small></label>
         </>}
         <label>Password<span className="student-access-input"><LockKeyhole size={16}/><input value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder={mode === "signin" ? "Enter your password" : "Create a password (10+ characters)"} autoComplete={mode === "signin" ? "current-password" : "new-password"} required minLength={mode === "enrol" ? 10 : 1} maxLength={128}/></span></label>
-        {mode === "enrol" && <label>Confirm password<span className="student-access-input"><LockKeyhole size={16}/><input value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} type="password" placeholder="Confirm your password" autoComplete="new-password" required minLength={10} maxLength={128}/></span></label>}
+        {mode === "enrol" && <>
+          <label>Confirm password<span className="student-access-input"><LockKeyhole size={16}/><input value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} type="password" placeholder="Confirm your password" autoComplete="new-password" required minLength={10} maxLength={128}/></span></label>
+          <TermsAndConditions
+            accepted={termsAccepted}
+            onAcceptedChange={setTermsAccepted}
+            acceptedByName={termsAcceptedByName}
+            onAcceptedByNameChange={setTermsAcceptedByName}
+            acceptanceRole={termsAcceptanceRole}
+            onAcceptanceRoleChange={setTermsAcceptanceRole}
+          />
+        </>}
         <button className="student-access-submit" type="submit" disabled={busy || !supabase || !online}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create student account"}</button>
       </form>
       {notice && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>{notice}</p></div>}

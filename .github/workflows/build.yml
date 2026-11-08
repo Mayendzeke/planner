@@ -11,12 +11,60 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Report dependency audit
+        run: |
+          npm audit --json > audit-all.json || true
+          npm audit --omit=dev --json > audit-production.json || true
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          for (const [label, file] of [['all dependencies', 'audit-all.json'], ['production dependencies', 'audit-production.json']]) {
+            const report = JSON.parse(readFileSync(file, 'utf8'))
+            const vulnerabilities = Object.entries(report.vulnerabilities || {})
+            console.log(label + ': ' + vulnerabilities.length + ' vulnerable package(s)')
+            for (const [name, item] of vulnerabilities) {
+              const titles = (item.via || []).filter(value => typeof value === 'object').map(value => value.title).join('; ')
+              console.log(' - ' + name + ' [' + item.severity + '] direct=' + item.isDirect + ' fix=' + JSON.stringify(item.fixAvailable) + (titles ? ' ' + titles : ''))
+            }
+          }
+          const production = JSON.parse(readFileSync('audit-production.json', 'utf8'))
+          const productionVulnerabilities = Object.entries(production.vulnerabilities || {})
+          if (productionVulnerabilities.length > 0) {
+            console.error('Production dependency audit failed: ' + productionVulnerabilities.length + ' vulnerable package(s).')
+            process.exitCode = 1
+          } else {
+            console.log('Production dependency audit passed: no vulnerable production packages.')
+          }
+          NODE
+      - name: Verify subscription and terms access contracts
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const app = readFileSync('src/App.tsx', 'utf8')
+          const access = readFileSync('src/components/StudentAccess.tsx', 'utf8')
+          const terms = readFileSync('src/components/TermsAndConditions.tsx', 'utf8')
+          const subscription = readFileSync('src/components/StudentSubscription.tsx', 'utf8')
+          if (!app.includes('trialStart <= now && trialExpiry > now')) {
+            throw new Error('Student access must require a started and unexpired trial.')
+          }
+          if (!access.includes('termsVersion: TERMS_VERSION') || !terms.includes('2026-11-07-v3')) {
+            throw new Error('Student enrolment and terms notice must use the current terms version.')
+          }
+          for (const disclosure of ['eu-west-1', 'Ireland', 'Edge Functions run globally', 'storage CDN content may be cached globally', '8x8 JaaS', 'retention schedule', 'WhatsApp']) {
+            if (!terms.includes(disclosure)) throw new Error('Privacy notice is missing its provider or retention disclosure: ' + disclosure)
+          }
+          for (const plan of ['Weekly', '2 Weeks', 'Monthly']) {
+            if (!subscription.includes('name: "' + plan + '"')) throw new Error('Student subscription plan is missing: ' + plan)
+          }
+          console.log('Student trial-start, terms-version and plan contract checks passed.')
+          NODE
       - name: Typecheck and build
+        env:
+          VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'true'
         run: npm run build

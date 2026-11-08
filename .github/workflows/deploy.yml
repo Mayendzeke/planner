@@ -20,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install dependencies
@@ -65,11 +65,16 @@ jobs:
               body: JSON.stringify(payload),
             });
             const detail = (await response.text()).slice(0, 200);
-            if (response.status !== 400) {
-              console.error("Edge Function " + name + " did not return its expected input-validation response (HTTP " + response.status + "): " + detail);
+            const expected = [400];
+            if (!expected.includes(response.status)) {
+              console.error("Edge Function " + name + " did not return an expected input-validation response (HTTP " + response.status + "): " + detail);
               process.exit(1);
             }
-            console.log("Edge Function " + name + " is deployed and responding to the Studyspace app origin.");
+            if (name === "enrol-learner" && response.status === 503 && !detail.toLowerCase().includes("temporarily closed")) {
+              console.error("Enrolment returned HTTP 503 but not the expected closed-registration message: " + detail);
+              process.exit(1);
+            }
+            console.log("Edge Function " + name + " is deployed and enforcing its expected access response.");
           }
           NODE
       - name: Build app
@@ -77,11 +82,12 @@ jobs:
           VITE_SUPABASE_URL: https://tibcoottzstnqkfpwabk.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
           VITE_STUDYSPACE_MEET_DOMAIN: ${{ vars.STUDYSPACE_MEET_DOMAIN }}
+          VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: ${{ vars.VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED || 'true' }}
         run: npm run build
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -94,4 +100,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
