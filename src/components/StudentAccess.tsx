@@ -25,15 +25,16 @@ async function describeAccessError(reason: unknown): Promise<string> {
   return reason instanceof Error ? reason.message : "Studyspace could not complete that request. Try again.";
 }
 
-function isAdultOnDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+function ageOnDate(value: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return -1;
   const birth = new Date(value + "T00:00:00.000Z");
-  if (Number.isNaN(birth.getTime())) return false;
+  if (Number.isNaN(birth.getTime()) || birth.toISOString().slice(0, 10) !== value) return -1;
   const today = new Date();
   let age = today.getUTCFullYear() - birth.getUTCFullYear();
   if (today.getUTCMonth() < birth.getUTCMonth() || (today.getUTCMonth() === birth.getUTCMonth() && today.getUTCDate() < birth.getUTCDate())) age--;
-  return age >= 18;
+  return age;
 }
+function isAdultOnDate(value: string): boolean { return ageOnDate(value) >= 18; }
 const todayDate = () => new Date().toISOString().slice(0, 10);
 
 export default function StudentAccess() {
@@ -80,6 +81,7 @@ export default function StudentAccess() {
       if (preferredName.trim().length > 80) { setError("The preferred name is too long."); return; }
       const parsedDateOfBirth = new Date(dateOfBirth + "T00:00:00");
       if (!dateOfBirth || Number.isNaN(parsedDateOfBirth.getTime()) || parsedDateOfBirth > new Date()) { setError("Enter a valid date of birth."); return; }
+      if (ageOnDate(dateOfBirth) < 8) { setError("StudySpace registration is not available for children under 8 years old."); return; }
       if (password.length < 10) { setError("Choose a password with at least 10 characters."); return; }
       if (password !== confirmPassword) { setError("The passwords do not match."); return; }
       if (adultRegistration && !termsAccepted) { setError("Read and personally accept the Terms & Conditions and Privacy Notice before creating your account."); return; }
