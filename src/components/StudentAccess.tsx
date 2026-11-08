@@ -59,6 +59,8 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
   const [expiredReason, setExpiredReason] = useState("");
   const supportNumber = "26879940955";
   const publicEnrolmentEnabled = import.meta.env.VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED === "true";
+  const inviteEnrolmentEnabled = import.meta.env.VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED === "true";
+  const enrolmentEnabled = publicEnrolmentEnabled || inviteEnrolmentEnabled;
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
     if (!navigator.onLine || !online) { setError("An internet connection is required to create or access your student account. Reconnect and try again."); return; }
     if (busy) return;
     if (mode === "enrol") {
-      if (!publicEnrolmentEnabled) { setError("New learner enrolment is temporarily closed while Study Space completes its required data-protection registration. Existing learners can still sign in."); return; }
+      if (!enrolmentEnabled) { setError("New learner enrolment is closed. Ask your StudySpace administrator for an invitation."); return; }
       if (fullName.trim().length < 2) { setError("Enter the learner’s full legal name."); return; }
       if (preferredName.trim().length > 80) { setError("The preferred name is too long."); return; }
       const parsedDateOfBirth = new Date(dateOfBirth + "T00:00:00");
@@ -235,8 +237,8 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
       <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
       <div className="student-access-icon"><BookOpen size={25}/></div>
       <div className="student-access-heading"><div className="eyebrow"><Sparkles size={14}/> YOUR STUDY SPACE</div><h1>{mode === "signin" ? "Welcome back." : "Join your class."}</h1><p>{mode === "signin" ? "Sign in with your Studyspace Student ID and password." : "Use the Student ID and one-time PIN issued by your administrator, then create your password."}</p></div>
-      <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} disabled={!publicEnrolmentEnabled} onClick={() => {setMode("enrol");setError("");setNotice("");}}>First-time enrolment</button></div>
-      {!publicEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>New learner enrolment is temporarily closed while Study Space completes its required data-protection registration. Existing learners can continue to sign in.</p></div>}
+      <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} disabled={!enrolmentEnabled} onClick={() => {setMode("enrol");setError("");setNotice("");}}>{!publicEnrolmentEnabled && inviteEnrolmentEnabled ? "Redeem invitation" : "First-time enrolment"}</button></div>
+      {!enrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>New learner enrolment is closed. Ask your StudySpace administrator for an invitation.</p></div>}{!publicEnrolmentEnabled && inviteEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>Private invitation only.</strong><br/>Public self-registration is off. Only learners with a valid, single-use Student ID and PIN issued by the StudySpace administrator can create an account.</p></div>}
       <form className="student-access-form" onSubmit={submit}>
         <label>Student ID<span className="student-access-input"><UserRound size={16}/><input value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} type="text" placeholder="e.g. STU-AB12CD34" autoComplete="username" required minLength={12} maxLength={12} pattern="STU-[A-Z0-9]{8}" title="Use the 12-character Student ID issued by your administrator."/></span></label>
         {mode === "enrol" && <>
@@ -271,7 +273,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
             <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>Parent or guardian verification required.</strong><br/>You can complete registration now, but your dashboard will remain locked until a parent or legal guardian meets a StudySpace representative, reviews these terms and gives consent in person. The representative will record the guardian’s details and approval in StudySpace Monitor.</p></div>
           </>}
         </>}
-        <button className="student-access-submit" type="submit" disabled={busy || !supabase || !online}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create student account"}</button>
+        <button className="student-access-submit" type="submit" disabled={busy || !supabase || !online || (mode === "enrol" && !enrolmentEnabled)}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : !publicEnrolmentEnabled && inviteEnrolmentEnabled ? "Redeem invitation" : "Create student account"}</button>
       </form>
       {notice && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>{notice}</p></div>}
       {expiredReason && <div className="access-expiry-backdrop" role="presentation">
