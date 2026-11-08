@@ -11,7 +11,7 @@ export default defineConfig({
       manifest: {
         name: "StudySpace — Student Academic Planner",
         short_name: "SS Student",
-        id: "/planner/",
+        id: "https://mayendzeke.github.io/planner/",
         description: "An offline-first planner for school, college and university.",
         theme_color: "#242938",
         background_color: "#242938",
