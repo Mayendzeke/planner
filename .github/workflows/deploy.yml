@@ -65,17 +65,28 @@ jobs:
               body: JSON.stringify(payload),
             });
             const detail = (await response.text()).slice(0, 200);
-            const expected = [400];
-            if (!expected.includes(response.status)) {
-              console.error("Edge Function " + name + " did not return an expected input-validation response (HTTP " + response.status + "): " + detail);
+            const expected = name === "enrol-learner" ? 503 : 400;
+            if (response.status !== expected) {
+              console.error("Edge Function " + name + " did not return its expected response (HTTP " + response.status + ", expected " + expected + "): " + detail);
               process.exit(1);
             }
-            if (name === "enrol-learner" && response.status === 503 && !detail.toLowerCase().includes("temporarily closed")) {
+            if (name === "enrol-learner" && !detail.toLowerCase().includes("temporarily closed")) {
               console.error("Enrolment returned HTTP 503 but not the expected closed-registration message: " + detail);
               process.exit(1);
             }
             console.log("Edge Function " + name + " is deployed and enforcing its expected access response.");
           }
+          const { readFileSync } = await import('node:fs')
+          const terms = readFileSync('src/components/TermsAndConditions.tsx', 'utf8')
+          const studentApp = readFileSync('src/App.tsx', 'utf8')
+          const homeworkHelp = readFileSync('src/components/SchoolHomeworkHelp.tsx', 'utf8')
+          const accessPage = readFileSync('src/components/StudentAccess.tsx', 'utf8')
+          const workflow = readFileSync('.github/workflows/deploy.yml', 'utf8')
+          if (!terms.includes('2026-11-08-v6') || !terms.includes('two minutes') || !terms.includes('Cloudflare Workers AI')) throw new Error('Terms v6 must disclose the learner homework AI fallback and photo processing.')
+          if (!studentApp.includes('SchoolHomeworkHelp') || !studentApp.includes('AssignedAssessments')) throw new Error('Learner homework and teacher-assigned assessment screens must be connected.')
+          if (homeworkHelp.includes('fallback_due_at:')) throw new Error('The learner must not be able to set the server-side homework fallback deadline.')
+          if (!accessPage.includes('publicEnrolmentEnabled') || !workflow.includes("VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'")) throw new Error('Public learner enrolment must stay closed pending legal readiness.')
+          console.log('Terms v6, connected learner homework, server-owned fallback timing and closed public enrolment checks passed.')
           NODE
       - name: Build app
         env:
