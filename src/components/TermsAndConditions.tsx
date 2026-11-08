@@ -123,6 +123,8 @@ export default function TermsAndConditions({
   onAcceptedByNameChange,
   acceptanceRole,
   onAcceptanceRoleChange,
+  adultLearnerOnly = false,
+  hideAcceptanceName = false,
 }: {
   accepted: boolean;
   onAcceptedChange: (value: boolean) => void;
@@ -130,6 +132,8 @@ export default function TermsAndConditions({
   onAcceptedByNameChange: (value: string) => void;
   acceptanceRole: TermsAcceptanceRole;
   onAcceptanceRoleChange: (value: TermsAcceptanceRole) => void;
+  adultLearnerOnly?: boolean;
+  hideAcceptanceName?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [readToEnd, setReadToEnd] = useState(false);
@@ -150,15 +154,15 @@ export default function TermsAndConditions({
       </section>)}
       <p className="terms-version-note">StudySpace Terms &amp; Conditions · {TERMS_VERSION}</p>
     </div>}
-    <label className="terms-role-label">Who is accepting these terms?
+    {!adultLearnerOnly && <label className="terms-role-label">Who is accepting these terms?
       <select value={acceptanceRole} onChange={event => onAcceptanceRoleChange(event.target.value as TermsAcceptanceRole)}>
         <option value="adult_learner">I am the learner and I am 18 or older</option>
         <option value="parent_guardian">I am the parent/legal guardian accepting for a learner under 18</option>
       </select>
-    </label>
-    <label className="terms-name-label">Full name of the person accepting
+    </label>}
+    {!hideAcceptanceName && <label className="terms-name-label">Full name of the person accepting
       <input value={acceptedByName} onChange={event => onAcceptedByNameChange(event.target.value)} maxLength={120} placeholder="Enter your full name" required/>
-    </label>
+    </label>}
     <label className="terms-checkbox-label">
       <input type="checkbox" checked={accepted} disabled={!readToEnd} onChange={event => onAcceptedChange(event.target.checked)}/>
       <span>I have read and agree to the StudySpace Terms &amp; Conditions and Privacy Notice. I confirm that the person named above is authorised to accept them for this account. If I am accepting as a parent/legal guardian, I give the required consent for the learner’s personal information to be processed for the StudySpace learning service.</span>
