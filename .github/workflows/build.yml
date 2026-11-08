@@ -42,6 +42,8 @@ jobs:
             console.log('Production dependency audit passed: no vulnerable production packages.')
           }
           NODE
+      - name: Verify guardian consent uses the current terms version
+        run: node --test scripts/guardian-consent-terms.test.mjs
       - name: Verify subscription and terms access contracts
         run: |
           node --input-type=module <<'NODE'
