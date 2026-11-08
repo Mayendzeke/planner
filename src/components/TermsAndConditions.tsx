@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export const TERMS_VERSION = "2026-11-08-v4";
+export const TERMS_VERSION = "2026-11-08-v5";
 
 export type TermsAcceptanceRole = "adult_learner" | "parent_guardian";
 
@@ -9,7 +9,7 @@ export const TERMS_SECTIONS: { heading: string; paragraphs: string[] }[] = [
     heading: "1. About StudySpace and these terms",
     paragraphs: [
       "Study Space is an educational planning and learning-support service operated in the Kingdom of Eswatini by Ayanda Zwane, Founder and Owner. Study Space is the service and trading name currently used while formal business registration is pending; it is not represented as an already registered company or legal entity. In these terms, “Study Space”, “we” and “us” mean the service operated by Ayanda Zwane; “you” means the learner or the parent/legal guardian accepting these terms for a learner.",
-      "Current operator details: Ayanda Zwane, Founder and Owner, operating from Ezulwini, Kingdom of Eswatini, while formal business registration is pending. This is a town/locality and not a street address. WhatsApp support: +268 7994 0955. MTN MoMo payments: +268 7824 9679. The MoMo recipient name displayed at payment must be checked before confirming a transfer.",
+      "Current operator details: Ayanda Zwane, Founder and Owner, operating from Ezulwini, Kingdom of Eswatini, while formal business registration is pending. This is a town/locality and not a street address. WhatsApp support: +268 7994 0955. MTN MoMo payments: +268 7824 0679. The MoMo recipient name displayed at payment must be checked before confirming a transfer.",
       "By creating or using a StudySpace account, the person accepting these terms confirms that they have read and understood these terms and the privacy information in section 10."
     ]
   },
@@ -49,7 +49,7 @@ export const TERMS_SECTIONS: { heading: string; paragraphs: string[] }[] = [
     heading: "6. Payment method and payment reference",
     paragraphs: [
       "MTN MoMo is the only accepted payment method at this time. Other payment methods, including bank transfer, eWallet, Unayo and other mobile-money services, are not accepted unless StudySpace announces a change through its official channels.",
-      "Send MTN MoMo payments to +268 7824 9679. The learner must use their exact StudySpace Student ID as the payment reference. Before confirming payment, verify that MTN MoMo displays the intended recipient name “Ayanda Zwane”. If the recipient name or number does not match, do not pay; contact StudySpace through WhatsApp at +268 7994 0955 first.",
+      "Send MTN MoMo payments to +268 7824 0679. The learner must use their exact StudySpace Student ID as the payment reference. Before confirming payment, verify that MTN MoMo displays the intended recipient name “Ayanda Zwane”. If the recipient name or number does not match, do not pay; contact StudySpace through WhatsApp at +268 7994 0955 first.",
       "After payment, send the payment confirmation or transaction reference through the official StudySpace WhatsApp contact and include the Student ID and selected plan. Do not send an MTN MoMo PIN, password or one-time security code. StudySpace may ask for reasonable evidence to match the payment to the learner.",
       "StudySpace will activate access after the payment is received and verified. If the Student ID reference is missing or incorrect, activation may be delayed while the payment is investigated."
     ]
@@ -111,7 +111,7 @@ export const TERMS_SECTIONS: { heading: string; paragraphs: string[] }[] = [
     heading: "13. Governing law and contact",
     paragraphs: [
       "These terms are intended to be governed by the laws of the Kingdom of Eswatini, subject to any mandatory consumer or data-protection rights that apply. We encourage learners and guardians to contact StudySpace first so that account, payment or service concerns can be reviewed promptly.",
-      "Operator: Ayanda Zwane, Founder and Owner, operating from Ezulwini, Kingdom of Eswatini, while formal business registration is pending. Email: ayandaagustozwane@gmail.com; WhatsApp support: +268 7994 0955; MTN MoMo payments: +268 7824 9679. Ezulwini is the stated business locality, not a street address. Formal registration particulars will be added after registration is completed. These terms are a working service notice, not legal advice, and must receive local legal review before public commercial launch. New learner enrolment will remain closed until StudySpace completes the required data-controller registration and other applicable legal launch requirements."
+      "Operator: Ayanda Zwane, Founder and Owner, operating from Ezulwini, Kingdom of Eswatini, while formal business registration is pending. Email: ayandaagustozwane@gmail.com; WhatsApp support: +268 7994 0955; MTN MoMo payments: +268 7824 0679. Ezulwini is the stated business locality, not a street address. Formal registration particulars will be added after registration is completed. These terms are a working service notice, not legal advice, and must receive local legal review before public commercial launch. New learner enrolment will remain closed until StudySpace completes the required data-controller registration and other applicable legal launch requirements."
     ]
   }
 ];
