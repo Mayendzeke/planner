@@ -1511,3 +1511,7 @@ select option, select optgroup {
 .student-homework-attach input{margin-left:auto;max-width:160px;min-width:0;font-size:9px}
 .student-homework-quick-request>div:last-child{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 @media(max-width:520px){.student-message-head-actions{width:100%}.student-message-head-actions>*{flex:1;justify-content:center}.student-homework-attach{align-items:flex-start;flex-wrap:wrap}.student-homework-attach input{max-width:100%;width:100%}}
+
+.monitor-contact-search{display:flex;align-items:center;gap:7px;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel-strong);color:var(--muted)}
+.monitor-contact-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:10px}
+.student-messages-page .inline-message.error-message{color:var(--danger)}
