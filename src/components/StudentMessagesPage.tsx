@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import StudyspaceGroupsPanel from "./StudyspaceGroupsPanel";
 
 type Contact={contact_id:string;display_name:string;grade:string;contact_type:"teacher"|"student"};
-type Message={id:string;sender_id:string;recipient_id:string;body:string;attachment_path:string|null;attachment_name:string;attachment_mime:string;attachment_size:number;created_at:string;read_at:string|null;delivered_at:string|null;edited_at:string|null;unsent_at:string|null};
+type Message={id:string;sender_id:string;recipient_id:string;body:string;attachment_path:string|null;attachment_name:string;attachment_mime:string;attachment_size:number;created_at:string;read_at:string|null;delivered_at:string|null;edited_at:string|null;unsent_at:string|null;deleted_for_everyone_at:string|null};
 type SearchLearner={learner_id:string;display_name:string;grade:string;can_invite:boolean};
 type Invite={request_id:string;requester_id:string;display_name:string;grade:string;created_at:string};
 type Connection={id:string;requester_id:string;addressee_id:string;status:string};
@@ -51,7 +51,7 @@ export default function StudentMessagesPage(){
       const id=auth.user.id;setUserId(id);
       const [c,m,p,co,d]=await Promise.all([
         supabase.rpc("get_studyspace_message_contacts"),
-        supabase.from("direct_messages").select("id,sender_id,recipient_id,body,attachment_path,attachment_name,attachment_mime,attachment_size,created_at,read_at,delivered_at,edited_at,unsent_at").or("sender_id.eq."+id+",recipient_id.eq."+id).order("created_at",{ascending:true}).limit(400),
+        supabase.from("direct_messages").select("id,sender_id,recipient_id,body,attachment_path,attachment_name,attachment_mime,attachment_size,created_at,read_at,delivered_at,edited_at,unsent_at,deleted_for_everyone_at").or("sender_id.eq."+id+",recipient_id.eq."+id).order("created_at",{ascending:true}).limit(400),
         supabase.rpc("get_studyspace_pending_friend_requests"),
         supabase.from("student_connections").select("id,requester_id,addressee_id,status").or("requester_id.eq."+id+",addressee_id.eq."+id),
          supabase.from("direct_message_user_deletions").select("message_id").eq("user_id",id)
@@ -75,7 +75,7 @@ export default function StudentMessagesPage(){
   },[userId]);
   async function refreshMessages(){
     if(!supabase||!userId)return;
-    const {data,error:e}=await supabase.from("direct_messages").select("id,sender_id,recipient_id,body,attachment_path,attachment_name,attachment_mime,attachment_size,created_at,read_at,delivered_at,edited_at,unsent_at").or("sender_id.eq."+userId+",recipient_id.eq."+userId).order("created_at",{ascending:true}).limit(400);
+    const {data,error:e}=await supabase.from("direct_messages").select("id,sender_id,recipient_id,body,attachment_path,attachment_name,attachment_mime,attachment_size,created_at,read_at,delivered_at,edited_at,unsent_at,deleted_for_everyone_at").or("sender_id.eq."+userId+",recipient_id.eq."+userId).order("created_at",{ascending:true}).limit(400);
     if(e)setError(e.message);else{const rows=(data??[]) as Message[];setMessages(rows);const {data:deleted,error:deleteError}=await supabase.from("direct_message_user_deletions").select("message_id").eq("user_id",userId);if(deleteError)setError(deleteError.message);else setHiddenMessageIds((deleted??[]).map(x=>x.message_id));const undelivered=rows.filter(x=>x.recipient_id===userId&&!x.delivered_at);if(undelivered.length)void supabase.from("direct_messages").update({delivered_at:new Date().toISOString()}).in("id",undelivered.map(x=>x.id));}
   }
   async function refreshRequests(){
@@ -171,7 +171,7 @@ export default function StudentMessagesPage(){
     }catch(reason){if(path)await supabase.storage.from("studyspace-direct-messages").remove([path]);setError(reason instanceof Error?reason.message:"Message could not be sent.");}
     finally{setSending(false);}
   };
-  const canEditMessage=(m:Message)=>m.sender_id===userId&&!m.unsent_at&&Date.now()-new Date(m.created_at).getTime()<120000;
+  const canEditMessage=(m:Message)=>m.sender_id===userId&&!m.unsent_at&&!m.deleted_for_everyone_at&&Date.now()-new Date(m.created_at).getTime()<120000;
   const beginEditMessage=(m:Message)=>{if(!canEditMessage(m)){setError("Messages can only be edited by their sender within two minutes.");return;}setEditingMessageId(m.id);setEditingMessageDraft(m.body);setNotice("");setError("");};
   const saveEditedMessage=async(m:Message)=>{
     const body=editingMessageDraft.trim();
@@ -182,13 +182,22 @@ export default function StudentMessagesPage(){
     if(e)setError(e.message);else{setEditingMessageId(null);setNotice("Message edited.");await refreshMessages();}
   };
   const unsendMessage=async(m:Message)=>{
-    if(!supabase||!userId||m.sender_id!==userId||m.unsent_at)return;
+    if(!supabase||!userId||m.sender_id!==userId||m.unsent_at||m.deleted_for_everyone_at)return;
     if(!window.confirm("Unsend this message for everyone? The content will be replaced with a message-unsent notice."))return;
     const oldPath=m.attachment_path;
     const {error:e}=await supabase.from("direct_messages").update({body:"This message was unsent.",attachment_path:null,attachment_name:"",attachment_mime:"",attachment_size:0,unsent_at:new Date().toISOString()}).eq("id",m.id).eq("sender_id",userId);
     if(e){setError(e.message);return;}
     if(oldPath)try{await supabase.storage.from("studyspace-direct-messages").remove([oldPath]);}catch{/* The message is already unsent; keep the conversation state. */}
     setEditingMessageId(null);setNotice("Message unsent for everyone.");await refreshMessages();
+  };
+  const deleteMessageForEveryone=async(m:Message)=>{
+    if(!supabase||!userId||m.sender_id!==userId||m.unsent_at||m.deleted_for_everyone_at)return;
+    if(!window.confirm("Delete this message for everyone? Its content and attachment will be removed from all participants' conversations."))return;
+    const oldPath=m.attachment_path;
+    const {error:e}=await supabase.from("direct_messages").update({body:"This message was deleted.",attachment_path:null,attachment_name:"",attachment_mime:"",attachment_size:0,deleted_for_everyone_at:new Date().toISOString()}).eq("id",m.id).eq("sender_id",userId);
+    if(e){setError(e.message);return;}
+    if(oldPath)try{await supabase.storage.from("studyspace-direct-messages").remove([oldPath]);}catch{/* Message deletion already succeeded. */}
+    setEditingMessageId(null);setNotice("Message deleted for everyone.");await refreshMessages();
   };
   const deleteMessageForMe=async(m:Message)=>{
     if(!supabase||!userId)return;
@@ -253,7 +262,7 @@ export default function StudentMessagesPage(){
       </aside>
       <section className="monitor-conversation">
         {selectedContact?<><header className="monitor-conversation-head"><div><span className="monitor-contact-avatar">{selectedContact.display_name.slice(0,1).toUpperCase()}</span><div><strong>{selectedContact.display_name}</strong><small>{selectedContact.contact_type==="teacher"?"Teacher · Studyspace Monitor":selectedContact.grade||"Student connection"} · {presenceLabel(selectedContact.contact_id)}</small></div></div><span className="monitor-secure-label"><ShieldCheck size={13}/> Private</span></header>
-          <div className="monitor-message-list">{thread.length?thread.map(m=><article key={m.id} className={"monitor-message-bubble"+(m.sender_id===userId?" is-outgoing":"")}><div>{editingMessageId===m.id?<div className="ss-message-edit"><textarea value={editingMessageDraft} maxLength={2000} onChange={e=>setEditingMessageDraft(e.target.value)}/><div><button type="button" onClick={()=>void saveEditedMessage(m)}>Save edit</button><button type="button" onClick={()=>setEditingMessageId(null)}>Cancel</button></div></div>:m.unsent_at?<p className="ss-message-unsent">This message was unsent.</p>:m.body&&<p>{m.body}</p>}{!m.unsent_at&&m.attachment_path&&<a className="monitor-message-attachment" href={signedUrls[m.id]||"#"} target="_blank" rel="noreferrer" onClick={e=>{if(!signedUrls[m.id])e.preventDefault();}}><FileText size={16}/><span>{m.attachment_name||"Attachment"}<small>{byteLabel(m.attachment_size)}</small></span></a>}</div><time>{new Date(m.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}{m.edited_at&&!m.unsent_at&&<small className="ss-message-edited">Edited</small>}{m.sender_id===userId&&<small className="monitor-message-status">{m.read_at?"Seen":m.delivered_at?"Delivered":"Sent"}</small>}</time><details className="ss-message-actions"><summary aria-label="Message actions">⋯</summary><div>{m.sender_id===userId&&!m.unsent_at&&canEditMessage(m)&&<button type="button" onClick={()=>beginEditMessage(m)}>Edit</button>}{m.sender_id===userId&&!m.unsent_at&&<button type="button" onClick={()=>void unsendMessage(m)}>Unsend for everyone</button>}<button type="button" onClick={()=>void deleteMessageForMe(m)}>Delete for me</button></div></details></article>):<div className="monitor-message-empty"><MessageCircle size={24}/><strong>No messages yet</strong><span>Send your first message to {selectedContact.display_name}.</span></div>}<div ref={bottomRef}/></div>
+          <div className="monitor-message-list">{thread.length?thread.map(m=><article key={m.id} className={"monitor-message-bubble"+(m.sender_id===userId?" is-outgoing":"")}><div>{editingMessageId===m.id?<div className="ss-message-edit"><textarea value={editingMessageDraft} maxLength={2000} onChange={e=>setEditingMessageDraft(e.target.value)}/><div><button type="button" onClick={()=>void saveEditedMessage(m)}>Save edit</button><button type="button" onClick={()=>setEditingMessageId(null)}>Cancel</button></div></div>:m.unsent_at?<p className="ss-message-unsent">This message was unsent.</p>:m.deleted_for_everyone_at?<p className="ss-message-unsent">This message was deleted.</p>:m.body&&<p>{m.body}</p>}{!m.unsent_at&&!m.deleted_for_everyone_at&&m.attachment_path&&<a className="monitor-message-attachment" href={signedUrls[m.id]||"#"} target="_blank" rel="noreferrer" onClick={e=>{if(!signedUrls[m.id])e.preventDefault();}}><FileText size={16}/><span>{m.attachment_name||"Attachment"}<small>{byteLabel(m.attachment_size)}</small></span></a>}</div><time>{new Date(m.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}{m.edited_at&&!m.unsent_at&&!m.deleted_for_everyone_at&&<small className="ss-message-edited">Edited</small>}{m.sender_id===userId&&<small className="monitor-message-status">{m.read_at?"Seen":m.delivered_at?"Delivered":"Sent"}</small>}</time><details className="ss-message-actions"><summary aria-label="Message actions">⋯</summary><div>{m.sender_id===userId&&!m.unsent_at&&canEditMessage(m)&&<button type="button" onClick={()=>beginEditMessage(m)}>Edit</button>}{m.sender_id===userId&&!m.unsent_at&&!m.deleted_for_everyone_at&&<button type="button" onClick={()=>void unsendMessage(m)}>Unsend</button>}{m.sender_id===userId&&!m.unsent_at&&!m.deleted_for_everyone_at&&<button type="button" onClick={()=>void deleteMessageForEveryone(m)}>Delete for everyone</button>}<button type="button" onClick={()=>void deleteMessageForMe(m)}>Delete for me</button></div></details></article>):<div className="monitor-message-empty"><MessageCircle size={24}/><strong>No messages yet</strong><span>Send your first message to {selectedContact.display_name}.</span></div>}<div ref={bottomRef}/></div>
           <form className="monitor-message-composer" onSubmit={send}>{file&&<div className="monitor-message-file"><FileText size={14}/><span>{file.name} · {byteLabel(file.size)}</span><button type="button" onClick={()=>{setFile(null);if(fileRef.current)fileRef.current.value="";}} aria-label="Remove attachment"><X size={13}/></button></div>}<div className="monitor-message-compose-row"><button className="icon-button" type="button" aria-label="Attach file" onClick={()=>fileRef.current?.click()}><Paperclip size={17}/></button><input ref={fileRef} hidden type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" onChange={e=>setFile(e.target.files?.[0]||null)}/><textarea value={draft} maxLength={2000} rows={2} onChange={e=>setDraft(e.target.value)} placeholder="Write a message…" aria-label="Message text"/><button className="primary-button" type="submit" disabled={sending||(!draft.trim()&&!file)||draftWords>350||draft.length>2000}><Send size={15}/>{sending?"Sending…":"Send"}</button></div><div className="monitor-message-limits"><span>350 words / 2,000 characters max · Attachments up to 5 MB</span><span>{draftWords}/350 words · {draft.length}/2,000</span></div></form>
         </>:<div className="monitor-message-empty"><MessageCircle size={28}/><strong>{loading?"Opening your messages…":"Choose a conversation"}</strong><span>Start with your teacher or connect with another learner after an accepted invitation.</span></div>}
       </section>
