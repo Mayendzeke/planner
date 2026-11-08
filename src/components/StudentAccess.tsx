@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X } from "lucide-react";
+import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./TermsAndConditions";
 
@@ -52,6 +52,8 @@ export default function StudentAccess() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [pendingGuardian, setPendingGuardian] = useState<{ studentId: string; guardianUrl: string | null; message: string } | null>(null);
+  const [guardianLinkNotice, setGuardianLinkNotice] = useState("");
   const [expiredReason, setExpiredReason] = useState("");
   const supportNumber = "26879940955";
   const publicEnrolmentEnabled = import.meta.env.VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED === "true";
@@ -103,9 +105,19 @@ export default function StudentAccess() {
         });
         if (invokeError) throw invokeError;
         if (!data?.success) throw new Error(data?.error || "The account could not be created.");
-        setNotice(data.accountStatus === "pending_guardian_verification"
-          ? (data.message || "Registration is complete. A parent or legal guardian must complete in-person verification before the account can be opened.")
-          : "Your account is ready. Sign in with your Student ID and password.");
+        if (data.accountStatus === "pending_guardian_verification") {
+          setPendingGuardian({
+            studentId: data.studentId || studentId.trim().toUpperCase(),
+            guardianUrl: typeof data.guardianUrl === "string" ? data.guardianUrl : null,
+            message: data.message || "Your account is registered and waiting for guardian verification.",
+          });
+          setGuardianLinkNotice("");
+          setPin("");
+          setConfirmPassword("");
+          setPassword("");
+          return;
+        }
+        setNotice("Your account is ready. Sign in with your Student ID and password.");
         setMode("signin"); setPin(""); setConfirmPassword(""); setPassword("");
         setTermsAccepted(false); setTermsAcceptedByName("");
       } else {
@@ -136,6 +148,56 @@ export default function StudentAccess() {
       if (!handledAsExpiry) setError(await describeAccessError(reason));
     } finally { setBusy(false); }
   }
+
+  async function copyGuardianLink() {
+    if (!pendingGuardian?.guardianUrl) return;
+    try {
+      await navigator.clipboard.writeText(pendingGuardian.guardianUrl);
+      setGuardianLinkNotice("Guardian invitation link copied. Send it privately to your parent or legal guardian.");
+    } catch {
+      setGuardianLinkNotice("Copy is unavailable in this browser. Press and hold the link above to select and copy it.");
+    }
+  }
+
+  async function shareGuardianLink() {
+    if (!pendingGuardian?.guardianUrl) return;
+    const shareData = {
+      title: "StudySpace guardian consent",
+      text: "Please open this StudySpace link to review the terms and give consent for my learning account.",
+      url: pendingGuardian.guardianUrl,
+    };
+    try {
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+      } else {
+        await copyGuardianLink();
+      }
+    } catch (reason) {
+      if (reason instanceof Error && reason.name !== "AbortError") {
+        setGuardianLinkNotice("Sharing is unavailable. Copy the link and send it by WhatsApp or SMS.");
+      }
+    }
+  }
+
+  if (pendingGuardian) return <main className="student-access-shell">
+    <div className="student-access-glow" />
+    <section className="student-access-card">
+      <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
+      <div className="student-access-icon"><ShieldCheck size={25}/></div>
+      <div className="student-access-heading"><div className="eyebrow"><ShieldCheck size={14}/> ACCOUNT PENDING VERIFICATION</div><h1>Your registration is complete.</h1><p>Your StudySpace account is safely registered, but your dashboard remains locked until a parent or legal guardian gives consent and StudySpace approves the verification.</p></div>
+      <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID: {pendingGuardian.studentId}</strong><br/>{pendingGuardian.message}</p></div>
+      {pendingGuardian.guardianUrl ? <>
+        <label className="field-label">Guardian invitation link<input type="url" readOnly value={pendingGuardian.guardianUrl} onFocus={event => event.currentTarget.select()}/><small>This private link expires after 14 days and can only be used once. Send it directly to your parent or legal guardian.</small></label>
+        <div className="guardian-link-actions">
+          <button type="button" className="student-access-submit" onClick={() => void copyGuardianLink()}>Copy guardian link</button>
+          <button type="button" className="secondary-button" onClick={() => void shareGuardianLink()}>Share link</button>
+        </div>
+        {guardianLinkNotice && <p className="student-access-notice" role="status">{guardianLinkNotice}</p>}
+      </> : <div className="student-access-notice"><Users size={17}/><p>A guardian link could not be generated automatically. Ask a StudySpace representative to open Monitor, select Guardian verification and record the guardian’s consent in person. They can also create a fresh link.</p></div>}
+      <div className="student-access-notice"><Users size={17}/><p><strong>No smartphone or email?</strong><br/>Your parent or guardian does not need a smartphone, email address or national ID for the in-person route. You and the guardian can meet a StudySpace representative, who will record the guardian’s details and approval in the Monitor app.</p></div>
+      <button type="button" className="access-expiry-secondary" onClick={() => { setPendingGuardian(null); setMode("signin"); setNotice("Your account is still waiting for guardian verification. You cannot sign in until StudySpace approves it."); }}>Return to sign in</button>
+    </section>
+  </main>;
 
   return <main className="student-access-shell">
     <div className="student-access-glow" />
