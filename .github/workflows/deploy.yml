@@ -95,6 +95,30 @@ jobs:
           VITE_STUDYSPACE_MEET_DOMAIN: ${{ vars.STUDYSPACE_MEET_DOMAIN }}
           VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'
         run: npm run build
+      - name: Verify Student PWA install assets
+        run: |
+          node --input-type=module <<'NODE'
+          import { existsSync, readFileSync, readdirSync } from 'node:fs'
+          import { join } from 'node:path'
+          const files = readdirSync('dist')
+          const manifestName = files.find(name => name.endsWith('.webmanifest'))
+          if (!manifestName) throw new Error('The Student PWA manifest was not generated.')
+          const manifest = JSON.parse(readFileSync(join('dist', manifestName), 'utf8'))
+          if (manifest.name !== 'StudySpace — Student Academic Planner' || manifest.start_url !== '/planner/' || manifest.scope !== '/planner/') {
+            throw new Error('The Student PWA manifest has an unexpected app name, start URL or scope.')
+          }
+          const pngIcons = (manifest.icons || []).filter(icon => icon.type === 'image/png')
+          for (const size of ['192x192', '512x512']) {
+            if (!pngIcons.some(icon => icon.sizes === size)) throw new Error('Student manifest is missing its ' + size + ' PNG icon.')
+          }
+          for (const icon of manifest.icons || []) {
+            const relative = String(icon.src).replace('/planner/', '')
+            if (!existsSync(join('dist', relative))) throw new Error('A declared Student PWA icon is missing from the build: ' + icon.src)
+          }
+          if (!files.includes('sw.js')) throw new Error('The Student offline service worker was not generated.')
+          if (!readFileSync('src/main.tsx', 'utf8').includes('registerSW({ immediate: true })')) throw new Error('The Student app does not register its PWA service worker.')
+          console.log('Student PWA manifest, 192px/512px PNG icons, icon assets and service worker checks passed.')
+          NODE
       - name: Configure Pages
         uses: actions/configure-pages@v6
       - name: Upload Pages artifact
