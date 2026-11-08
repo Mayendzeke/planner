@@ -3,13 +3,14 @@ import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
   LifeBuoy, Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target,
-  Trash2, TrendingUp, Upload, X, Flame, CreditCard, ShieldCheck
+  Trash2, TrendingUp, Upload, X, Flame, CreditCard, ShieldCheck, UserRound
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
 import { syncStudentWorkspace } from "./lib/cloudSync";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
+import StudentAccountSecurity from "./components/StudentAccountSecurity";
 import StudentAssignmentNotifications, { HomeworkAlertSettings } from "./components/StudentAssignmentNotifications";
 import StudentAccess from "./components/StudentAccess";
 import GuardianConsentPage from "./components/GuardianConsentPage";
@@ -30,7 +31,7 @@ import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./c
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 
-type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "My Library" | "Academic Calendar" | "Progress" | "Help & feedback" | "Settings" | "Subscription";
+type Page = "Overview" | "Today's Session" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "My Library" | "Academic Calendar" | "Progress" | "Help & feedback" | "My profile" | "Settings" | "Subscription";
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
@@ -67,6 +68,7 @@ export default function App() {
   const cloudAuthenticated = Boolean(cloudUserId);
   const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
@@ -264,7 +266,7 @@ export default function App() {
         // Always refresh from the cloud when online. A local cache must not
         // silently overwrite profile changes made on another signed-in device.
         const [profileResult, goalResult, subjectsResult] = await Promise.all([
-          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,grade,curriculum,academic_year").eq("id", cloudUserId).single(),
+          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,grade,curriculum,academic_year,avatar_path").eq("id", cloudUserId).single(),
           supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
           supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
         ]);
@@ -293,6 +295,7 @@ export default function App() {
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
           academicYear: String(cloud.academic_year || new Date().getFullYear()),
+          avatarPath: String(cloud.avatar_path || ""),
           termCount: cached?.termCount || "3",
           goals: String(goalData?.goal_text || "Improve my marks"),
           targetMark: String(goalData?.target_mark ?? 75),
@@ -324,6 +327,18 @@ export default function App() {
     void loadProfile();
     return () => { alive = false; };
   }, [cloudUserId, termsAccepted]);
+
+  useEffect(() => {
+    let alive = true;
+    const loadAvatar = async () => {
+      if (!supabase || !cloudUserId || !profile?.avatarPath) { setAvatarUrl(""); return; }
+      const { data, error: avatarError } = await supabase.storage.from("studyspace-avatars").createSignedUrl(profile.avatarPath, 3600);
+      if (!alive) return;
+      setAvatarUrl(avatarError ? "" : data?.signedUrl || "");
+    };
+    void loadAvatar();
+    return () => { alive = false; };
+  }, [cloudUserId, profile?.avatarPath]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -474,7 +489,7 @@ export default function App() {
   }, [cloudUserId, profileOwnerId, profile, ready, goal, syncRequested, expiredAccess, accessLoading]);
 
 
-  async function finishOnboarding(nextProfile: StudentProfile) {
+  async function finishOnboarding(nextProfile: StudentProfile, avatarFile?: File | null) {
     try {
       if (!supabase) throw new Error("Studyspace is not connected. Reconnect and sign in again.");
       const { data: authState, error: sessionError } = await supabase.auth.getSession();
@@ -516,8 +531,27 @@ export default function App() {
         const { error: timetableError } = await supabase.from("student_timetable_entries").insert(timetableRows);
         if (timetableError) throw new Error("Your profile was saved, but the timetable could not be saved: " + timetableError.message);
       }
-      localStorage.setItem("studyspace-profile:" + authState.session.user.id, JSON.stringify(nextProfile));
-      setProfile(nextProfile);
+      let avatarPath = nextProfile.avatarPath || "";
+      if (avatarFile) {
+        if (!["image/png", "image/jpeg", "image/webp"].includes(avatarFile.type) || avatarFile.size > 2 * 1024 * 1024) {
+          throw new Error("Choose a PNG, JPG or WebP profile picture up to 2 MB.");
+        }
+        const extension = avatarFile.type === "image/png" ? "png" : avatarFile.type === "image/webp" ? "webp" : "jpg";
+        const uploadPath = authState.session.user.id + "/avatar-" + crypto.randomUUID() + "." + extension;
+        const { error: uploadError } = await supabase.storage.from("studyspace-avatars").upload(uploadPath, avatarFile, {
+          contentType: avatarFile.type, cacheControl: "3600", upsert: false
+        });
+        if (uploadError) throw new Error("Your profile picture could not be uploaded: " + uploadError.message);
+        const { error: avatarSaveError } = await supabase.rpc("update_studyspace_learner_avatar", { p_avatar_path: uploadPath });
+        if (avatarSaveError) {
+          await supabase.storage.from("studyspace-avatars").remove([uploadPath]);
+          throw new Error("Your profile picture could not be saved: " + avatarSaveError.message);
+        }
+        avatarPath = uploadPath;
+      }
+      const savedProfile: StudentProfile = { ...nextProfile, avatarPath };
+      localStorage.setItem("studyspace-profile:" + authState.session.user.id, JSON.stringify(savedProfile));
+      setProfile(savedProfile);
       const existing = await plannerDb.subjects.toArray();
       const names = new Set(existing.map(subject => subject.name.toLocaleLowerCase()));
       const additions = nextProfile.subjects.filter(name => !names.has(name.toLocaleLowerCase()));
@@ -768,15 +802,15 @@ export default function App() {
     <aside className={"sidebar glass-panel " + (mobileMenu ? "sidebar-open" : "")}>
       <div className="brand"><div className="brand-mark"><GraduationCap size={23}/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
       <div className="workspace-label">YOUR WORKSPACE</div>
-      <div className="profile-card"><div className="avatar"><GraduationCap size={18}/></div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span></div></div>
+      <button type="button" className="profile-card profile-card-button" onClick={()=>{setPage("My profile");setMobileMenu(false);}} aria-label="View and edit my profile"><div className="avatar">{avatarUrl ? <img src={avatarUrl} alt=""/> : <UserRound size={18}/>}</div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span><small>View / edit profile</small></div><UserRound className="profile-open-icon" size={15}/></button>
       <div className="nav-label">STUDY</div><nav className="main-nav" aria-label="Main navigation">{pages.filter(({name})=>!expiredAccess||name==="Subscription").map(({name,icon:Icon})=><button key={name} className={"nav-item "+(page===name?"active":"")} onClick={()=>{setPage(name);setMobileMenu(false);}}><Icon size={18}/><span>{name}</span>{name==="Planner"&&openTasks.length>0&&<span className="nav-count">{openTasks.length}</span>}</button>)}</nav>
       <div className="sidebar-bottom">{!expiredAccess && <><div className="streak-card"><div className="streak-icon"><Flame size={18}/></div><div><strong>Keep showing up</strong><p>Every session counts.</p></div></div><button className={"nav-item settings-link "+(page==="Settings"?"active":"")} onClick={()=>{setPage("Settings");setMobileMenu(false);}}><Settings2 size={18}/><span>Settings &amp; backup</span></button><button type="button" className="nav-item install-app-link" onClick={()=>void installStudyspace()}><Download size={18}/><span>{installPrompt?"Install StudySpace":"Install / add to home screen"}</span></button>{installHelpOpen&&<div className="install-help"><strong>Install StudySpace</strong><p>On Android Chrome, open the browser menu (⋮) and choose “Install app” or “Add to Home screen”. On iPhone Safari, tap Share, then “Add to Home Screen”.</p></div>}</>}<div className="offline-status"><span className={"status-dot "+(error?"status-error":"")}/>{expiredAccess?"Access paused · renew to continue":error?"Storage issue":syncStatus==="syncing"?"Syncing to Studyspace…":syncStatus==="synced"?"Synced to Studyspace":syncStatus==="offline"?"Offline · changes saved":syncStatus==="error"?"Sync needs attention":ready?"Synced to StudySpace":"Opening workspace"}</div></div>
     </aside>
     {mobileMenu&&<button className="mobile-scrim" aria-label="Close navigation overlay" onClick={()=>setMobileMenu(false)}/>}
     <main className="main-area">
-      <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects" disabled={expiredAccess}/><kbd>/</kbd></label><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><div className="top-avatar"><GraduationCap size={17}/></div></div></header>
+      <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects" disabled={expiredAccess}/><kbd>/</kbd></label><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><button type="button" className="top-avatar top-avatar-button" onClick={()=>setPage("My profile")} aria-label="Open my profile">{avatarUrl ? <img src={avatarUrl} alt=""/> : <UserRound size={17}/>}</button></div></header>
       <div className={"page-content "+(expiredAccess && page!=="Subscription" ? "access-locked-content" : "")} aria-disabled={expiredAccess && page!=="Subscription"}>
-        <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your school week, organised.":page==="Study & Exams"?"Test your knowledge.":page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View and update your school lessons and personal study sessions.":page==="Study & Exams"?"Practise with multiple choice, word puzzles, fill-in-the-blanks and quick checks.":page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your totals are calculated from your own activity.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
+        <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="My profile"?"Your profile.":page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your school week, organised.":page==="Study & Exams"?"Test your knowledge.":page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="My profile"?"View and update the details you choose to share.":page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View and update your school lessons and personal study sessions.":page==="Study & Exams"?"Practise with multiple choice, word puzzles, fill-in-the-blanks and quick checks.":page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your totals are calculated from your own activity.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
         {error&&<div className="alert error-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div>}
         {!ready?<section className="glass-panel loading-panel"><div className="loader"/><strong>Opening your study space…</strong><p>Your local records are being loaded.</p></section>:<>
         {page==="Overview"&&<><section className="stats-grid">
@@ -791,13 +825,14 @@ export default function App() {
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<><SchoolHomeworkHelp/><AssignedAssessments/><WeeklyTest subjects={subjects}/></>}
         {page==="Help & feedback"&&<StudentFeedback currentPage={page}/> }
+        {page==="My profile"&&profile&&<StudentProfileEditor profile={profile} avatarUrl={avatarUrl} onSaved={next => { setProfile(next); if (cloudUserId) { try { localStorage.setItem("studyspace-profile:" + cloudUserId, JSON.stringify(next)); } catch { setError("Profile was updated in the cloud, but this device could not cache the new copy."); } } setSyncRequested(value => value + 1); }}/>} 
         {page==="Subscription"&&<StudentSubscription/>}
         {page==="My Library"&&<StudentLibrary subjects={subjects}/>}
         {page==="Timetable"&&<StudentTimetable subjects={subjects}/>}
         {page==="Planner"&&<section className="glass-panel planner-panel"><div className="section-heading"><div><h2>Study calendar</h2><p>Plan around your deadlines. Select a day to add a task.</p></div><span className="count-chip">{visibleTasks.length} shown</span></div><div className="filter-row"><div className="filter-tabs">{["All","Open","Overdue","Completed"].map(v=><button key={v} className={filter===v?"selected":""} onClick={()=>setFilter(v)}>{v}</button>)}</div><div className="filter-tabs"><button className={plannerMode==="week"?"selected":""} onClick={()=>setPlannerMode("week")}>Week view</button><button className={plannerMode==="list"?"selected":""} onClick={()=>setPlannerMode("list")}>List view</button><button className="primary-button compact-button" onClick={()=>openNewTask()}><Plus size={15}/> Add task</button></div></div>{plannerMode==="week"&&<WeekCalendar tasks={visibleTasks} subjects={subjectById} offset={weekOffset} onOffset={setWeekOffset} onAdd={openNewTask} onEdit={openEditTask}/ >}{plannerMode==="list"&&(visibleTasks.length?<TaskList tasks={visibleTasks} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<CalendarDays size={22}/>} title={search||filter!=="All"?"No tasks match this view":"Your planner is ready"} text={search||filter!=="All"?"Try changing your search or filter.":"Add a task with a deadline, subject and priority to start planning."} action="Add a task" onAction={()=>openNewTask()}/>)}</section>}
         {page==="Academic Calendar"&&<><UpcomingCalendar tasks={tasks}/><AcademicCalendar/></>}
         {page==="Progress"&&<><section className="stats-grid"><Stat label="TOTAL STUDY TIME" value={Math.floor(totalMinutes/60)+"h "+totalMinutes%60+"m"} detail={sessions.length+" sessions logged"} icon={<Clock3 size={17}/>} tone="blue"/><Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={"of "+tasks.length+" total tasks"} icon={<Check size={17}/>} tone="mint"/><Stat label="SUBJECTS" value={String(subjects.length)} detail="In your workspace" icon={<BookOpen size={17}/>} tone="violet"/><Stat label="OVERDUE TASKS" value={String(overdue.length)} detail="Open tasks past their deadline" icon={<AlarmClock size={17}/>} tone="rose"/></section><section className="glass-panel progress-detail"><div className="section-heading"><div><h2>Subject progress</h2><p>Calculated from the tasks you have entered.</p></div><TrendingUp size={21}/></div>{subjects.length?<div className="progress-subject-list">{subjects.map(s=>{const ts=tasks.filter(t=>t.subjectId===s.id);const done=ts.filter(t=>t.done).length;const mins=sessions.filter(l=>l.subjectId===s.id).reduce((n,l)=>n+l.minutes,0);return <div className="progress-subject" key={s.id}><div className="progress-subject-heading"><span className="subject-dot" style={{background:s.color}}/><strong>{s.name}</strong><span>{done}/{ts.length} tasks · {Math.floor(mins/60)}h {mins%60}m</span></div><div className="progress-track"><span style={{width:(ts.length?done/ts.length*100:0)+"%",background:s.color}}/></div></div>})}</div>:<Empty icon={<TrendingUp size={22}/>} title="Progress starts with your data" text="Add subjects and complete tasks to see meaningful progress here." action="Add a subject" onAction={()=>setPage("Subjects")}/>}<div className="progress-total"><strong>{completedTasks.length} of {tasks.length}</strong><span>tasks completed</span><div className="progress-track"><span style={{width:(tasks.length?completedTasks.length/tasks.length*100:0)+"%"}}/></div></div></section><section className="glass-panel session-history"><div className="section-heading"><div><h2>Recent study sessions</h2><p>Sessions you explicitly logged.</p></div><Clock3 size={20}/></div>{sessions.length?<div className="session-list">{sessions.slice(0,12).map(s=><div className="session-row" key={s.id}><div className="session-icon"><Clock3 size={16}/></div><div><strong>{subjectById.get(s.subjectId??-1)?.name??"General study"}</strong><span>{new Date(s.date).toLocaleString()}</span></div><b>{s.minutes} min</b></div>)}</div>:<p className="subtle-note">No study sessions logged yet. Log one from the Overview page.</p>}</section></>}
-        {page==="Settings"&&<section className="settings-stack">{profile && <StudentProfileEditor profile={profile} onSaved={next => { setProfile(next); if (cloudUserId) { try { localStorage.setItem("studyspace-profile:" + cloudUserId, JSON.stringify(next)); } catch { setError("Profile was updated in the cloud, but this device could not cache the new copy."); } } setSyncRequested(value => value + 1); }}/>}<div className="glass-panel settings-card"><div className="section-heading"><div><h2>Appearance</h2><p>Choose the look that works best for you.</p></div><Sun size={20}/></div><div className="setting-row"><div><strong>Colour theme</strong><span>Switch between dark and light glass styles.</span></div><div className="theme-options"><button className={theme==="dark"?"chosen":""} onClick={()=>setTheme("dark")}><Moon size={15}/> Dark</button><button className={theme==="light"?"chosen":""} onClick={()=>setTheme("light")}><Sun size={15}/> Light</button></div></div><div className="setting-row"><div><strong>Weekly study goal</strong><span>Used to calculate your progress indicator.</span></div><label className="goal-input"><input type="number" min="1" max="168" value={goal} onChange={e=>{const n=Math.max(1,Math.min(168,Number(e.target.value)||1));setGoal(n);try{localStorage.setItem(studentStorageKey("studyspace-weekly-goal"),String(n));localStorage.setItem(studentStorageKey("studyspace-weekly-goal-updated-at"),new Date().toISOString());}catch{/* Goal still works for this session. */}}}/> hours</label></div></div>
+        {page==="Settings"&&<section className="settings-stack"><div className="glass-panel settings-card"><div className="section-heading"><div><h2>My profile</h2><p>Manage your name preference, school details, subjects and profile picture.</p></div><UserRound size={20}/></div><div className="setting-row"><div><strong>Profile and academic details</strong><span>Some account identity and guardian details remain protected.</span></div><button type="button" className="secondary-button" onClick={()=>setPage("My profile")}>Open my profile <ChevronRight size={15}/></button></div></div><StudentAccountSecurity/><div className="glass-panel settings-card"><div className="section-heading"><div><h2>Appearance</h2><p>Choose the look that works best for you.</p></div><Sun size={20}/></div><div className="setting-row"><div><strong>Colour theme</strong><span>Switch between dark and light glass styles.</span></div><div className="theme-options"><button className={theme==="dark"?"chosen":""} onClick={()=>setTheme("dark")}><Moon size={15}/> Dark</button><button className={theme==="light"?"chosen":""} onClick={()=>setTheme("light")}><Sun size={15}/> Light</button></div></div><div className="setting-row"><div><strong>Weekly study goal</strong><span>Used to calculate your progress indicator.</span></div><label className="goal-input"><input type="number" min="1" max="168" value={goal} onChange={e=>{const n=Math.max(1,Math.min(168,Number(e.target.value)||1));setGoal(n);try{localStorage.setItem(studentStorageKey("studyspace-weekly-goal"),String(n));localStorage.setItem(studentStorageKey("studyspace-weekly-goal-updated-at"),new Date().toISOString());}catch{/* Goal still works for this session. */}}}/> hours</label></div></div>
           <StudyReminders preferredDays={profile.preferredDays} showSettings={true}/>
           <HomeworkAlertSettings/>
           <div className="glass-panel settings-card"><div className="section-heading"><div><h2>Cloud synchronisation</h2><p>Keep your planner consistent across devices. Offline changes are queued on this device and uploaded when your connection returns.</p></div><Cloud size={20}/></div><div className="setting-row"><div><strong>{syncStatus==="synced"?"Connected and synchronised":syncStatus==="syncing"?"Synchronising your workspace":syncStatus==="offline"?"Offline · safe to keep studying":syncStatus==="error"?"Synchronisation needs attention":"Checking your connection"}</strong><span>{syncMessage || "Studyspace is checking your student account and available cloud records."}{lastSyncAt ? " Last successful sync: " + new Date(lastSyncAt).toLocaleString() + "." : ""}</span></div><button className="secondary-button" onClick={()=>setSyncRequested(value=>value+1)} disabled={syncStatus==="syncing" || !navigator.onLine}><RefreshCw size={15}/>{syncStatus==="syncing"?"Syncing…":"Sync now"}</button></div></div>
