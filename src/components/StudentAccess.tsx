@@ -106,10 +106,22 @@ export default function StudentAccess() {
         if (invokeError) throw invokeError;
         if (!data?.success) throw new Error(data?.error || "The account could not be created.");
         if (data.accountStatus === "pending_guardian_verification") {
+          let guardianUrl = typeof data.guardianUrl === "string" ? data.guardianUrl : null;
+          let pendingMessage = data.message || "Your account is registered and waiting for guardian verification.";
+          if (!guardianUrl) {
+            const linkResult = await supabase.functions.invoke("guardian-consent", {
+              body: { action: "issue_invite", studentId: studentId.trim().toUpperCase(), password },
+            });
+            if (!linkResult.error && linkResult.data?.success && typeof linkResult.data.guardianUrl === "string") {
+              guardianUrl = linkResult.data.guardianUrl;
+            } else {
+              pendingMessage += " A guardian link could not be prepared automatically; a StudySpace representative can create one in Monitor or record consent in person.";
+            }
+          }
           setPendingGuardian({
             studentId: data.studentId || studentId.trim().toUpperCase(),
-            guardianUrl: typeof data.guardianUrl === "string" ? data.guardianUrl : null,
-            message: data.message || "Your account is registered and waiting for guardian verification.",
+            guardianUrl,
+            message: pendingMessage,
           });
           setGuardianLinkNotice("");
           setPin("");
