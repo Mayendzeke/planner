@@ -27,18 +27,14 @@ async function describeAccessError(reason: unknown): Promise<string> {
 
 function isAdultOnDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const birth = new Date(value + "T00:00:00");
+  const birth = new Date(value + "T00:00:00.000Z");
   if (Number.isNaN(birth.getTime())) return false;
   const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age--;
+  let age = today.getUTCFullYear() - birth.getUTCFullYear();
+  if (today.getUTCMonth() < birth.getUTCMonth() || (today.getUTCMonth() === birth.getUTCMonth() && today.getUTCDate() < birth.getUTCDate())) age--;
   return age >= 18;
 }
-const todayDate = () => {
-  const today = new Date();
-  today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
-  return today.toISOString().slice(0, 10);
-}
+const todayDate = () => new Date().toISOString().slice(0, 10);
 
 export default function StudentAccess() {
   const [mode, setMode] = useState<"signin" | "enrol">("signin");
