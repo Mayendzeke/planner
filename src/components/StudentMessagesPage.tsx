@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, Check, CheckCheck, UserPlus, ShieldCheck, X, AlertCircle } from "lucide-react";
+import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, Check, CheckCheck, UserPlus, ShieldCheck, X, AlertCircle, Camera } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Contact={contact_id:string;display_name:string;grade:string;contact_type:"teacher"|"student"};
@@ -29,6 +29,10 @@ export default function StudentMessagesPage(){
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
   const [requestBusy,setRequestBusy]=useState("");
+  const [homeworkHelpOpen,setHomeworkHelpOpen]=useState(false);
+  const [helpQuestion,setHelpQuestion]=useState("");
+  const [helpFile,setHelpFile]=useState<File|null>(null);
+  const [helpBusy,setHelpBusy]=useState(false);
   const bottomRef=useRef<HTMLDivElement>(null);
   const fileRef=useRef<HTMLInputElement>(null);
 
@@ -149,10 +153,40 @@ export default function StudentMessagesPage(){
     finally{setSending(false);}
   };
   const byteLabel=(n:number)=>n<1024*1024?Math.max(1,Math.round(n/1024))+" KB":(n/1024/1024).toFixed(1)+" MB";
+  const submitHomeworkHelp=async()=>{
+    if(!supabase||!userId||helpBusy)return;
+    const question=helpQuestion.trim();
+    if(!question&&!helpFile){setError("Write your homework question or attach a photo.");return;}
+    if(question.length>5000){setError("Homework questions are limited to 5,000 characters.");return;}
+    if(helpFile&&(!["image/jpeg","image/png","image/webp"].includes(helpFile.type)||helpFile.size>5*1024*1024)){setError("Use a JPG, PNG or WebP photo up to 5 MB.");return;}
+    setHelpBusy(true);setError("");setNotice("");
+    let path:string|null=null;
+    try{
+      if(helpFile){
+        const suffix=helpFile.type==="image/png"?"png":helpFile.type==="image/webp"?"webp":"jpg";
+        path=userId+"/"+crypto.randomUUID()+"."+suffix;
+        const {error:uploadError}=await supabase.storage.from("studyspace-homework-help").upload(path,helpFile,{contentType:helpFile.type,upsert:false,cacheControl:"3600"});
+        if(uploadError)throw uploadError;
+      }
+      const {error:insertError}=await supabase.from("homework_help_requests").insert({learner_id:userId,question_text:question,image_path:path,status:"waiting_for_teacher"});
+      if(insertError)throw insertError;
+      setHelpQuestion("");setHelpFile(null);setHomeworkHelpOpen(false);
+      setNotice("Homework help request sent to your teacher. You can continue chatting while they prepare a reply.");
+    }catch(reason){
+      if(path)await supabase.storage.from("studyspace-homework-help").remove([path]);
+      setError(reason instanceof Error?reason.message:"Homework help request could not be sent.");
+    }finally{setHelpBusy(false);}
+  };
   const existingConnection=(id:string)=>connections.find(c=>c.requester_id===id&&c.addressee_id===userId||c.addressee_id===id&&c.requester_id===userId);
 
   return <div className="subpage student-messages-page">
-    <div className="student-messages-intro"><div><div className="eyebrow"><MessageCircle size={14}/> STUDYSPACE MESSAGES</div><h2>Your conversations</h2><p>Message your teacher privately. You can also connect with other students after they accept your invitation.</p></div><button className="secondary-button" type="button" onClick={()=>void refresh()} disabled={loading}><RefreshCw size={15}/>{loading?"Refreshing…":"Refresh"}</button></div>
+    <div className="student-messages-intro"><div><div className="eyebrow"><MessageCircle size={14}/> STUDYSPACE MESSAGES</div><h2>Your conversations</h2><p>Message your teacher privately. You can also connect with other students after they accept your invitation.</p></div><div className="student-message-head-actions"><button className="secondary-button" type="button" onClick={()=>setHomeworkHelpOpen(v=>!v)}><MessageCircle size={14}/>{homeworkHelpOpen?"Close help request":"Request homework help"}</button><button className="secondary-button" type="button" onClick={()=>void refresh()} disabled={loading}><RefreshCw size={15}/>{loading?"Refreshing…":"Refresh"}</button></div></div>
+    {homeworkHelpOpen&&<section className="glass-panel student-homework-quick-request">
+      <div><strong>Ask your teacher about homework</strong><p>This creates a school homework-help request in the Monitor inbox. MIA may prepare an explanation while you wait for your teacher.</p></div>
+      <textarea rows={3} maxLength={5000} value={helpQuestion} onChange={e=>setHelpQuestion(e.target.value)} placeholder="Describe the question and which part you find difficult…"/>
+      <label className="student-homework-attach"><Camera size={15}/><span>{helpFile?helpFile.name:"Attach a homework photo · JPG, PNG or WebP · 5 MB max"}</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setHelpFile(e.target.files?.[0]||null)}/></label>
+      <div><button type="button" className="secondary-button" onClick={()=>setHomeworkHelpOpen(false)} disabled={helpBusy}>Cancel</button><button type="button" className="primary-button" onClick={()=>void submitHomeworkHelp()} disabled={helpBusy||(!helpQuestion.trim()&&!helpFile)}>{helpBusy?"Sending…":"Send request"} <Send size={14}/></button></div>
+    </section>}
     {error&&<p className="inline-message error-message" role="alert"><AlertCircle size={15}/>{error}</p>}{notice&&<p className="inline-message" role="status">{notice}</p>}
     <div className="student-message-layout">
       <aside className="student-message-contacts">
