@@ -170,7 +170,18 @@ export default function StudentAccess() {
             adultLearnerOnly
             hideAcceptanceName
           />}
-          {dateOfBirth && !adultRegistration && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>Parent or guardian verification required.</strong><br/>You can complete registration now, but your dashboard will remain locked until a parent or legal guardian meets a StudySpace representative, reviews the terms and gives consent in person. The representative will record the guardian’s details and approval in StudySpace Monitor.</p></div>}
+          {dateOfBirth && !adultRegistration && <>
+            <TermsAndConditions
+              accepted={false}
+              onAcceptedChange={() => {}}
+              acceptedByName={fullName}
+              onAcceptedByNameChange={() => {}}
+              acceptanceRole="adult_learner"
+              onAcceptanceRoleChange={() => {}}
+              readOnly
+            />
+            <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>Parent or guardian verification required.</strong><br/>You can complete registration now, but your dashboard will remain locked until a parent or legal guardian meets a StudySpace representative, reviews these terms and gives consent in person. The representative will record the guardian’s details and approval in StudySpace Monitor.</p></div>
+          </>}
         </>}
         <button className="student-access-submit" type="submit" disabled={busy || !supabase || !online}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create student account"}</button>
       </form>
