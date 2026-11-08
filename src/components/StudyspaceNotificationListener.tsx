@@ -89,6 +89,7 @@ export default function StudyspaceNotificationListener() {
           "You have been invited to join a StudySpace group.",
           "studyspace-group-invite-" + row.id,
           import.meta.env.BASE_URL + "favicon.svg",
+          row.group_id,
         );
       })
       .on("postgres_changes", {
@@ -102,6 +103,7 @@ export default function StudyspaceNotificationListener() {
           "A group has been added because your StudySpace profile matches its class or subject.",
           "studyspace-group-joined-" + row.group_id,
           import.meta.env.BASE_URL + "favicon.svg",
+          row.group_id,
         );
       })
       .subscribe();
