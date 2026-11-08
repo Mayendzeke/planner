@@ -71,7 +71,7 @@ export default function StudentMessagesPage(){
   },[userId]);
   async function refreshMessages(){
     if(!supabase||!userId)return;
-    const {data,error:e}=await supabase.from("direct_messages").select("id,sender_id,recipient_id,body,attachment_path,attachment_name,attachment_mime,attachment_size,created_at,read_at").or("sender_id.eq."+userId+",recipient_id.eq."+userId).order("created_at",{ascending:true}).limit(400);
+    const {data,error:e}=await supabase.from("direct_messages").select("id,sender_id,recipient_id,body,attachment_path,attachment_name,attachment_mime,attachment_size,created_at,read_at,delivered_at").or("sender_id.eq."+userId+",recipient_id.eq."+userId).order("created_at",{ascending:true}).limit(400);
     if(e)setError(e.message);else{const rows=(data??[]) as Message[];setMessages(rows);const undelivered=rows.filter(x=>x.recipient_id===userId&&!x.delivered_at);if(undelivered.length)void supabase.from("direct_messages").update({delivered_at:new Date().toISOString()}).in("id",undelivered.map(x=>x.id));}
   }
   async function refreshRequests(){
