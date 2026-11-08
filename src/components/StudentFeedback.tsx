@@ -3,12 +3,13 @@ import { AlertCircle, CheckCircle2, ImagePlus, LifeBuoy, MessageCircle, Send } f
 import { supabase } from "../lib/supabase";
 
 const SUPPORT_WHATSAPP = ["2687994", "0955"].join("");
-const categories = ["Bug report", "Suggestion", "Content issue", "Accessibility", "Other"] as const;
+const categories = ["Bug report", "Suggestion", "Content issue", "Accessibility", "Testimonial", "Other"] as const;
 
 export default function StudentFeedback({ currentPage }: { currentPage: string }) {
   const [category, setCategory] = useState<(typeof categories)[number]>("Suggestion");
   const [message, setMessage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [testimonialConsent, setTestimonialConsent] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,6 +41,10 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
     event.preventDefault();
     if (!supabase || busy) return;
     const cleanMessage = message.trim();
+    if (category === "Testimonial" && !testimonialConsent) {
+      setNotice({ kind: "error", text: "Please confirm that your testimonial may be reviewed privately by the StudySpace administrator." });
+      return;
+    }
     if (cleanMessage.length < 10) {
       setNotice({ kind: "error", text: "Please describe the issue or suggestion in at least 10 characters." });
       return;
@@ -64,6 +69,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
         page: currentPage.slice(0, 120),
         contact_email: contactEmail.trim() || null,
         attachment_path: uploadedPath,
+        testimonial_private_consent: category === "Testimonial" && testimonialConsent,
       });
       if (insertError) throw new Error("Your feedback could not be saved: " + insertError.message);
       setNotice({ kind: "success", text: "Thank you. Your feedback has been sent privately to the Studyspace team." });
@@ -71,6 +77,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
       setContactEmail("");
       setFile(null);
       setCategory("Suggestion");
+      setTestimonialConsent(false);
     } catch (reason) {
       if (uploadedPath) {
         try { await supabase.storage.from("studyspace-feedback").remove([uploadedPath]); } catch { /* Keep the original submission error. */ }
@@ -84,7 +91,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
   return <section className="glass-panel student-feedback-page">
     <header className="student-feedback-header">
       <div className="student-feedback-heading-icon"><LifeBuoy size={20} /></div>
-      <div><span className="eyebrow">STUDENT SUPPORT</span><h2 id="student-feedback-title">Help us improve Studyspace</h2><p>Report a problem, suggest an idea or tell us what would make studying easier.</p></div>
+      <div><span className="eyebrow">STUDENT SUPPORT</span><h2 id="student-feedback-title">Help us improve Studyspace</h2><p>Report a problem, suggest an idea or share how StudySpace has helped you learn.</p></div>
     </header>
     <a className="student-feedback-whatsapp" href={"https://wa.me/" + SUPPORT_WHATSAPP} target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Contact us on WhatsApp · +268 7994 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
     <form onSubmit={event => void submit(event)} className="student-feedback-form">
@@ -93,8 +100,8 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
           {categories.map(item => <option key={item}>{item}</option>)}
         </select>
       </label>
-      <label className="field-label">Tell us what happened or what you would like to see
-        <textarea required minLength={10} maxLength={4000} rows={5} value={message} onChange={event => setMessage(event.target.value)} placeholder="Describe the steps, what you expected, and what happened instead…" />
+      <label className="field-label">{category === "Testimonial" ? "Your StudySpace experience" : "Tell us what happened or what you would like to see"}
+        <textarea required minLength={10} maxLength={4000} rows={5} value={message} onChange={event => setMessage(event.target.value)} placeholder={category === "Testimonial" ? "Tell us what you found useful, what improved, or how you use StudySpace…" : "Describe the steps, what you expected, and what happened instead…"} />
         <span className="student-feedback-counter">{message.length}/4000</span>
       </label>
       <div className="student-feedback-upload">
@@ -105,7 +112,8 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
       <label className="field-label">Email address <span className="field-optional">OPTIONAL</span>
         <input type="email" maxLength={254} value={contactEmail} onChange={event => setContactEmail(event.target.value)} placeholder="Only if you would like us to reply" />
       </label>
-      <p className="student-feedback-privacy"><AlertCircle size={14}/> Please do not include passwords, private account details or sensitive personal information in your message or screenshot. Your report is sent privately to the Studyspace team.</p>
+      {category === "Testimonial" && <label className="testimonial-consent"><input type="checkbox" checked={testimonialConsent} onChange={event => setTestimonialConsent(event.target.checked)}/><span><strong>I agree to private testimonial review.</strong><small>My message, preferred/full name, study level, grade/year, institution and profile picture may be viewed in the secured StudySpace Monitor inbox by the administrator. This does not give permission to publish or market my words or image.</small></span></label>}
+      <p className="student-feedback-privacy"><AlertCircle size={14}/> Please do not include passwords, private account details or sensitive personal information in your message or screenshot. {category === "Testimonial" ? "Your testimonial is private and is not published publicly." : "Your report is sent privately to the Studyspace team."}</p>
       {notice && <p className={"student-feedback-notice " + notice.kind} role="status">{notice.kind === "success" ? <CheckCircle2 size={16}/> : <AlertCircle size={16}/>} {notice.text}</p>}
       <div className="student-feedback-actions"><button type="submit" className="primary-button" disabled={busy}><Send size={15}/>{busy ? "Sending…" : "Send feedback"}</button></div>
     </form>
