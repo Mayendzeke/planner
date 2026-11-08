@@ -10,6 +10,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
   const [message, setMessage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [testimonialConsent, setTestimonialConsent] = useState(false);
+  const [testimonialMarketingConsent, setTestimonialMarketingConsent] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
@@ -70,6 +71,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
         contact_email: contactEmail.trim() || null,
         attachment_path: uploadedPath,
         testimonial_private_consent: category === "Testimonial" && testimonialConsent,
+        testimonial_marketing_consent: category === "Testimonial" && testimonialMarketingConsent,
       });
       if (insertError) throw new Error("Your feedback could not be saved: " + insertError.message);
       setNotice({ kind: "success", text: category === "Testimonial" ? "Thank you. Your testimonial has been sent to the private Testimonials inbox in StudySpace Monitor." : "Thank you. Your feedback has been sent privately to the Studyspace team." });
@@ -78,6 +80,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
       setFile(null);
       setCategory("Suggestion");
       setTestimonialConsent(false);
+      setTestimonialMarketingConsent(false);
     } catch (reason) {
       if (uploadedPath) {
         try { await supabase.storage.from("studyspace-feedback").remove([uploadedPath]); } catch { /* Keep the original submission error. */ }
@@ -96,7 +99,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
     <a className="student-feedback-whatsapp" href={"https://wa.me/" + SUPPORT_WHATSAPP} target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Contact us on WhatsApp · +268 7994 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
     <form onSubmit={event => void submit(event)} className="student-feedback-form">
       <label className="field-label">What is this about?
-        <select value={category} onChange={event => { const next = event.target.value as (typeof categories)[number]; setCategory(next); if (next !== "Testimonial") setTestimonialConsent(false); }}>
+        <select value={category} onChange={event => { const next = event.target.value as (typeof categories)[number]; setCategory(next); if (next !== "Testimonial") { setTestimonialConsent(false); setTestimonialMarketingConsent(false); } }}>
           {categories.map(item => <option key={item}>{item}</option>)}
         </select>
       </label>
@@ -113,6 +116,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
         <input type="email" maxLength={254} value={contactEmail} onChange={event => setContactEmail(event.target.value)} placeholder="Only if you would like us to reply" />
       </label>
       {category === "Testimonial" && <label className="testimonial-consent"><input type="checkbox" checked={testimonialConsent} onChange={event => setTestimonialConsent(event.target.checked)}/><span><strong>I agree to private testimonial review.</strong><small>My message, preferred/full name, study level, grade/year, institution and profile picture may be viewed in the secured StudySpace Monitor inbox by the administrator. This does not give permission to publish or market my words or image.</small></span></label>}
+      {category === "Testimonial" && <label className="testimonial-consent"><input type="checkbox" checked={testimonialMarketingConsent} onChange={event => setTestimonialMarketingConsent(event.target.checked)}/><span><strong>Optional: I give permission for marketing use.</strong><small>StudySpace may use the words of this testimonial and my preferred name in promotional images. My student ID, contact details and profile photo will not be included. This is voluntary and does not affect my account or access to learning.</small></span></label>}
       <p className="student-feedback-privacy"><AlertCircle size={14}/> Please do not include passwords, private account details or sensitive personal information in your message or screenshot. {category === "Testimonial" ? "Your testimonial is private and is not published publicly." : "Your report is sent privately to the Studyspace team."}</p>
       {notice && <p className={"student-feedback-notice " + notice.kind} role="status">{notice.kind === "success" ? <CheckCircle2 size={16}/> : <AlertCircle size={16}/>} {notice.text}</p>}
       <div className="student-feedback-actions"><button type="submit" className="primary-button" disabled={busy}><Send size={15}/>{busy ? "Sending…" : "Send feedback"}</button></div>
