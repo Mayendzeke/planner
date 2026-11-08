@@ -120,7 +120,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         if (addError) throw new Error("Your profile was saved, but new subjects could not be added: " + addError.message);
       }
 
-      let savedAvatarPath = draft.avatarPath || null;
+      let savedAvatarPath = removeAvatar ? null : (draft.avatarPath || null);
       let uploadedAvatarPath: string | null = null;
       if (avatarFile) {
         const extension = avatarFile.type === "image/png" ? "png" : avatarFile.type === "image/webp" ? "webp" : "jpg";
@@ -133,7 +133,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
       }
       if (avatarFile || removeAvatar) {
         const { error: avatarError } = await supabase.rpc("update_studyspace_learner_avatar", {
-          p_avatar_path: removeAvatar ? null : savedAvatarPath,
+          p_avatar_path: savedAvatarPath,
         });
         if (avatarError) {
           if (uploadedAvatarPath) await supabase.storage.from("studyspace-avatars").remove([uploadedAvatarPath]);
