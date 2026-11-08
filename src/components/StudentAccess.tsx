@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users } from "lucide-react";
+import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users, Download } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./TermsAndConditions";
 
@@ -37,7 +37,7 @@ function ageOnDate(value: string): number {
 function isAdultOnDate(value: string): boolean { return ageOnDate(value) >= 18; }
 const todayDate = () => new Date().toISOString().slice(0, 10);
 
-export default function StudentAccess() {
+export default function StudentAccess({ installAvailable = false, onInstall }: { installAvailable?: boolean; onInstall?: () => void }) {
   const [mode, setMode] = useState<"signin" | "enrol">("signin");
   const [studentId, setStudentId] = useState("");
   const [pin, setPin] = useState("");
@@ -55,6 +55,7 @@ export default function StudentAccess() {
   const [error, setError] = useState("");
   const [pendingGuardian, setPendingGuardian] = useState<{ studentId: string; guardianUrl: string | null; message: string } | null>(null);
   const [guardianLinkNotice, setGuardianLinkNotice] = useState("");
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [expiredReason, setExpiredReason] = useState("");
   const supportNumber = "26879940955";
   const publicEnrolmentEnabled = import.meta.env.VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED === "true";
@@ -200,6 +201,18 @@ export default function StudentAccess() {
     <div className="student-access-glow" />
     <section className="student-access-card">
       <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
+      <div className="student-access-install">
+        <button type="button" className="secondary-button" onClick={() => {
+          if (installAvailable && onInstall) onInstall();
+          else setInstallHelpOpen(value => !value);
+        }}><Download size={16}/>{installAvailable ? "Install StudySpace Student" : "Add Student App to home screen"}</button>
+        {installHelpOpen && <div className="student-access-install-help" role="status">
+          <strong>Install StudySpace Student</strong>
+          <p><b>Android:</b> open this page in Chrome, tap the three-dot menu (⋮), then choose <b>Install app</b>. If Chrome offers <b>Add to Home screen</b> instead, use that.</p>
+          <p><b>iPhone:</b> open in Safari, tap Share, then <b>Add to Home Screen</b>.</p>
+          <p>Use the app's own icon on your home screen next time. Do not download an APK from an unofficial site.</p>
+        </div>}
+      </div>
       <div className="student-access-icon"><ShieldCheck size={25}/></div>
       <div className="student-access-heading"><div className="eyebrow"><ShieldCheck size={14}/> ACCOUNT PENDING VERIFICATION</div><h1>Your registration is complete.</h1><p>Your StudySpace account is safely registered, but your dashboard remains locked until a parent or legal guardian gives consent and StudySpace approves the verification.</p></div>
       <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID: {pendingGuardian.studentId}</strong><br/>{pendingGuardian.message}</p></div>
