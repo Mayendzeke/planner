@@ -24,7 +24,7 @@ export default function SchoolHomeworkHelp(){
   try{
    const {data:auth,error:authError}=await supabase.auth.getUser();if(authError||!auth.user)throw new Error("Sign in again before sending homework.");
    if(file){const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";path=auth.user.id+"/"+crypto.randomUUID()+"."+ext;const {error:uploadError}=await supabase.storage.from(bucket).upload(path,file,{contentType:file.type,upsert:false,cacheControl:"3600"});if(uploadError)throw new Error("The homework photo could not be uploaded: "+uploadError.message);}
-   const {error:insertError}=await supabase.from("homework_help_requests").insert({learner_id:auth.user.id,question_text:question.trim(),image_path:path,status:"waiting_for_teacher",fallback_due_at:new Date(Date.now()+120000).toISOString()});
+   const {error:insertError}=await supabase.from("homework_help_requests").insert({learner_id:auth.user.id,question_text:question.trim(),image_path:path,status:"waiting_for_teacher"});
    if(insertError)throw insertError;setQuestion("");setFile(null);const input=document.getElementById("studyspace-homework-photo") as HTMLInputElement|null;if(input)input.value="";
    setNotice("Your question has been sent to your teacher. MIA is scheduled to prepare an explanation if there is no teacher reply after two minutes.");await load();
   }catch(reason){if(path)await supabase.storage.from(bucket).remove([path]);setError(reason instanceof Error?reason.message:"Your homework question could not be sent.");}
