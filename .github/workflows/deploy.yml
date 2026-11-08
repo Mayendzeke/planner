@@ -81,12 +81,19 @@ jobs:
           const studentApp = readFileSync('src/App.tsx', 'utf8')
           const homeworkHelp = readFileSync('src/components/SchoolHomeworkHelp.tsx', 'utf8')
           const accessPage = readFileSync('src/components/StudentAccess.tsx', 'utf8')
+          const feedbackPage = readFileSync('src/components/StudentFeedback.tsx', 'utf8')
+          const profileEditor = readFileSync('src/components/StudentProfileEditor.tsx', 'utf8')
+          const onboarding = readFileSync('src/components/StudentOnboarding.tsx', 'utf8')
+          const accountSecurity = readFileSync('src/components/StudentAccountSecurity.tsx', 'utf8')
           const workflow = readFileSync('.github/workflows/deploy.yml', 'utf8')
           if (!terms.includes('2026-11-08-v6') || !terms.includes('two minutes') || !terms.includes('Cloudflare Workers AI')) throw new Error('Terms v6 must disclose the learner homework AI fallback and photo processing.')
           if (!studentApp.includes('SchoolHomeworkHelp') || !studentApp.includes('AssignedAssessments')) throw new Error('Learner homework and teacher-assigned assessment screens must be connected.')
           if (homeworkHelp.includes('status:"waiting_for_teacher",fallback_due_at:')) throw new Error('The learner must not be able to set the server-side homework fallback deadline.')
           if (!accessPage.includes('publicEnrolmentEnabled') || !accessPage.includes('inviteEnrolmentEnabled') || !workflow.includes("VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'") || !workflow.includes("VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'")) throw new Error('Public and invitation enrolment must remain closed until the private registration path is approved.')
-          VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'
+          if (!feedbackPage.includes('Testimonial') || !feedbackPage.includes('testimonial_private_consent')) throw new Error('The learner testimonial form and its private-consent requirement are missing.')
+          if (!profileEditor.includes('update_studyspace_learner_avatar') || !profileEditor.includes('readOnly value={draft.fullName}') || !profileEditor.includes('readOnly value={draft.country}')) throw new Error('Learner profile photo and protected identity-field controls are missing.')
+          if (!onboarding.includes('avatarFile') || !onboarding.includes('accept="image/png,image/jpeg,image/webp"')) throw new Error('Optional profile-photo onboarding is incomplete.')
+          if (!accountSecurity.includes('scope: "others"') || !accountSecurity.includes('updateUser({ password })')) throw new Error('Learner account security controls are incomplete.')
           console.log('Terms v6, connected learner homework, server-owned fallback timing and closed public enrolment checks passed.')
           NODE
       - name: Build app
