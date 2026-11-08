@@ -85,8 +85,7 @@ jobs:
           if (!terms.includes('2026-11-08-v6') || !terms.includes('two minutes') || !terms.includes('Cloudflare Workers AI')) throw new Error('Terms v6 must disclose the learner homework AI fallback and photo processing.')
           if (!studentApp.includes('SchoolHomeworkHelp') || !studentApp.includes('AssignedAssessments')) throw new Error('Learner homework and teacher-assigned assessment screens must be connected.')
           if (homeworkHelp.includes('status:"waiting_for_teacher",fallback_due_at:')) throw new Error('The learner must not be able to set the server-side homework fallback deadline.')
-          if (!accessPage.includes('publicEnrolmentEnabled') || !accessPage.includes('inviteEnrolmentEnabled') || !workflow.includes("VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'
-          VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'") || !workflow.includes("VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'")) throw new Error('Public learner enrolment must stay closed while the private invitation-only route remains disabled until server deployment is approved.')
+          if (!accessPage.includes('publicEnrolmentEnabled') || !accessPage.includes('inviteEnrolmentEnabled') || !workflow.includes("VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'") || !workflow.includes("VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'")) throw new Error('Public and invitation enrolment must remain closed until the private registration path is approved.')
           console.log('Terms v6, connected learner homework, server-owned fallback timing and closed public enrolment checks passed.')
           NODE
       - name: Build app
@@ -95,6 +94,7 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
           VITE_STUDYSPACE_MEET_DOMAIN: ${{ vars.STUDYSPACE_MEET_DOMAIN }}
           VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'
+          VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'
         run: npm run build
       - name: Verify Student PWA install assets
         run: |
