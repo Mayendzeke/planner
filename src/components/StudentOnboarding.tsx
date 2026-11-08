@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, GraduationCap, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, GraduationCap, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
 
 export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string; timetable_kind?: "school" | "personal" };
 
@@ -20,6 +20,7 @@ export type StudentProfile = {
   preferredDays: string[];
   subjects: string[];
   timetableEntries?: OnboardingTimetableEntry[];
+  avatarPath?: string;
 };
 
 const emptyProfile: StudentProfile = {
@@ -48,15 +49,32 @@ function catalogFor(level: string, curriculum: string) {
   return core;
 }
 
-export default function StudentOnboarding({ onComplete }: { onComplete: (profile: StudentProfile) => Promise<void> | void }) {
+export default function StudentOnboarding({ onComplete }: { onComplete: (profile: StudentProfile, avatarFile?: File | null) => Promise<void> | void }) {
   const [step, setStep] = useState(0);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profile, setProfile] = useState<StudentProfile>(emptyProfile);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
   const [subjectSearch, setSubjectSearch] = useState("");
   const [customSubject, setCustomSubject] = useState("");
   const [error, setError] = useState("");
   const [timetableEntries, setTimetableEntries] = useState<OnboardingTimetableEntry[]>([]);
   const [timetableDraft, setTimetableDraft] = useState<OnboardingTimetableEntry>({ subject_name: "", title: "", day_of_week: 1, starts_at: "08:00", ends_at: "09:00", location: "", notes: "" });
+
+  useEffect(() => {
+    if (!avatarFile) { setAvatarPreview(""); return; }
+    const url = URL.createObjectURL(avatarFile);
+    setAvatarPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatarFile]);
+
+  function chooseAvatar(file: File | null) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) { setError("Choose a PNG, JPG or WebP profile picture."); return; }
+    if (file.size > 2 * 1024 * 1024) { setError("Your profile picture must be 2 MB or smaller."); return; }
+    setAvatarFile(file);
+    setError("");
+  }
 
   function update<K extends keyof StudentProfile>(key: K, value: StudentProfile[K]) {
     setProfile(current => ({ ...current, [key]: value }));
@@ -157,6 +175,13 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
       </div>
 
       {step === 0 && <div className="onboarding-fields">
+        <div className="onboarding-avatar-choice">
+          <div className="onboarding-avatar-preview">{avatarPreview ? <img src={avatarPreview} alt="Selected profile picture"/> : <UserRound size={28}/>}</div>
+          <div><strong>Profile picture <span className="field-optional">OPTIONAL</span></strong><p>Choose a PNG, JPG or WebP image up to 2 MB. A StudySpace avatar will appear when you skip this.</p>
+            <label className="secondary-button onboarding-avatar-upload"><ImagePlus size={15}/>{avatarFile ? "Change picture" : "Upload picture"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseAvatar(event.target.files?.[0] || null)}/></label>
+            {avatarFile && <button className="text-button" type="button" onClick={() => setAvatarFile(null)}>Remove picture</button>}
+          </div>
+        </div>
         <label className="field-label">Student's full name<input autoFocus value={profile.fullName} onChange={e => update("fullName", e.target.value)} placeholder="Enter full name" maxLength={100}/></label>
         <label className="field-label">Preferred name <span className="field-optional">OPTIONAL</span><input value={profile.preferredName} onChange={e => update("preferredName", e.target.value)} placeholder="What should we call you?" maxLength={60}/></label>
         <label className="field-label">Country<input value={profile.country} onChange={e => update("country", e.target.value)} placeholder="e.g. Eswatini" maxLength={80}/></label>
