@@ -79,7 +79,7 @@ export default function StudyReminders({ preferredDays = [], showSettings = true
     void check();
     const timer = window.setInterval(() => void check(), 20_000);
     return () => window.clearInterval(timer);
-  }, [settings, permission]);
+  }, [settings, permission, userId]);
 
   function update(next: ReminderSettings) {
     setSettings(next);
