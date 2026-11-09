@@ -86,7 +86,7 @@ jobs:
           const onboarding = readFileSync('src/components/StudentOnboarding.tsx', 'utf8')
           const accountSecurity = readFileSync('src/components/StudentAccountSecurity.tsx', 'utf8')
           const workflow = readFileSync('.github/workflows/deploy.yml', 'utf8')
-          if (!terms.includes('2026-11-09-v7') || !terms.includes('Educational use only') || !terms.includes('Cloudflare Workers AI')) throw new Error('Terms v7 must disclose educational-only MIA, its provider and the homework AI fallback.')
+          if (!terms.includes('2026-11-09-v7') || !terms.includes('educational purposes only') || !terms.includes('Cloudflare Workers AI')) throw new Error('Terms v7 must disclose educational-only MIA, its provider and the homework AI fallback.')
           if (!studentApp.includes('SchoolHomeworkHelp') || !studentApp.includes('AssignedAssessments') || !studentApp.includes('MiaChat')) throw new Error('Learner homework and teacher-assigned assessment screens must be connected.')
           if (homeworkHelp.includes('status:"waiting_for_teacher",fallback_due_at:')) throw new Error('The learner must not be able to set the server-side homework fallback deadline.')
           if (!accessPage.includes('ageOnDate(dateOfBirth) < 9') || !studentApp.includes('learnerMeetsApprovedAge')) throw new Error('Student access and registration must enforce the 9+ approval threshold.')
