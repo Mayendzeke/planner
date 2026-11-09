@@ -1788,3 +1788,26 @@ select option, select optgroup {
   .theme-options { width: 100%; }
   .theme-options button { flex: 1; min-width: 0; }
 }
+
+
+/* MIΛ chat: keep the welcome, transcript and help choices in one touch-scroll viewport. */
+.mia-studio-shell > .mia-messages {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+}
+.mia-studio-shell > .mia-messages > .mia-help-options {
+  flex: 0 0 auto;
+  min-height: max-content;
+  overflow: visible;
+  padding-bottom: 18px;
+}
+@media (max-width: 640px) {
+  .mia-studio-shell > .mia-messages { padding-bottom: 22px; }
+  .mia-studio-shell > .mia-messages > .mia-help-options { padding-left: 2px; padding-right: 2px; }
+}
