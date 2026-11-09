@@ -74,7 +74,6 @@ jobs:
               console.error("Enrolment returned HTTP 503 but not the expected closed-registration message: " + detail)
               process.exit(1)
             }
-            }
             console.log("Edge Function " + name + " is deployed and enforcing its expected access response.");
           }
           const { readFileSync } = await import('node:fs')
@@ -91,13 +90,13 @@ jobs:
           if (!studentApp.includes('SchoolHomeworkHelp') || !studentApp.includes('AssignedAssessments') || !studentApp.includes('MiaChat')) throw new Error('Learner homework and teacher-assigned assessment screens must be connected.')
           if (homeworkHelp.includes('status:"waiting_for_teacher",fallback_due_at:')) throw new Error('The learner must not be able to set the server-side homework fallback deadline.')
           if (!accessPage.includes('ageOnDate(dateOfBirth) < 9') || !studentApp.includes('learnerMeetsApprovedAge')) throw new Error('Student access and registration must enforce the 9+ approval threshold.')
-          if (!accessPage.includes('publicEnrolmentEnabled') || !accessPage.includes('inviteEnrolmentEnabled') || !workflow.includes(\"VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'\") || !workflow.includes(\"VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'\")) throw new Error('Public and invitation enrolment must remain paused until the live server-side registration gate is approved.')
+          if (!accessPage.includes('publicEnrolmentEnabled') || !accessPage.includes('inviteEnrolmentEnabled') || !workflow.includes("VITE_STUDYSPACE_PUBLIC_ENROLMENT_ENABLED: 'false'") || !workflow.includes("VITE_STUDYSPACE_INVITE_ENROLMENT_ENABLED: 'false'")) throw new Error('Public and invitation enrolment must remain paused until the live server-side registration gate is approved.')
           if (!feedbackPage.includes('Testimonial') || !feedbackPage.includes('testimonial_private_consent')) throw new Error('The learner testimonial form and its private-consent requirement are missing.')
           if (!profileEditor.includes('update_studyspace_learner_avatar') || !profileEditor.includes('readOnly value={draft.fullName}') || !profileEditor.includes('readOnly value={draft.country}')) throw new Error('Learner profile photo and protected identity-field controls are missing.')
           if (!onboarding.includes('avatarFile') || !onboarding.includes('accept="image/png,image/jpeg,image/webp"')) throw new Error('Optional profile-photo onboarding is incomplete.')
           if (!onboarding.includes('stored privately') || !profileEditor.includes('Private to you and authorised administrators')) throw new Error('Learners must be told that uploaded profile photos are private.')
           if (!accountSecurity.includes('scope: "others"') || !accountSecurity.includes('updateUser({ password })')) throw new Error('Learner account security controls are incomplete.')
-          console.log('Terms v6, connected learner homework, server-owned fallback timing and closed public enrolment checks passed.')
+          console.log('Terms v8, connected learner homework, server-owned fallback timing and closed public enrolment checks passed.')
           NODE
       - name: Build app
         env:
