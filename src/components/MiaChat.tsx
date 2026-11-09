@@ -271,8 +271,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     return () => window.cancelAnimationFrame(frame);
   }, [messages, busy, draft]);
 
-  async function sendMessage() {
-    const value = text.trim();
+  async function sendMessage(overrideText?: string) {
+    const value = (overrideText ?? text).trim();
     if ((!value && !attachment) || busy || !supabase) return;
     setError("");
     setBusy(true);
