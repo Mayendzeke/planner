@@ -1619,3 +1619,17 @@ select option, select optgroup {
 .student-access-sex-field label{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;min-width:110px;cursor:pointer}
 .student-access-sex-field input{accent-color:var(--accent)}
 .student-access-sex-field small{color:var(--muted);line-height:1.5}
+
+
+/* MIA student-access readiness screen */
+.mia-preparation-panel{display:grid;gap:20px;padding:clamp(18px,3vw,30px)}
+.mia-preparation-top{display:flex;align-items:flex-start;gap:18px}
+.mia-preparation-mark{width:58px;height:58px;flex:none;display:grid;place-items:center;border-radius:19px;color:var(--violet);background:linear-gradient(145deg,rgba(141,185,255,.2),rgba(183,165,255,.16));border:1px solid var(--border);box-shadow:var(--raised-small)}
+.mia-preparation-top>div:last-child{min-width:0}
+.mia-preparation-top h2{margin:5px 0 8px;font:800 clamp(18px,2.4vw,23px) Manrope,sans-serif;color:var(--text)}
+.mia-preparation-top p{margin:0;max-width:760px;color:var(--muted);line-height:1.7}
+.mia-preparation-note{display:flex;align-items:flex-start;gap:11px;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--panel);color:var(--muted);line-height:1.6}
+.mia-preparation-note svg{flex:none;color:var(--mint);margin-top:1px}
+.mia-preparation-actions{display:grid;justify-items:start;gap:9px}
+.mia-preparation-actions p{margin:0;color:var(--muted);font-size:13px;line-height:1.6;max-width:700px}
+@media(max-width:560px){.mia-preparation-top{gap:12px}.mia-preparation-mark{width:48px;height:48px;border-radius:15px}}
