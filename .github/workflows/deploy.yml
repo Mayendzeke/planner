@@ -70,8 +70,8 @@ jobs:
               console.error("Edge Function " + name + " did not return its expected response (HTTP " + response.status + ", expected " + expected + "): " + detail);
               process.exit(1);
             }
-            if (name === "enrol-learner" && !detail.toLowerCase().includes("temporarily closed")) {
-              console.error("Enrolment returned HTTP 503 but not the expected closed-registration message: " + detail)
+            if (name === "enrol-learner" && !detail.toLowerCase().includes("student id")) {
+              console.error("The active enrolment endpoint did not reach Student ID/PIN validation: " + detail)
               process.exit(1)
             }
             console.log("Edge Function " + name + " is deployed and enforcing its expected access response.");
@@ -96,7 +96,7 @@ jobs:
           if (!onboarding.includes('avatarFile') || !onboarding.includes('accept="image/png,image/jpeg,image/webp"')) throw new Error('Optional profile-photo onboarding is incomplete.')
           if (!onboarding.includes('stored privately') || !profileEditor.includes('Private to you and authorised administrators')) throw new Error('Learners must be told that uploaded profile photos are private.')
           if (!accountSecurity.includes('scope: "others"') || !accountSecurity.includes('updateUser({ password })')) throw new Error('Learner account security controls are incomplete.')
-          console.log('Terms v8, connected learner homework, server-owned fallback timing and closed public enrolment checks passed.')
+          console.log('Terms v8, connected learner homework, server-owned fallback timing and enabled public enrolment validation checks passed.')
           NODE
       - name: Build app
         env:
