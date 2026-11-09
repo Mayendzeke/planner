@@ -5,6 +5,7 @@ import { showStudyspaceNotification } from "../lib/studyspaceNotifications";
 type DirectMessageEvent = { id?: string; sender_id?: string; body?: string; attachment_name?: string };
 type GroupMessageEvent = { id?: string; group_id?: string; sender_id?: string; body?: string; attachment_name?: string };
 type GroupInviteEvent = { id?: string; group_id?: string };
+type AnnouncementEvent = { id?: string; title?: string; body?: string; created_by?: string; is_published?: boolean; expires_at?: string | null };
 
 export default function StudyspaceNotificationListener() {
   const [userId, setUserId] = useState("");
@@ -89,6 +90,19 @@ export default function StudyspaceNotificationListener() {
           userId, "timetable_updates", "Timetable changed",
           [row.title, row.subject_name].filter(Boolean).join(" · ") || "One of your class entries has changed.",
           "studyspace-timetable-update-" + row.id,
+          import.meta.env.BASE_URL + "favicon.svg",
+        );
+      })
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "studyspace_announcements",
+      }, payload => {
+        const row = payload.new as AnnouncementEvent;
+        if (!row.id || row.created_by === userId || row.is_published !== true) return;
+        if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return;
+        void showStudyspaceNotification(
+          userId, "system_announcements", row.title || "StudySpace announcement",
+          row.body || "A new StudySpace notice is available.",
+          "studyspace-announcement-" + row.id,
           import.meta.env.BASE_URL + "favicon.svg",
         );
       })
