@@ -93,7 +93,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
       if (fullName.trim().length < 2) { setError("Enter the learner’s full legal name."); return; }
       if (preferredName.trim().length > 80) { setError("The preferred name is too long."); return; }
       if (ageOnDate(dateOfBirth) < 0) { setError("Enter a valid date of birth."); return; }
-      if (ageOnDate(dateOfBirth) < 8) { setError("StudySpace registration is not available for children under 8 years old."); return; }
+      if (ageOnDate(dateOfBirth) < 9) { setError("StudySpace registration is not available for children under 9 years old."); return; }
       if (sex !== "male" && sex !== "female") { setError("Select Male or Female to complete registration."); return; }
       if (password.length < 10) { setError("Choose a password with at least 10 characters."); return; }
       if (password !== confirmPassword) { setError("The passwords do not match."); return; }
