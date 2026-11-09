@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
-  LifeBuoy, Menu, Moon, Plus, Search, Settings2, Sparkles, Sun, Target, MessageCircle,
+  LifeBuoy, Menu, Moon, Plus, Search, Settings2, Sparkles, Brain, Sun, Target, MessageCircle,
   Trash2, TrendingUp, Upload, X, Flame, CreditCard, ShieldCheck, UserRound
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
@@ -43,7 +43,7 @@ type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: stri
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
 const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"];
 const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
-  { name: "Overview", icon: LayoutDashboard }, { name: "Subscription", icon: CreditCard }, { name: "Today's Session", icon: Sparkles }, { name: "MIΛ", icon: Sparkles }, { name: "Subjects", icon: BookOpen },
+  { name: "Overview", icon: LayoutDashboard }, { name: "Subscription", icon: CreditCard }, { name: "Today's Session", icon: Sparkles }, { name: "MIΛ", icon: Brain }, { name: "Subjects", icon: BookOpen },
   { name: "Planner", icon: CalendarDays }, { name: "Timetable", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Messages", icon: MessageCircle }, { name: "Testimonials", icon: MessageCircle }, { name: "Help & feedback", icon: LifeBuoy }
 ];
 function learnerMeetsApprovedAge(dateOfBirth?: string | null): boolean {
