@@ -47,7 +47,7 @@ const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Planner", icon: CalendarDays }, { name: "Timetable", icon: CalendarDays }, { name: "Study & Exams", icon: GraduationCap }, { name: "My Library", icon: BookOpen }, { name: "Academic Calendar", icon: CalendarDays }, { name: "Progress", icon: TrendingUp }, { name: "Messages", icon: MessageCircle }, { name: "Testimonials", icon: MessageCircle }, { name: "Help & feedback", icon: LifeBuoy }
 ];
 function learnerMeetsApprovedAge(dateOfBirth?: string | null): boolean {
-  if (!dateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth)) return false;
+  if (!dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return false;
   const [year, month, day] = dateOfBirth.split("-").map(Number);
   const check = new Date(Date.UTC(year, month - 1, day));
   if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return false;
