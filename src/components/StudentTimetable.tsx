@@ -80,6 +80,7 @@ export default function StudentTimetable({ subjects = [] }: { subjects?: Subject
     const channel = supabase.channel("student-teacher-timetable")
       .on("postgres_changes", { event: "*", schema: "public", table: "teacher_timetable_entries" }, () => { void loadEntries(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "teacher_timetable_members" }, () => { void loadEntries(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "student_timetable_entries" }, () => { void loadEntries(); })
       .subscribe();
     return () => { void supabase?.removeChannel(channel); };
   }, []);
