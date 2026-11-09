@@ -1610,3 +1610,12 @@ select option, select optgroup {
 .ss-message-edit button:first-child{background:var(--mint,#79e2c4);color:#102c2c;border-color:transparent}
 .ss-message-unsent{font-style:italic;opacity:.72}
 .ss-message-edited{display:inline-block;margin-left:5px;font-size:9px;font-style:italic;opacity:.65}
+
+
+/* Registration identity controls */
+.student-access-sex-field{border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin:0;display:grid;gap:9px;min-width:0}
+.student-access-sex-field legend{padding:0 6px;font-weight:700;color:var(--text)}
+.student-access-sex-field>div{display:flex;flex-wrap:wrap;gap:12px}
+.student-access-sex-field label{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;min-width:110px;cursor:pointer}
+.student-access-sex-field input{accent-color:var(--accent)}
+.student-access-sex-field small{color:var(--muted);line-height:1.5}
