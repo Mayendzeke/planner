@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles } from "lucide-react";
+import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText } from "lucide-react";
 import { strFromU8, unzipSync } from "fflate";
 import * as pdfjs from "pdfjs-dist";
 pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
@@ -59,7 +59,12 @@ const helpOptions: HelpOption[] = [
   { id: "practice", title: "Practice questions", description: "Try questions and get feedback as you go.", icon: Sparkles, prompt: "Give me a short adaptive practice quiz in one of my registered subjects. Start with five age-appropriate curriculum-aligned questions, one at a time. Let me attempt each answer before showing feedback, explain mistakes, and adjust the difficulty." },
   { id: "materials", title: "My study materials", description: "Find resources assigned to you in StudySpace.", icon: Paperclip, prompt: "Find the StudySpace learning materials assigned to me that are relevant to the subject or topic I want to study. Show me the exact resource titles and links available to my account, then help me decide which one to use. Ask for the subject or topic if it is not clear." },
   { id: "plan", title: "Plan my study week", description: "Build a realistic plan around your study goals.", icon: CalendarDays, prompt: "Help me organise my study week using my saved goal, target mark, weekly study hours, preferred days, registered subjects and recent learning needs. Suggest a balanced plan with realistic blocks and breaks." },
-  { id: "research", title: "Research & references", description: "Academic research and citation guidance.", icon: BookOpen, prompt: "Help me research my college or university assignment. Use my course and subject context, recommend credible academic sources, explain the evidence, and guide me through an outline and correct citations. Do not write the assignment for me. Ask for the brief and referencing style if missing.", tertiaryOnly: true },
+  { id: "research", title: "Research & references", description: "Learn to find, assess and cite academic sources.", icon: BookOpen, prompt: "Coach me through academic research for my college or university work. Help refine my question, develop search terms, evaluate source quality, structure an outline and format citations using sources I provide. Do not invent references or claim to have searched the live web. Do not write an assignment for submission. Ask for my course, question and referencing style only when essential.", tertiaryOnly: true },
+  { id: "flashcards", title: "Create flashcards", description: "Turn a topic into active-recall cards.", icon: Brain, prompt: "Create 8 concise study flashcards about a topic from my registered subjects, matched to my grade and curriculum. Use exactly this format for every card, with one pair per card: Front: [short question or term]\nBack: [clear answer, definition or worked step]\nVisual cue: [short memory clue]. Do not add an introduction or conclusion." },
+  { id: "notes", title: "Make revision notes", description: "Organise key ideas, definitions and examples.", icon: FileText, prompt: "Create clear, exam-ready revision notes for the topic I name. Match my grade, curriculum and registered subject. Include a short overview, key definitions, essential facts or formulas, one worked example, common mistakes and a 5-point self-check with answers. Use headings and concise language. Do not invent syllabus requirements." },
+  { id: "language", title: "Language practice", description: "Build vocabulary, grammar and writing skills.", icon: MessageCircle, prompt: "Act as my language-learning tutor. Help me practise vocabulary, grammar, reading comprehension, translation or writing in the language and at the level I choose. Start with one short exercise, let me answer, then correct my work and explain the correction clearly. Ask which language or skill only if I have not specified it." },
+  { id: "writing", title: "Improve my writing", description: "Get feedback on structure, clarity and grammar.", icon: BookOpen, prompt: "Help me improve my own school or academic writing. Review the text I provide for clarity, structure, grammar, argument and evidence. Show specific suggested edits and explain why they help. Preserve my ideas and voice; do not write a complete assignment for submission. If I have not attached or pasted my writing, ask me to provide it." },
+  { id: "coding", title: "Coding & ICT help", description: "Understand code and solve learning exercises.", icon: Sparkles, prompt: "Help me learn a computing or coding concept. Explain it at my level, inspect any code or error I provide, identify the cause, show a corrected example and explain each important change. Use safe educational examples and do not ask for passwords, API keys or private credentials." },
 ];
 
 function extractOfficeText(buffer: ArrayBuffer, extension: string): string {
@@ -266,8 +271,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     return () => window.cancelAnimationFrame(frame);
   }, [messages, busy, draft]);
 
-  async function sendMessage() {
-    const value = text.trim();
+  async function sendMessage(overrideText?: string) {
+    const value = (overrideText ?? text).trim();
     if ((!value && !attachment) || busy || !supabase) return;
     setError("");
     setBusy(true);
@@ -451,7 +456,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <div className="mia-help-options-grid">
         {helpOptions.filter(option => !option.tertiaryOnly || isTertiaryLearner).map(option=>{
           const Icon=option.icon;
-          return <button type="button" className="mia-help-option" key={option.id} onClick={()=>{setText(option.prompt);inputRef.current?.focus();}}>
+          return <button type="button" className="mia-help-option" key={option.id} disabled={busy} aria-busy={busy} onClick={()=>{void sendMessage(option.prompt);}}>
             <span className={"mia-help-option-icon "+option.id}><Icon size={18}/></span>
             <span className="mia-help-option-copy"><strong>{option.title}</strong><small>{option.description}</small></span>
             <span className="mia-help-option-arrow" aria-hidden="true">↗</span>

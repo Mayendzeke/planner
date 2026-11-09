@@ -1811,3 +1811,8 @@ select option, select optgroup {
   .mia-studio-shell > .mia-messages { padding-bottom: 22px; }
   .mia-studio-shell > .mia-messages > .mia-help-options { padding-left: 2px; padding-right: 2px; }
 }
+
+
+/* MIΛ: make help options execute immediately and expose disabled/loading state. */
+.mia-help-option:disabled{opacity:.52;cursor:wait;transform:none;box-shadow:none;filter:saturate(.65)}
+.mia-help-option:disabled .mia-help-option-arrow{opacity:.45}
