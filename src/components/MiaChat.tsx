@@ -11,7 +11,7 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  sources?: { title: string; uri: string }[];
+  sources?: { title: string; uri: string; kind?: "studyspace_material"; subject?: string; topic?: string }[];
   searchSuggestionsHtml?: string;
 };
 type Flashcard = { front: string; back: string; visualCue?: string };
@@ -45,7 +45,22 @@ function extractFlashcards(reply: string): Flashcard[] {
 }
 type TimetableEntry = { day_of_week: number; subject_name: string; title: string; starts_at: string; ends_at: string; location: string; notes: string };
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const welcome: ChatMessage = { id: "mia-welcome", role: "assistant", content: "Hi! I'm MIΛ, your personal learning companion. I know your subjects and study goals, and I can help you understand lessons, practise questions, prepare for exams and organise your study. What shall we work on?" };
+const createWelcome = (profile: StudentProfile, subjects: Subject[]): ChatMessage => {
+  const name = profile.preferredName?.trim() || profile.fullName?.trim().split(/\s+/)[0] || "";
+  const subjectNames = subjects.map(subject => subject.name).filter(Boolean).slice(0, 5);
+  const context = [profile.level, profile.grade].filter(Boolean).join(" · ") || "your studies";
+  return { id: "mia-welcome", role: "assistant", content: "Hello" + (name ? " " + name : "") + ". I’m MIΛ, your personal learning companion. I’m ready to help with " + context + (subjectNames.length ? " in " + subjectNames.join(", ") : "") + ". Choose the kind of help you need below, or ask me anything related to your learning." };
+};
+type HelpOption = { id: string; title: string; description: string; icon: typeof BookOpen; prompt: string; tertiaryOnly?: boolean };
+const helpOptions: HelpOption[] = [
+  { id: "topic", title: "Understand a topic", description: "Step-by-step explanations at your level.", icon: BookOpen, prompt: "Help me understand a topic in one of my registered subjects. Use my grade, curriculum and learning history to explain it at the right level. Ask me for the subject and exact topic if needed, use a clear example, and finish with one short understanding check." },
+  { id: "homework", title: "Homework help", description: "Work through a question without skipping the learning.", icon: CheckCircle2, prompt: "Help me understand and work through my homework. I will paste or attach the question. Explain what it is asking, guide me through the steps, and help me produce my own answer rather than simply doing the work for me." },
+  { id: "revision", title: "Exam revision", description: "Focus on topics and skills that need practice.", icon: Brain, prompt: "Help me prepare for an upcoming test or exam. Use my registered subjects, grade, curriculum and recorded learning difficulties to suggest relevant revision. Ask for the subject, topic and exam date only if needed, then make a focused revision sequence." },
+  { id: "practice", title: "Practice questions", description: "Try questions and get feedback as you go.", icon: Sparkles, prompt: "Give me a short adaptive practice quiz in one of my registered subjects. Start with five age-appropriate curriculum-aligned questions, one at a time. Let me attempt each answer before showing feedback, explain mistakes, and adjust the difficulty." },
+  { id: "materials", title: "My study materials", description: "Find resources assigned to you in StudySpace.", icon: Paperclip, prompt: "Find the StudySpace learning materials assigned to me that are relevant to the subject or topic I want to study. Show me the exact resource titles and links available to my account, then help me decide which one to use. Ask for the subject or topic if it is not clear." },
+  { id: "plan", title: "Plan my study week", description: "Build a realistic plan around your study goals.", icon: CalendarDays, prompt: "Help me organise my study week using my saved goal, target mark, weekly study hours, preferred days, registered subjects and recent learning needs. Suggest a balanced plan with realistic blocks and breaks." },
+  { id: "research", title: "Research & references", description: "Academic research and citation guidance.", icon: BookOpen, prompt: "Help me research my college or university assignment. Use my course and subject context, recommend credible academic sources, explain the evidence, and guide me through an outline and correct citations. Do not write the assignment for me. Ask for the brief and referencing style if missing.", tertiaryOnly: true },
+];
 
 function extractOfficeText(buffer: ArrayBuffer, extension: string): string {
   const archive = unzipSync(new Uint8Array(buffer));
@@ -179,7 +194,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   onClose?: () => void;
 }) {
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([welcome]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [createWelcome(profile, subjects)]);
   const [text, setText] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -265,7 +280,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         ? data.sources.filter((source: any) => source && typeof source.title === "string"
           && typeof source.uri === "string" && source.uri.startsWith("https://"))
           .slice(0, 6)
-          .map((source: any) => ({ title: source.title.slice(0, 160), uri: source.uri }))
+          .map((source: any) => ({ title: source.title.slice(0, 160), uri: source.uri, kind: source.kind === "studyspace_material" ? "studyspace_material" as const : undefined, subject: typeof source.subject === "string" ? source.subject.slice(0, 100) : undefined, topic: typeof source.topic === "string" ? source.topic.slice(0, 120) : undefined }))
         : [];
       const searchSuggestionsHtml = typeof data.searchSuggestionsHtml === "string"
         && data.searchSuggestionsHtml.length <= 30000 ? data.searchSuggestionsHtml : undefined;
@@ -353,7 +368,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   }
 
   function newChat() {
-    setConversationId(null); setMessages([welcome]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
+    setConversationId(null); setMessages([createWelcome(profile, subjects)]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
   }
 
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
@@ -374,8 +389,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         <div className="mia-message-bubble">
           {message.content}
           {message.role === "assistant" && !!message.sources?.length && <div className="mia-grounding-sources">
-            <strong>Sources checked</strong>
-            {message.sources.map((source, index) => <a key={source.uri + index} href={source.uri} target="_blank" rel="noopener noreferrer">{source.title}</a>)}
+            <strong>{message.sources.some(source => source.kind === "studyspace_material") ? "Your assigned StudySpace materials" : "Sources checked"}</strong>
+            {message.sources.map((source, index) => <a key={source.uri + index} href={source.uri} target="_blank" rel="noopener noreferrer"><span>{source.title}</span>{(source.subject || source.topic) && <small>{[source.subject, source.topic].filter(Boolean).join(" · ")}</small>}</a>)}
           </div>}
           {message.role === "assistant" && message.searchSuggestionsHtml && <iframe
             className="mia-search-suggestions-frame"
@@ -418,14 +433,20 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
     </div>
-    {messages.length === 1 && draft.length === 0 && <div className="mia-quick-actions" aria-label="MIΛ study tools">
-      <button type="button" onClick={()=>setText("Help me understand a difficult topic in one of my subjects. Ask me which topic if needed.")}>Explain a topic</button>
-      <button type="button" onClick={()=>setText("Quiz me on one of my current subjects. Start with five questions and adapt to my answers.")}>Quiz me</button>
-      <button type="button" onClick={()=>setText("Turn my lesson notes into concise revision notes with key definitions and examples. I will attach or paste the lesson.")}>Summarise notes</button>
-      <button type="button" onClick={()=>setText("Help me create a realistic revision plan using my subjects, goals and available study time.")}>Plan revision</button>
-      {isTertiaryLearner && <button type="button" onClick={()=>setText("Help me research my college or university assignment. Start with credible academic references and source details, explain the evidence, help me develop my own argument and outline, and guide me through correct in-text citations and a reference list. Do not write the assignment for me. Ask for the assignment brief, subject and required referencing style if missing.")}>Research & references</button>}
-      <button type="button" onClick={()=>setText("Create a set of useful flashcards for a topic I am revising. Ask me for the subject and topic.")}>Flashcards</button>
-    </div>}
+    {messages.length === 1 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
+      <div className="mia-help-options-heading"><div><span className="eyebrow">YOUR LEARNING, YOUR WAY</span><strong>What would you like help with?</strong><small>Choose a starting point. MIΛ will use your registered subjects, curriculum and learning progress to tailor the support.</small></div><span className="mia-help-options-context">{subjects.length} subjects</span></div>
+      <div className="mia-help-options-grid">
+        {helpOptions.filter(option => !option.tertiaryOnly || isTertiaryLearner).map(option=>{
+          const Icon=option.icon;
+          return <button type="button" className="mia-help-option" key={option.id} onClick={()=>{setText(option.prompt);inputRef.current?.focus();}}>
+            <span className={"mia-help-option-icon "+option.id}><Icon size={18}/></span>
+            <span className="mia-help-option-copy"><strong>{option.title}</strong><small>{option.description}</small></span>
+            <span className="mia-help-option-arrow" aria-hidden="true">↗</span>
+          </button>;
+        })}
+      </div>
+      {subjects.length>0&&<p className="mia-help-options-subjects">Ready to support: {subjects.map(subject=>subject.name).join(" · ")}</p>}
+    </section>}
     {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
     <div className="mia-usage-note">{remaining === null ? (usageChecked ? "Daily usage limit unavailable" : "Checking your daily allowance…") : remaining + " requests remaining"} · rolling 24-hour limit</div>
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); void sendMessage();}}>
