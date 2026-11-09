@@ -3,7 +3,7 @@ import { Camera, CheckCircle2, Clock3, Image, MessageCircle, Send } from "lucide
 import { supabase } from "../lib/supabase";
 type HelpRow={id:string;question_text:string;image_path:string|null;status:string;created_at:string;fallback_due_at:string;mia_response:string|null;teacher_response:string|null;image_url?:string};
 const bucket="studyspace-homework-help";
-const labels:Record<string,string>={waiting_for_teacher:"Sent to your teacher · waiting for a reply",mia_generating:"MIA is preparing an explanation",mia_replied:"MIA has replied · your teacher can still follow up",teacher_replied:"Your teacher has replied",teacher_replied_after_mia:"Your teacher has also sent a follow-up",mia_failed:"MIA could not prepare an answer · your teacher can still help"};
+const labels:Record<string,string>={waiting_for_teacher:"Sent to your teacher · waiting for a reply",mia_generating:"MIΛ is preparing an explanation",mia_replied:"MIΛ has replied · your teacher can still follow up",teacher_replied:"Your teacher has replied",teacher_replied_after_mia:"Your teacher has also sent a follow-up",mia_failed:"MIΛ could not prepare an answer · your teacher can still help"};
 export default function SchoolHomeworkHelp(){
  const [question,setQuestion]=useState(""),[file,setFile]=useState<File|null>(null),[rows,setRows]=useState<HelpRow[]>([]),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const load=useCallback(async()=>{
@@ -26,7 +26,7 @@ export default function SchoolHomeworkHelp(){
    if(file){const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";path=auth.user.id+"/"+crypto.randomUUID()+"."+ext;const {error:uploadError}=await supabase.storage.from(bucket).upload(path,file,{contentType:file.type,upsert:false,cacheControl:"3600"});if(uploadError)throw new Error("The homework photo could not be uploaded: "+uploadError.message);}
    const {error:insertError}=await supabase.from("homework_help_requests").insert({learner_id:auth.user.id,question_text:question.trim(),image_path:path,status:"waiting_for_teacher"});
    if(insertError)throw insertError;setQuestion("");setFile(null);const input=document.getElementById("studyspace-homework-photo") as HTMLInputElement|null;if(input)input.value="";
-   setNotice("Your question has been sent to your teacher. MIA is scheduled to prepare an explanation if there is no teacher reply after two minutes.");await load();
+   setNotice("Your question has been sent to your teacher. MIΛ is scheduled to prepare an explanation if there is no teacher reply after two minutes.");await load();
   }catch(reason){if(path)await supabase.storage.from(bucket).remove([path]);setError(reason instanceof Error?reason.message:"Your homework question could not be sent.");}
   finally{setBusy(false);}
  };
@@ -39,9 +39,9 @@ export default function SchoolHomeworkHelp(){
    {loading?<p>Loading your homework requests…</p>:rows.length===0?<p>No homework questions sent yet.</p>:rows.map(row=><article className="school-homework-request" key={row.id}>
     <div className="school-homework-status"><strong>{labels[row.status]||row.status}</strong><small>{new Date(row.created_at).toLocaleString()}</small></div>
     {row.question_text&&<p>{row.question_text}</p>}{row.image_url&&<a href={row.image_url} target="_blank" rel="noreferrer">View your uploaded photo</a>}
-    {row.mia_response&&<div className="school-homework-answer mia"><strong><MessageCircle size={14}/> MIA explanation</strong><p>{row.mia_response}</p></div>}
+    {row.mia_response&&<div className="school-homework-answer mia"><strong><MessageCircle size={14}/> MIΛ explanation</strong><p>{row.mia_response}</p></div>}
     {row.teacher_response&&<div className="school-homework-answer teacher"><strong><CheckCircle2 size={14}/> Teacher response</strong><p>{row.teacher_response}</p></div>}
-    {!row.mia_response&&!row.teacher_response&&<small className="school-homework-wait"><Clock3 size={13}/> MIA fallback scheduled for {new Date(row.fallback_due_at).toLocaleTimeString()}.</small>}
+    {!row.mia_response&&!row.teacher_response&&<small className="school-homework-wait"><Clock3 size={13}/> MIΛ fallback scheduled for {new Date(row.fallback_due_at).toLocaleTimeString()}.</small>}
    </article>)}
   </div>
  </section>;
