@@ -6,6 +6,19 @@ import { supabase } from "../lib/supabase";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const LEVELS = ["Primary school", "Secondary school", "High school / Sixth form", "College", "University", "Other"];
 const CURRICULA = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
+function calculatedAge(dateOfBirth?: string): number | null {
+  if (!dateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth)) return null;
+  const [year, month, day] = dateOfBirth.split("-").map(Number);
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Mbabane", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const value = (key: string) => Number(parts.find(item => item.type === key)?.value || 0);
+  const todayYear = value("year"), todayMonth = value("month"), todayDay = value("day");
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const valid = new Date(Date.UTC(year, month - 1, day));
+  if (valid.getUTCFullYear() !== year || valid.getUTCMonth() !== month - 1 || valid.getUTCDate() !== day) return null;
+  let age = todayYear - year;
+  if (todayMonth < month || (todayMonth === month && todayDay < day)) age--;
+  return age >= 0 ? age : null;
+}
 
 export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" }: {
   profile: StudentProfile;
@@ -21,6 +34,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [sexChoice, setSexChoice] = useState<"male" | "female" | "">("");
+  const [savingSex, setSavingSex] = useState(false);
 
   useEffect(() => {
     if (!avatarFile) { setAvatarPreview(""); return; }
@@ -40,6 +55,22 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
 
   function update<K extends keyof StudentProfile>(key: K, value: StudentProfile[K]) {
     setDraft(current => ({ ...current, [key]: value }));
+  }
+
+  async function saveOneTimeSex() {
+    if (!supabase || savingSex || (sexChoice !== "male" && sexChoice !== "female")) return;
+    setSavingSex(true); setError(""); setNotice("");
+    try {
+      const { error: saveError } = await supabase.rpc("set_studyspace_learner_sex", { p_sex: sexChoice });
+      if (saveError) throw new Error(saveError.message);
+      const next = { ...profile, sex: sexChoice };
+      onSaved(next);
+      setDraft(next);
+      setSexChoice("");
+      setNotice("Your sex was recorded and is now locked on your account.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Your registration details could not be saved.");
+    } finally { setSavingSex(false); }
   }
 
   function toggleDay(day: string) {
@@ -186,6 +217,23 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
       <div><h2>My profile &amp; academic plan</h2><p>Keep your personal and school details up to date. Account security, age and guardian-verification status cannot be changed here.</p></div>
       <BookOpen size={20}/>
     </div>
+    <section className="profile-registration-details" aria-label="Registration identity details" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, padding: 14, margin: "0 0 16px", border: "1px solid var(--glass-border, rgba(128,148,170,.28))", borderRadius: 14 }}>
+      <div><small>Date of birth</small><strong>{profile.dateOfBirth || "Not recorded"}</strong><span>{profile.dateOfBirth ? (calculatedAge(profile.dateOfBirth) === null ? "Age unavailable" : calculatedAge(profile.dateOfBirth) + " years old") : "An administrator must verify and record this for older accounts."}</span></div>
+      <div><small>Sex</small><strong>{profile.sex === "male" ? "Male" : profile.sex === "female" ? "Female" : "Not recorded"}</strong><span>{profile.sex ? "Recorded at registration · locked" : "This account needs a one-time profile completion."}</span></div>
+    </section>
+    {!profile.sex && <div className="profile-locked-note">
+      <strong>Complete your registration details once</strong>
+      <p>Select Male or Female. This entry can only be recorded once and cannot be edited later.</p>
+      <div className="onboarding-two-col">
+        <label className="field-label">Sex
+          <select value={sexChoice} onChange={event => setSexChoice(event.target.value as "male" | "female" | "")}>
+            <option value="">Choose one</option><option value="male">Male</option><option value="female">Female</option>
+          </select>
+        </label>
+        <div style={{ display: "flex", alignItems: "end" }}><button type="button" className="secondary-button" onClick={() => void saveOneTimeSex()} disabled={savingSex || !sexChoice}>{savingSex ? "Saving…" : "Save once"}</button></div>
+      </div>
+      {error && <p className="inline-message error-message" role="alert">{error}</p>}
+    </div>}
     {!editing ? <>
       <div className="profile-editor-identity"><div className="profile-editor-avatar">{avatarUrl ? <img src={avatarUrl} alt="Your profile"/> : <UserRound size={28}/>}</div><div><strong>{profile.preferredName || profile.fullName}</strong><span>{profile.fullName}</span></div></div>
       <div className="privacy-list">
