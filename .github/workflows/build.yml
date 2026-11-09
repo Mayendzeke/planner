@@ -59,7 +59,7 @@ jobs:
           if (!access.includes('termsVersion: TERMS_VERSION') || !termsVersion) {
             throw new Error('Student enrolment and terms notice must use the current terms version.')
           }
-          for (const disclosure of ['eu-west-1', 'Ireland', 'Edge Functions run globally', 'storage CDN content may be cached globally', '8x8 JaaS', 'retention schedule', 'WhatsApp']) {
+          for (const disclosure of ['eu-west-1', 'Ireland', 'Edge Functions run globally', 'storage CDN content may be cached globally', '8x8 JaaS', 'We retain account and learning information only for as long as it is reasonably needed', 'WhatsApp']) {
             if (!terms.includes(disclosure)) throw new Error('Privacy notice is missing its provider or retention disclosure: ' + disclosure)
           }
           for (const plan of ['Weekly', '2 Weeks', 'Monthly']) {
