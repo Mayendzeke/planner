@@ -82,7 +82,7 @@ export default function StudentProgressPage(){
   },[assessments]);
 
   return <div className="student-cloud-progress">
-    <section className="student-progress-head"><div><span className="eyebrow"><TrendingUp size={14}/> YOUR ACADEMIC RECORD</span><h2>Progress and achievements</h2><p>Your assessment history, learning patterns and MIA study guidance. This page is read-only; your teacher manages official records.</p></div><button type="button" className="secondary-button" onClick={()=>void refresh()} disabled={loading}><RefreshCw size={15}/>{loading?"Refreshing…":"Refresh records"}</button></section>
+    <section className="student-progress-head"><div><span className="eyebrow"><TrendingUp size={14}/> YOUR ACADEMIC RECORD</span><h2>Progress and achievements</h2><p>Your assessment history, learning patterns and MIΛ study guidance. This page is read-only; your teacher manages official records.</p></div><button type="button" className="secondary-button" onClick={()=>void refresh()} disabled={loading}><RefreshCw size={15}/>{loading?"Refreshing…":"Refresh records"}</button></section>
     {error&&<p className="inline-message error-message" role="alert">{error}</p>}
     <section className="student-progress-stat-grid">
       <article><span>RECORDED TESTS</span><strong>{assessments.length}</strong><small>Published assessments submitted</small></article>
@@ -98,10 +98,10 @@ export default function StudentProgressPage(){
     </section>
     {subjectSummary.length>0&&<section className="glass-panel student-progress-record-panel"><div className="section-heading"><div><h3>Subject-by-subject view</h3><p>Calculated from the assessment records shown above.</p></div><BookOpen size={19}/></div><div className="student-progress-subjects">{subjectSummary.map(x=><article key={x.subject}><div><strong>{x.subject}</strong><span>{x.count} recorded result{x.count===1?"":"s"}</span></div><strong>{x.average}%</strong><div className="student-progress-subject-track"><i style={{width:x.average+"%"}}/></div></article>)}</div></section>}
     <section className="glass-panel student-progress-record-panel">
-      <div className="section-heading"><div><h3>MIA learning notes</h3><p>Study guidance based on information currently recorded for your learning profile.</p></div><Sparkles size={20}/></div>
+      <div className="section-heading"><div><h3>MIΛ learning notes</h3><p>Study guidance based on information currently recorded for your learning profile.</p></div><Sparkles size={20}/></div>
       <div className="student-mia-progress-grid">
-        <article className="student-mia-strengths"><div><Award size={17}/><strong>What is going well</strong></div>{strengths.length?<ul>{strengths.map((x,i)=><li key={i}>{x}</li>)}</ul>:<p>MIA has not recorded strengths for you yet.</p>}</article>
-        <article className="student-mia-focus"><div><Target size={17}/><strong>Areas to focus on</strong></div>{focus.length?<ul>{focus.map((x,i)=><li key={i}>{x}</li>)}</ul>:<p>MIA has not recorded focus areas for you yet.</p>}</article>
+        <article className="student-mia-strengths"><div><Award size={17}/><strong>What is going well</strong></div>{strengths.length?<ul>{strengths.map((x,i)=><li key={i}>{x}</li>)}</ul>:<p>MIΛ has not recorded strengths for you yet.</p>}</article>
+        <article className="student-mia-focus"><div><Target size={17}/><strong>Areas to focus on</strong></div>{focus.length?<ul>{focus.map((x,i)=><li key={i}>{x}</li>)}</ul>:<p>MIΛ has not recorded focus areas for you yet.</p>}</article>
       </div>
       {goals.length>0&&<div className="student-mia-goals"><strong>Your learning goals</strong><ul>{goals.map((x,i)=><li key={i}>{x}</li>)}</ul></div>}
       {topics.length>0&&<div className="student-mia-goals"><strong>Recently practised</strong><p>{topics.join(" · ")}</p></div>}
