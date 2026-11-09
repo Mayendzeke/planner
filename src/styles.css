@@ -1633,3 +1633,5 @@ select option, select optgroup {
 .mia-preparation-actions{display:grid;justify-items:start;gap:9px}
 .mia-preparation-actions p{margin:0;color:var(--muted);font-size:13px;line-height:1.6;max-width:700px}
 @media(max-width:560px){.mia-preparation-top{gap:12px}.mia-preparation-mark{width:48px;height:48px;border-radius:15px}}
+
+.mia-learning-only-notice{margin:0 14px;padding:10px 12px;border:1px solid rgba(125,151,210,.26);border-radius:12px;background:rgba(125,151,210,.09);color:var(--text-secondary,#667085);font-size:12px;line-height:1.5}.mia-learning-only-notice strong{display:block;margin-bottom:2px;color:var(--text-primary,#263247)}
