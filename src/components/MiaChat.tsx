@@ -209,7 +209,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const keepTranscriptAtBottomRef = useRef(true);
+  const keepTranscriptAtBottomRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const isFloating = variant === "floating";
   const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
@@ -381,6 +381,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   }
 
   function newChat() {
+    keepTranscriptAtBottomRef.current = false;
     setConversationId(null); setMessages([createWelcome(profile, subjects)]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
   }
 
@@ -445,7 +446,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       </section>}
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
-    </div>
     {messages.length === 1 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
       <div className="mia-help-options-heading"><div><span className="eyebrow">YOUR LEARNING, YOUR WAY</span><strong>What would you like help with?</strong><small>Choose a starting point. MIΛ will use your registered subjects, curriculum and learning progress to tailor the support.</small></div><span className="mia-help-options-context">{subjects.length} subjects</span></div>
       <div className="mia-help-options-grid">
@@ -460,6 +460,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       </div>
       {subjects.length>0&&<p className="mia-help-options-subjects">Ready to support: {subjects.map(subject=>subject.name).join(" · ")}</p>}
     </section>}
+    </div>
     {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
     <div className="mia-usage-note">{remaining === null ? (usageChecked ? "Daily usage limit unavailable" : "Checking your daily allowance…") : remaining + " requests remaining"} · rolling 24-hour limit</div>
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); void sendMessage();}}>
