@@ -209,6 +209,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const keepTranscriptAtBottomRef = useRef(true);
   const fileRef = useRef<HTMLInputElement>(null);
   const isFloating = variant === "floating";
   const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
@@ -250,8 +251,19 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     return () => { alive = false; };
   }, []);
 
+  const handleTranscriptScroll = () => {
+    const node = scrollRef.current;
+    if (!node) return;
+    keepTranscriptAtBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 88;
+  };
+
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const node = scrollRef.current;
+    if (!node || !keepTranscriptAtBottomRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [messages, busy, draft]);
 
   async function sendMessage() {
@@ -263,6 +275,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     const file = attachment;
     const displayMessage = value || (file ? "Please review the attached file: " + file.name : "");
     const outgoingId = crypto.randomUUID();
+    keepTranscriptAtBottomRef.current = true;
     setMessages(current => [...current, { id: outgoingId, role: "user", content: displayMessage + (file ? " · " + file.name : "") }]);
     try {
       const uploaded = file ? await filePayload(file) : null;
@@ -383,7 +396,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     </header>
     <div className="mia-context-strip"><BookOpen size={14}/><span>{profile.level} · {profile.grade} · {profile.curriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
     <div className="mia-learning-only-notice" role="note"><strong>Educational use only.</strong> Use MIΛ for learning, subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information, or use MIΛ for unrelated personal advice.</div>
-    <div className="mia-messages" ref={scrollRef}>
+    <div className="mia-messages" ref={scrollRef} onScroll={handleTranscriptScroll} tabIndex={0} aria-label="MIΛ conversation history">
       {messages.map(message => <article key={message.id} className={"mia-message-row " + (message.role === "user" ? "is-user" : "is-assistant")}>
         {message.role === "assistant" && <div className="mia-message-avatar">Λ</div>}
         <div className="mia-message-bubble">
