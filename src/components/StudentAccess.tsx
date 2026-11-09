@@ -25,17 +25,26 @@ async function describeAccessError(reason: unknown): Promise<string> {
   return reason instanceof Error ? reason.message : "Studyspace could not complete that request. Try again.";
 }
 
+function eswatiniToday(): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Mbabane", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find(item => item.type === type)?.value || "";
+  return part("year") + "-" + part("month") + "-" + part("day");
+}
 function ageOnDate(value: string): number {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return -1;
-  const birth = new Date(value + "T00:00:00.000Z");
-  if (Number.isNaN(birth.getTime()) || birth.toISOString().slice(0, 10) !== value) return -1;
-  const today = new Date();
-  let age = today.getUTCFullYear() - birth.getUTCFullYear();
-  if (today.getUTCMonth() < birth.getUTCMonth() || (today.getUTCMonth() === birth.getUTCMonth() && today.getUTCDate() < birth.getUTCDate())) age--;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value > eswatiniToday()) return -1;
+  const [year, month, day] = value.split("-").map(Number);
+  const [todayYear, todayMonth, todayDay] = eswatiniToday().split("-").map(Number);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return -1;
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return -1;
+  let age = todayYear - year;
+  if (todayMonth < month || (todayMonth === month && todayDay < day)) age--;
   return age;
 }
 function isAdultOnDate(value: string): boolean { return ageOnDate(value) >= 18; }
-const todayDate = () => new Date().toISOString().slice(0, 10);
+const todayDate = eswatiniToday;
 
 export default function StudentAccess({ installAvailable = false, onInstall }: { installAvailable?: boolean; onInstall?: () => void }) {
   const [mode, setMode] = useState<"signin" | "enrol">("signin");
@@ -44,6 +53,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
   const [fullName, setFullName] = useState("");
   const [preferredName, setPreferredName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
+  const [sex, setSex] = useState<"male" | "female" | "">("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -82,9 +92,9 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
       if (!enrolmentEnabled) { setError("New learner enrolment is temporarily unavailable. Existing learners can continue to sign in."); return; }
       if (fullName.trim().length < 2) { setError("Enter the learner’s full legal name."); return; }
       if (preferredName.trim().length > 80) { setError("The preferred name is too long."); return; }
-      const parsedDateOfBirth = new Date(dateOfBirth + "T00:00:00");
-      if (!dateOfBirth || Number.isNaN(parsedDateOfBirth.getTime()) || parsedDateOfBirth > new Date()) { setError("Enter a valid date of birth."); return; }
+      if (ageOnDate(dateOfBirth) < 0) { setError("Enter a valid date of birth."); return; }
       if (ageOnDate(dateOfBirth) < 8) { setError("StudySpace registration is not available for children under 8 years old."); return; }
+      if (sex !== "male" && sex !== "female") { setError("Select Male or Female to complete registration."); return; }
       if (password.length < 10) { setError("Choose a password with at least 10 characters."); return; }
       if (password !== confirmPassword) { setError("The passwords do not match."); return; }
       if (adultRegistration && !termsAccepted) { setError("Read and personally accept the Terms & Conditions and Privacy Notice before creating your account."); return; }
@@ -102,6 +112,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
             fullName: fullName.trim(),
             preferredName: preferredName.trim() || fullName.trim(),
             dateOfBirth,
+            sex,
             termsAccepted: adultRegistration ? termsAccepted : false,
             termsVersion: TERMS_VERSION,
             acceptedByName: adultRegistration ? fullName.trim() : "",
@@ -245,7 +256,15 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           <label>One-time enrolment PIN<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,8))} type="text" inputMode="numeric" autoComplete="one-time-code" minLength={8} maxLength={8} pattern="[0-9]{8}" placeholder="Enter your 8-digit PIN" required/><small>This invitation is assigned to your Student ID and can only be used once.</small></label>
           <label>Full legal name<input value={fullName} onChange={e=>{setFullName(e.target.value);setTermsAcceptedByName(e.target.value);}} type="text" autoComplete="name" placeholder="Enter your full name as it appears on school records" minLength={2} maxLength={120} required/></label>
           <label>Preferred name <small>Optional</small><input value={preferredName} onChange={e=>setPreferredName(e.target.value)} type="text" placeholder="What should we call you?" maxLength={80}/></label>
-          <label>Date of birth<input value={dateOfBirth} onChange={e=>{setDateOfBirth(e.target.value);setTermsAccepted(false);}} type="date" max={todayDate()} required/><small>Your date of birth determines whether guardian verification is required.</small></label>
+          <label>Date of birth<input value={dateOfBirth} onChange={e=>{setDateOfBirth(e.target.value);setTermsAccepted(false);}} type="date" max={todayDate()} required/><small>We calculate your age using Eswatini local time. Date of birth is locked after registration; contact an authorised StudySpace administrator if it was entered incorrectly.</small></label>
+          <fieldset className="student-access-sex-field">
+            <legend>Sex <span aria-hidden="true">*</span></legend>
+            <div>
+              <label><input type="radio" name="student-sex" value="male" checked={sex==="male"} onChange={()=>setSex("male")} required/> Male</label>
+              <label><input type="radio" name="student-sex" value="female" checked={sex==="female"} onChange={()=>setSex("female")} required/> Female</label>
+            </div>
+            <small>This is recorded once during enrolment and cannot be changed from the student profile.</small>
+          </fieldset>
         </>}
         <label>Password<span className="student-access-input"><LockKeyhole size={16}/><input value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder={mode === "signin" ? "Enter your password" : "Create a password (10+ characters)"} autoComplete={mode === "signin" ? "current-password" : "new-password"} required minLength={mode === "enrol" ? 10 : 1} maxLength={128}/></span></label>
         {mode === "enrol" && <>
