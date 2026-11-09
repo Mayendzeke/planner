@@ -21,6 +21,8 @@ export type StudentProfile = {
   subjects: string[];
   timetableEntries?: OnboardingTimetableEntry[];
   avatarPath?: string;
+  dateOfBirth?: string;
+  sex?: "male" | "female" | "";
 };
 
 const emptyProfile: StudentProfile = {
