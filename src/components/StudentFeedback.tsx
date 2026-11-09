@@ -14,8 +14,12 @@ const testimonialBackgrounds = [
   { id: "midnight", label: "Midnight", swatch: "linear-gradient(135deg, #34445f, #101827)" },
 ] as const;
 
-export default function StudentFeedback({ currentPage }: { currentPage: string }) {
-  const [category, setCategory] = useState<(typeof categories)[number]>("Suggestion");
+export default function StudentFeedback({ currentPage, initialCategory, lockCategory = false }: {
+  currentPage: string;
+  initialCategory?: (typeof categories)[number];
+  lockCategory?: boolean;
+}) {
+  const [category, setCategory] = useState<(typeof categories)[number]>(() => initialCategory ?? "Suggestion");
   const [message, setMessage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [testimonialConsent, setTestimonialConsent] = useState(false);
@@ -93,7 +97,7 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
       setMessage("");
       setContactEmail("");
       setFile(null);
-      setCategory("Suggestion");
+      setCategory(lockCategory ? (initialCategory ?? "Testimonial") : "Suggestion");
       setTestimonialConsent(false);
       setTestimonialMarketingConsent(false);
       setTestimonialBackground("");
@@ -110,15 +114,15 @@ export default function StudentFeedback({ currentPage }: { currentPage: string }
   return <section className="glass-panel student-feedback-page">
     <header className="student-feedback-header">
       <div className="student-feedback-heading-icon"><LifeBuoy size={20} /></div>
-      <div><span className="eyebrow">STUDENT SUPPORT</span><h2 id="student-feedback-title">Help us improve Studyspace</h2><p>Report a problem, suggest an idea or share how StudySpace has helped you learn.</p></div>
+      <div><span className="eyebrow">{lockCategory ? "STUDENT VOICE" : "STUDENT SUPPORT"}</span><h2 id="student-feedback-title">{lockCategory ? "Share your StudySpace experience" : "Help us improve Studyspace"}</h2><p>{lockCategory ? "Tell us how StudySpace has helped you learn. Your testimonial remains private unless separate marketing permission is given and it is approved." : "Report a problem, suggest an idea or share how StudySpace has helped you learn."}</p></div>
     </header>
     <a className="student-feedback-whatsapp" href={"https://wa.me/" + SUPPORT_WHATSAPP} target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/><span><strong>Prefer WhatsApp?</strong><small>Contact us on WhatsApp · +268 7994 0955</small></span><span className="student-feedback-whatsapp-arrow">↗</span></a>
     <form onSubmit={event => void submit(event)} className="student-feedback-form">
-      <label className="field-label">What is this about?
+      {!lockCategory && <label className="field-label">What is this about?
         <select value={category} onChange={event => { const next = event.target.value as (typeof categories)[number]; setCategory(next); if (next !== "Testimonial") { setTestimonialConsent(false); setTestimonialMarketingConsent(false); setTestimonialBackground(""); } }}>
           {categories.map(item => <option key={item}>{item}</option>)}
         </select>
-      </label>
+      </label>}
       <label className="field-label">{category === "Testimonial" ? "Your StudySpace experience" : "Tell us what happened or what you would like to see"}
         <textarea required minLength={10} maxLength={4000} rows={5} value={message} onChange={event => setMessage(event.target.value)} placeholder={category === "Testimonial" ? "Tell us what you found useful, what improved, or how you use StudySpace…" : "Describe the steps, what you expected, and what happened instead…"} />
         <span className="student-feedback-counter">{message.length}/4000</span>
