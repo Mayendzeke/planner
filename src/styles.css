@@ -2002,3 +2002,10 @@ select option, select optgroup {
 .monitor-engagement-privacy{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:11px;line-height:1.5}
 @media(max-width:1080px){.monitor-engagement-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.monitor-engagement-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.monitor-engagement-header{flex-direction:column}.monitor-engagement-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ss-emoji-picker-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+
+
+.student-referral-claim{grid-column:1/-1;display:grid;gap:7px;padding-top:12px;border-top:1px solid var(--glass-border,rgba(128,148,170,.18))}
+.student-referral-claim label{font-size:11px;font-weight:700;color:var(--muted)}
+.student-referral-claim>div{display:flex;gap:8px;min-width:0}
+.student-referral-claim input{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--glass-border,rgba(128,148,170,.3));border-radius:9px;background:var(--panel-strong,transparent);color:var(--text,var(--ink));letter-spacing:.06em}
+.student-referral-claim>small{font-size:11px;color:var(--muted)}
