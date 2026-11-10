@@ -148,6 +148,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
             message: pendingMessage,
           });
           setGuardianLinkNotice("");
+          try{if(/^[A-Z0-9]{10}$/.test(referralCode.trim().toUpperCase()))sessionStorage.setItem("studyspace-pending-referral-code",referralCode.trim().toUpperCase());}catch{/* Referral can still be entered from Progress after sign-in. */}
           setPin("");
           setReferralCode("");
           setConfirmPassword("");
@@ -155,6 +156,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           return;
         }
         setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID; you will need it with your password whenever you sign in.");
+        try{if(/^[A-Z0-9]{10}$/.test(referralCode.trim().toUpperCase()))sessionStorage.setItem("studyspace-pending-referral-code",referralCode.trim().toUpperCase());}catch{/* Referral can still be entered from Progress after sign-in. */}
         setMode("signin"); setPin(""); setConfirmPassword(""); setPassword(""); setReferralCode("");
         setTermsAccepted(false); setTermsAcceptedByName("");
       } else {
