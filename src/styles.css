@@ -2052,3 +2052,11 @@ select option, select optgroup {
   background:var(--bg)!important;
   background-color:var(--bg)!important;
 }
+
+
+/* Keep the renewal path available when a learner returns after trial expiry
+   before finishing the first-time profile wizard. */
+.access-expired-setup-card{width:min(100%,920px);max-width:920px}
+.access-expired-setup-card .onboarding-heading{margin-bottom:18px}
+.access-expired-setup-card .subscription-stack{margin-top:12px}
+@media(max-width:760px){.access-expired-setup-card{padding:18px}}
