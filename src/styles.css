@@ -1835,3 +1835,29 @@ select option, select optgroup {
 .ss-thread-search span{flex:0 0 auto;color:var(--muted);font-size:8px}
 .ss-contact-row:focus-within{outline:2px solid color-mix(in srgb,var(--accent) 42%,transparent);outline-offset:1px}
 @media(max-width:680px){.ss-conversation-filters{grid-template-columns:repeat(4,minmax(0,1fr))}.student-message-contact-list{max-height:310px}.ss-contact-row-actions{opacity:1}.ss-thread-search{padding-inline:10px}}
+
+
+/* Student MIΛ greeting: brief, accessible and non-blocking. */
+.mia-welcome-toast{
+  display:flex;align-items:center;gap:10px;margin:8px 16px 0;padding:10px 12px;
+  border:1px solid var(--border);border-radius:14px;background:var(--panel-strong);
+  box-shadow:0 5px 16px rgba(0,0,0,.08);opacity:1;transform:translateY(0);max-height:140px;overflow:hidden;
+  transition:opacity .42s ease,transform .42s ease,max-height .42s ease,margin .42s ease,padding .42s ease,border-color .42s ease;
+}
+.mia-welcome-toast.is-fading{
+  opacity:0;transform:translateY(-6px);pointer-events:none;max-height:0;margin-top:0;margin-bottom:0;
+  padding-top:0;padding-bottom:0;border-color:transparent;
+}
+.mia-welcome-toast-mark{
+  width:32px;height:32px;display:grid;place-items:center;flex:0 0 auto;
+  color:#092e2b;border-radius:11px;background:linear-gradient(145deg,#a6f0db,#67d1b3);
+}
+.mia-welcome-toast-copy{flex:1;min-width:0;font-size:11px;line-height:1.5;color:var(--muted)}
+.mia-welcome-toast .mia-icon-button{width:32px;height:32px;flex:0 0 auto}
+@media(max-width:520px){
+  .mia-welcome-toast{align-items:flex-start;gap:8px;margin-left:10px;margin-right:10px;padding:9px}
+  .mia-welcome-toast-copy{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .mia-welcome-toast{transition:none}
+}
