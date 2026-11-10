@@ -108,7 +108,7 @@ export default function StudentSubscription({ onAccessRestored }: { onAccessRest
       <div className="section-heading"><div><h2>Restore access with a PIN</h2><p>Your trial or current plan has ended. Enter the eight-digit access PIN issued to your Student ID.</p></div><LockKeyhole size={20}/></div>
       <form className="access-pin-form" onSubmit={event => void redeemAccessPin(event)}>
         <label htmlFor="student-access-pin">Eight-digit access PIN</label>
-        <div><input id="student-access-pin" inputMode="numeric" autoComplete="one-time-code" value={accessPin} onChange={event => setAccessPin(event.target.value.replace(/\\D/g, "").slice(0, 8))} placeholder="Enter PIN" maxLength={8} pattern="[0-9]{8}" required/><button type="submit" className="primary-button" disabled={redeeming || accessPin.length !== 8}>{redeeming ? "Verifying…" : "Redeem PIN"}</button></div>
+        <div><input id="student-access-pin" inputMode="numeric" autoComplete="one-time-code" value={accessPin} onChange={event => setAccessPin(event.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="Enter PIN" maxLength={8} pattern="[0-9]{8}" required/><button type="submit" className="primary-button" disabled={redeeming || accessPin.length !== 8}>{redeeming ? "Verifying…" : "Redeem PIN"}</button></div>
       </form>
       <p className="subtle-note">A PIN is linked to your account, can be used once, and expires 24 hours after it is issued. It cannot be used to create a new account.</p>
       {redeemNotice && <p className="subscription-note" role="status">{redeemNotice}</p>}
