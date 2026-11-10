@@ -49,7 +49,7 @@ const createWelcome = (profile: StudentProfile, subjects: Subject[]): string => 
   const name = profile.preferredName?.trim() || profile.fullName?.trim().split(/\s+/)[0] || "";
   const subjectNames = subjects.map(subject => subject.name).filter(Boolean).slice(0, 5);
   const context = [profile.level, profile.grade].filter(Boolean).join(" · ") || "your studies";
-  return "Hello" + (name ? " " + name : "") + ". I’m MIΛ, your personal learning companion. I’m ready to help with " + context + (subjectNames.length ? " in " + subjectNames.join(", ") : "") + ". Choose the kind of help you need below, or ask me anything related to your learning.";
+  return "Hello" + (name ? " " + name : "") + ". I’m MIA, your personal learning companion. I’m ready to help with " + context + (subjectNames.length ? " in " + subjectNames.join(", ") : "") + ". Choose the kind of help you need below, or ask me anything related to your learning.";
 };
 type HelpOption = { id: string; title: string; description: string; icon: typeof BookOpen; prompt: string; tertiaryOnly?: boolean };
 const helpOptions: HelpOption[] = [
@@ -316,8 +316,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
-      const providerNotice = typeof data.providerNotice === "string" && data.providerNotice.trim() ? [{ id: crypto.randomUUID(), role: "assistant" as const, content: data.providerNotice }] : [];
-      const cards = extractFlashcards(data.reply);
+            const cards = extractFlashcards(data.reply);
       const groundingSources = Array.isArray(data.sources)
         ? data.sources.filter((source: any) => source && typeof source.title === "string"
           && typeof source.uri === "string" && source.uri.startsWith("https://"))
@@ -331,18 +330,16 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         setFlashcardIndex(0);
         setFlashcardFlipped(false);
         if (groundingSources.length || searchSuggestionsHtml) {
-          setMessages(current => [...current, ...providerNotice, {
+          setMessages(current => [...current, {
             id: crypto.randomUUID(),
             role: "assistant",
             content: "I checked current sources for this syllabus-related request.",
             sources: groundingSources,
             searchSuggestionsHtml,
           }]);
-        } else if (providerNotice.length) {
-          setMessages(current => [...current, ...providerNotice]);
         }
       } else {
-        setMessages(current => [...current, ...providerNotice, {
+        setMessages(current => [...current, {
           id: crypto.randomUUID(),
           role: "assistant",
           content: data.reply,
@@ -372,7 +369,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (!data?.success) throw new Error(data?.error || "The timetable could not be read.");
       setConversationId(data.conversationId);
       setDraft(Array.isArray(data.timetableDraft) ? data.timetableDraft : []);
-      setMessages(current => [...current, ...(typeof data.providerNotice === "string" && data.providerNotice.trim() ? [{ id: crypto.randomUUID(), role: "assistant" as const, content: data.providerNotice }] : []), { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
+      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
       setAttachment(null);
       setText("");
     } catch (reason) {
@@ -416,14 +413,14 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
     <header className="mia-header">
       <div className="mia-brand-mark">Λ</div>
-      <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMMA 4</span></div>
+      <div className="mia-brand-copy"><strong>MIA</strong><span>YOUR LEARNING COMPANION</span></div>
       <div className="mia-header-actions">
         <button className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
         {onClose && <button className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
     </header>
     <div className="mia-context-strip"><BookOpen size={14}/><span>{profile.level} · {profile.grade} · {profile.curriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
-    {learningNoticeVisible && <div className={"mia-learning-only-notice" + (learningNoticeFading ? " is-fading" : "")} role="note"><strong>Educational use only.</strong> Use MIΛ for learning, subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information, or use MIΛ for unrelated personal advice.</div>}
+    {learningNoticeVisible && <div className={"mia-learning-only-notice" + (learningNoticeFading ? " is-fading" : "")} role="note"><div className="mia-learning-only-copy"><strong>Educational use only.</strong><span>Use MIA for subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information.</span></div><button type="button" className="mia-icon-button mia-notice-dismiss" onClick={() => { setLearningNoticeFading(true); window.setTimeout(() => setLearningNoticeVisible(false), 420); }} aria-label="Dismiss educational use notice" title="Dismiss notice"><X size={15}/></button></div>}
     {welcomeVisible && <div className={"mia-welcome-toast" + (welcomeFading ? " is-fading" : "")} role="status" aria-live="polite">
       <span className="mia-welcome-toast-mark"><Sparkles size={16}/></span>
       <span className="mia-welcome-toast-copy">{welcomeText}</span>
@@ -436,7 +433,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     </nav>}
     <div className="mia-messages" ref={scrollRef} onScroll={handleTranscriptScroll} tabIndex={0} aria-label="MIΛ conversation history">
       {messages.map(message => <article key={message.id} className={"mia-message-row " + (message.role === "user" ? "is-user" : "is-assistant")}>
-        {message.role === "assistant" && <div className="mia-message-avatar">Λ</div>}
+        {message.role === "assistant" && <div className="mia-message-avatar">M</div>}
         <div className="mia-message-bubble">
           {message.content}
           {message.role === "assistant" && !!message.sources?.length && <div className="mia-grounding-sources">
@@ -453,7 +450,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
           />}
         </div>
       </article>)}
-      {busy && <div className="mia-message-row is-assistant"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> MIΛ is thinking…</div></div>}
+      {busy && <div className="mia-message-row is-assistant"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> MIA is thinking…</div></div>}
       {draft.length > 0 && <section className="mia-timetable-review">
         <div className="mia-review-heading"><CalendarDays size={17}/><div><strong>Review extracted timetable</strong><span>{draft.length} entries detected · Nothing saved yet</span></div></div>
         <div className="mia-table-scroll"><table><thead><tr><th>Day</th><th>Subject / activity</th><th>Time</th></tr></thead><tbody>{draft.map((entry,i)=><tr key={i}>
@@ -505,6 +502,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
       <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
-    <div className="mia-footnote">Study-focused · Short answers · Gemma 4 with Qwen backup · Provider quotas apply</div>
+    <div className="mia-footnote">Study-focused · Clear explanations · Learn at your pace</div>
   </section>;
 }
