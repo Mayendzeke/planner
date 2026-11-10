@@ -1883,3 +1883,37 @@ select option, select optgroup {
 .mia-quick-actions button{flex:0 0 auto;white-space:nowrap}
 @media(max-width:520px){.mia-learning-only-notice{margin:7px 10px 0;padding:9px 10px}.mia-quick-actions{padding-inline:10px}}
 @media(prefers-reduced-motion:reduce){.mia-learning-only-notice{transition:none}}
+
+/* Accessible MIA notice, controls and text-entry contrast. */
+.mia-learning-only-notice{
+ display:flex;align-items:flex-start;gap:10px;margin:0 14px;padding:10px 10px 10px 12px;
+ color:var(--muted)!important;background:color-mix(in srgb,var(--blue) 9%,var(--panel-strong));
+ border-color:color-mix(in srgb,var(--blue) 24%,var(--border));
+}
+.mia-learning-only-copy{flex:1;min-width:0;color:var(--muted)!important;font-size:12px;line-height:1.55}
+.mia-learning-only-copy strong{display:block;margin:0 0 2px;color:var(--text)!important;font-weight:750}
+.mia-learning-only-copy span{display:block;color:var(--muted)!important}
+.mia-learning-only-notice .mia-notice-dismiss{width:32px;min-width:32px;height:32px;min-height:32px;flex:0 0 auto;margin:-3px -2px 0 0;color:var(--muted);border:1px solid var(--border);background:color-mix(in srgb,var(--panel-strong) 80%,transparent)}
+.mia-learning-only-notice .mia-notice-dismiss:hover{color:var(--text);border-color:var(--blue)}
+.mia-composer{min-height:58px;align-items:center}
+.mia-composer textarea{min-height:38px;max-height:140px;font-size:16px!important;color:var(--text)!important;-webkit-text-fill-color:var(--text);caret-color:var(--mint)}
+.mia-composer textarea::placeholder{color:var(--muted)!important;-webkit-text-fill-color:var(--muted);opacity:1}
+.mia-attach-button,.mia-send-button{width:44px;height:44px;min-width:44px;min-height:44px}
+.mia-quick-actions button{min-height:40px;white-space:nowrap}
+.mia-learning-only-notice.is-fading{opacity:0;transform:translateY(-4px);max-height:0;margin-top:0;margin-bottom:0;padding-top:0;padding-bottom:0;overflow:hidden;pointer-events:none;transition:opacity .42s ease,transform .42s ease,max-height .42s ease,margin .42s ease,padding .42s ease}
+.app-shell :is(input,textarea,select),.student-access-shell :is(input,textarea,select){
+ color:var(--text)!important;-webkit-text-fill-color:var(--text);caret-color:var(--mint);
+}
+.app-shell :is(input,textarea,select)::placeholder,.student-access-shell :is(input,textarea,select)::placeholder{
+ color:var(--muted)!important;-webkit-text-fill-color:var(--muted);opacity:1;
+}
+.app-shell[data-theme="dark"] :is(input,textarea,select),.student-access-shell :is(input,textarea,select){color-scheme:dark}
+.app-shell[data-theme="light"] :is(input,textarea,select){color-scheme:light}
+.student-access-shell .student-access-form input:not([type="radio"]):not([type="checkbox"]){min-height:44px}
+@media(max-width:560px){
+ .mia-learning-only-notice{margin-inline:10px;font-size:11px}
+ .mia-learning-only-copy{font-size:11px}
+ .mia-composer{margin-inline:10px;padding:7px 8px;gap:7px}
+ .mia-composer textarea{font-size:16px!important}
+}
+@media(prefers-reduced-motion:reduce){.mia-learning-only-notice.is-fading{transition:none}}
