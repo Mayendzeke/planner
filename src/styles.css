@@ -1883,3 +1883,23 @@ select option, select optgroup {
 .mia-quick-actions button{flex:0 0 auto;white-space:nowrap}
 @media(max-width:520px){.mia-learning-only-notice{margin:7px 10px 0;padding:9px 10px}.mia-quick-actions{padding-inline:10px}}
 @media(prefers-reduced-motion:reduce){.mia-learning-only-notice{transition:none}}
+
+
+/* Theme-aware form controls: typed content must stay readable in both themes. */
+:root[data-theme="dark"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+  color: var(--text);
+  caret-color: var(--mint);
+}
+:root[data-theme="light"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+  color: var(--text);
+  caret-color: var(--mint);
+}
+:root[data-theme="dark"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea)::placeholder,
+:root[data-theme="light"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea)::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+:root :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--blue) 82%, transparent);
+  outline-offset: 2px;
+}
