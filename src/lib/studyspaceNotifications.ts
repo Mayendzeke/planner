@@ -15,6 +15,11 @@ export type StudyspaceNotificationPreferences = Record<StudyspaceNotificationCat
   quiet_hours_enabled: boolean;
   quiet_hours_start: string;
   quiet_hours_end: string;
+  mia_daily_nudges_enabled: boolean;
+  mia_morning_time: string;
+  mia_afternoon_time: string;
+  mia_evening_time: string;
+  mia_nudge_timezone: string;
 };
 
 const defaults: StudyspaceNotificationPreferences = {
@@ -30,6 +35,11 @@ const defaults: StudyspaceNotificationPreferences = {
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "07:00",
+  mia_daily_nudges_enabled: false,
+  mia_morning_time: "07:15",
+  mia_afternoon_time: "15:30",
+  mia_evening_time: "19:15",
+  mia_nudge_timezone: "Africa/Mbabane",
 };
 
 function inQuietHours(startValue: string, endValue: string) {
