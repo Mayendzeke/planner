@@ -45,11 +45,11 @@ function extractFlashcards(reply: string): Flashcard[] {
 }
 type TimetableEntry = { day_of_week: number; subject_name: string; title: string; starts_at: string; ends_at: string; location: string; notes: string };
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const createWelcome = (profile: StudentProfile, subjects: Subject[]): ChatMessage => {
+const createWelcome = (profile: StudentProfile, subjects: Subject[]): string => {
   const name = profile.preferredName?.trim() || profile.fullName?.trim().split(/\s+/)[0] || "";
   const subjectNames = subjects.map(subject => subject.name).filter(Boolean).slice(0, 5);
   const context = [profile.level, profile.grade].filter(Boolean).join(" · ") || "your studies";
-  return { id: "mia-welcome", role: "assistant", content: "Hello" + (name ? " " + name : "") + ". I’m MIΛ, your personal learning companion. I’m ready to help with " + context + (subjectNames.length ? " in " + subjectNames.join(", ") : "") + ". Choose the kind of help you need below, or ask me anything related to your learning." };
+  return "Hello" + (name ? " " + name : "") + ". I’m MIΛ, your personal learning companion. I’m ready to help with " + context + (subjectNames.length ? " in " + subjectNames.join(", ") : "") + ". Choose the kind of help you need below, or ask me anything related to your learning.";
 };
 type HelpOption = { id: string; title: string; description: string; icon: typeof BookOpen; prompt: string; tertiaryOnly?: boolean };
 const helpOptions: HelpOption[] = [
@@ -218,7 +218,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const fileRef = useRef<HTMLInputElement>(null);
   const isFloating = variant === "floating";
   const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
-  const welcomeText = createWelcome(profile, subjects).content;
+  const welcomeText = createWelcome(profile, subjects);
   const [welcomeVisible, setWelcomeVisible] = useState(true);
   const [welcomeFading, setWelcomeFading] = useState(false);
   const welcomeFadeTimer = useRef<number | null>(null);
