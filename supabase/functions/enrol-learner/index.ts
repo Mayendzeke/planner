@@ -229,6 +229,15 @@ Deno.serve(async request => {
     if (referralError) console.warn("StudySpace referral attribution was not recorded:", referralError.message);
   }
 
+  const referralCode = String(body.referralCode ?? "").trim().toUpperCase();
+  if (/^[A-Z0-9]{10}$/.test(referralCode)) {
+    const { error: referralError } = await admin.rpc("attribute_studyspace_referral", {
+      p_referred_id: created.user.id,
+      p_referral_code: referralCode,
+    });
+    if (referralError) console.warn("StudySpace referral attribution was not recorded:", referralError.message);
+  }
+
   if (completed === "pending_guardian_verification") {
     return json(200, {
       success: true,
