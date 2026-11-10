@@ -2041,3 +2041,14 @@ select option, select optgroup {
 .access-pin-form input{flex:1;min-width:0;min-height:42px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);font-size:14px;letter-spacing:2px}
 .access-pin-form .primary-button{min-height:42px}
 @media(max-width:520px){.profile-completion-top{align-items:flex-start;flex-direction:column}.profile-completion-top .secondary-button{width:100%}.access-pin-form>div{align-items:stretch;flex-direction:column}.access-pin-form .primary-button{width:100%}}
+
+
+/* Keep the student workspace header above the independently scrolling dashboard. */
+.app-shell > .main-area > .topbar{
+  position:sticky!important;
+  top:0!important;
+  z-index:1000!important;
+  isolation:isolate;
+  background:var(--bg)!important;
+  background-color:var(--bg)!important;
+}
