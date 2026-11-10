@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, UserPlus, ShieldCheck, X, AlertCircle, Camera, Users } from "lucide-react";
+import { MessageCircle, Send, Paperclip, Search, RefreshCw, FileText, UserPlus, ShieldCheck, X, AlertCircle, Camera, Users, Pin, Archive, ArchiveRestore } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import StudyspaceGroupsPanel from "./StudyspaceGroupsPanel";
 
@@ -8,6 +8,8 @@ type Message={id:string;sender_id:string;recipient_id:string;body:string;attachm
 type SearchLearner={learner_id:string;display_name:string;grade:string;can_invite:boolean};
 type Invite={request_id:string;requester_id:string;display_name:string;grade:string;created_at:string};
 type Connection={id:string;requester_id:string;addressee_id:string;status:string};
+type ConversationFilter="all"|"unread"|"pinned"|"archived";
+const readContactIds=(key:string):string[]=>{try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value.filter((id):id is string=>typeof id==="string"):[];}catch{return [];}};
 
 const allowed=["image/jpeg","image/png","image/webp","application/pdf","text/plain"];
 const ext=(file:File)=>({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","application/pdf":"pdf","text/plain":"txt"} as Record<string,string>)[file.type]||"";
@@ -15,6 +17,10 @@ const ext=(file:File)=>({"image/jpeg":"jpg","image/png":"png","image/webp":"webp
 export default function StudentMessagesPage(){
   const [userId,setUserId]=useState("");
   const [mailbox,setMailbox]=useState<"inbox"|"sent"|"groups">("inbox");
+  const [conversationFilter,setConversationFilter]=useState<ConversationFilter>("all");
+  const [pinnedIds,setPinnedIds]=useState<string[]>([]);
+  const [archivedIds,setArchivedIds]=useState<string[]>([]);
+  const [threadSearch,setThreadSearch]=useState("");
   const [presence,setPresence]=useState<Record<string,string>>({});
   const [contacts,setContacts]=useState<Contact[]>([]);
   const [messages,setMessages]=useState<Message[]>([]);
@@ -65,6 +71,17 @@ export default function StudentMessagesPage(){
   };
   useEffect(()=>{void refresh();},[]);
   useEffect(()=>{
+    if(!userId)return;
+    setPinnedIds(readContactIds("studyspace:"+userId+":messages:pinned"));
+    setArchivedIds(readContactIds("studyspace:"+userId+":messages:archived"));
+  },[userId]);
+  const toggleContactPreference=(contactId:string,kind:"pinned"|"archived")=>{
+    const current=kind==="pinned"?pinnedIds:archivedIds;
+    const next=current.includes(contactId)?current.filter(id=>id!==contactId):[...current,contactId];
+    if(kind==="pinned")setPinnedIds(next);else setArchivedIds(next);
+    try{if(userId)localStorage.setItem("studyspace:"+userId+":messages:"+kind,JSON.stringify(next));}catch{/* Preference remains available during this session. */}
+  };
+  useEffect(()=>{
     if(!supabase||!userId)return;
     const channel=supabase.channel("student-direct-messages-"+userId)
       .on("postgres_changes",{event:"*",schema:"public",table:"direct_messages"},()=>void refreshMessages())
@@ -101,9 +118,23 @@ export default function StudentMessagesPage(){
     document.addEventListener("visibilitychange",heartbeat);
     return()=>{window.clearInterval(timer);window.removeEventListener("focus",heartbeat);document.removeEventListener("visibilitychange",heartbeat);};
   },[userId,mailbox]);
-  const visibleContacts=useMemo(()=>contacts.filter(c=>(mailbox!=="sent"||messages.some(m=>m.sender_id===userId&&m.recipient_id===c.contact_id))&&(c.display_name+" "+c.grade).toLowerCase().includes(search.toLowerCase())),[contacts,search,messages,mailbox,userId]);
+  const visibleContacts=useMemo(()=>contacts.filter(c=>{
+    const sentMatch=mailbox!=="sent"||messages.some(m=>m.sender_id===userId&&m.recipient_id===c.contact_id);
+    const textMatch=(c.display_name+" "+c.grade).toLowerCase().includes(search.toLowerCase());
+    const pinned=pinnedIds.includes(c.contact_id),archived=archivedIds.includes(c.contact_id);
+    const unread=messages.some(m=>m.sender_id===c.contact_id&&m.recipient_id===userId&&!m.read_at);
+    const filterMatch=conversationFilter==="archived"?archived:conversationFilter==="unread"?unread&&!archived:conversationFilter==="pinned"?pinned&&!archived:!archived;
+    return sentMatch&&textMatch&&filterMatch;
+  }).sort((a,b)=>{
+    const pinOrder=Number(pinnedIds.includes(b.contact_id))-Number(pinnedIds.includes(a.contact_id));
+    if(pinOrder)return pinOrder;
+    const last=(id:string)=>messages.reduce((latest,m)=>m.sender_id===id||m.recipient_id===id?Math.max(latest,new Date(m.created_at).getTime()):latest,0);
+    return last(b.contact_id)-last(a.contact_id);
+  }),[contacts,search,messages,mailbox,userId,conversationFilter,pinnedIds,archivedIds]);
   const presenceLabel=(id:string)=>presence[id]==="online"?"Online":presence[id]?"Last seen "+new Date(presence[id]).toLocaleString():"Offline";
   const unread=new Map<string,number>();messages.filter(m=>m.recipient_id===userId&&!m.read_at).forEach(m=>unread.set(m.sender_id,(unread.get(m.sender_id)||0)+1));
+  const filteredThread=threadSearch.trim()?thread.filter(m=>(m.body+" "+m.attachment_name).toLowerCase().includes(threadSearch.trim().toLowerCase())):thread;
+  const unreadConversationCount=contacts.filter(c=>(unread.get(c.contact_id)||0)>0).length;
   useEffect(()=>{
     if(!selected||!userId||!supabase)return;
     if(messages.some(m=>m.sender_id===selected&&m.recipient_id===userId&&!m.read_at)){
@@ -253,17 +284,24 @@ export default function StudentMessagesPage(){
       <aside className="student-message-contacts">
         <div className="student-message-contact-head"><strong>Conversations</strong><span>{contacts.length}</span></div>
         <label className="monitor-contact-search"><Search size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Find or add a student"/></label>
+        <nav className="ss-conversation-filters" aria-label="Conversation filters">
+          <button type="button" className={conversationFilter==="all"?"is-active":""} onClick={()=>setConversationFilter("all")}>All <span>{contacts.length-archivedIds.filter(id=>contacts.some(c=>c.contact_id===id)).length}</span></button>
+          <button type="button" className={conversationFilter==="unread"?"is-active":""} onClick={()=>setConversationFilter("unread")}>Unread <span>{unreadConversationCount}</span></button>
+          <button type="button" className={conversationFilter==="pinned"?"is-active":""} onClick={()=>setConversationFilter("pinned")}>Pinned <span>{pinnedIds.filter(id=>contacts.some(c=>c.contact_id===id)&&!archivedIds.includes(id)).length}</span></button>
+          <button type="button" className={conversationFilter==="archived"?"is-active":""} onClick={()=>setConversationFilter("archived")}>Archived <span>{archivedIds.filter(id=>contacts.some(c=>c.contact_id===id)).length}</span></button>
+        </nav>
         {search.trim().length>=2&&<div className="student-peer-search"><strong>Student directory</strong>{searching?<p>Searching…</p>:results.length?results.map(r=>{
           const connection=existingConnection(r.learner_id);
           const status=connection?.status;
           return <article key={r.learner_id}><div><strong>{r.display_name}</strong><small>{r.grade||"Student"}{!r.can_invite?" · Guardian approval needed":""}</small></div>{status==="accepted"?<span className="student-peer-status">Connected</span>:status==="pending"?<span className="student-peer-status">Invite pending</span>:status==="rejected"?<span className="student-peer-status">Closed</span>:<button type="button" className="secondary-button" disabled={!r.can_invite||requestBusy===r.learner_id} onClick={()=>void sendInvite(r)}><UserPlus size={13}/>{requestBusy===r.learner_id?"Sending…":"Invite"}</button>}</article>;
         }):<p>No active learners match that search.</p>}</div>}
         {pending.length>0&&<div className="student-peer-invites"><strong>Friend requests <span>{pending.length}</span></strong>{pending.map(r=><article key={r.request_id}><div><strong>{r.display_name}</strong><small>{r.grade||"Student"} · wants to connect</small></div><div><button type="button" className="secondary-button" disabled={requestBusy===r.request_id} onClick={()=>void respond(r,true)}>Accept</button><button type="button" className="text-button" disabled={requestBusy===r.request_id} onClick={()=>void respond(r,false)}>Decline</button></div></article>)}</div>}
-        <div className="student-message-contact-list">{visibleContacts.map(c=>{const last=messages.filter(m=>m.sender_id===c.contact_id||m.recipient_id===c.contact_id);const lastMessage=last[last.length-1];const count=unread.get(c.contact_id)||0;return <button type="button" key={c.contact_id} className={"monitor-contact-item"+(selected===c.contact_id?" is-active":"")} onClick={()=>setSelected(c.contact_id)}><span className="monitor-contact-avatar">{c.display_name.slice(0,1).toUpperCase()}</span><span className="monitor-contact-copy"><strong>{c.display_name} <i className={presence[c.contact_id]==="online"?"ss-presence-dot is-online":"ss-presence-dot"} title={presenceLabel(c.contact_id)}/></strong><small>{lastMessage?.body||lastMessage?.attachment_name||(c.contact_type==="teacher"?"Teacher · Studyspace Monitor":"Student connection")}</small><small className="monitor-presence-meta">{presenceLabel(c.contact_id)}</small></span>{count>0&&<i className="monitor-contact-unread">{count}</i>}</button>;})}{!loading&&!visibleContacts.length&&<p className="monitor-message-empty">Your teacher and accepted student connections will appear here.</p>}</div>
+        <div className="student-message-contact-list">{visibleContacts.map(c=>{const last=messages.filter(m=>m.sender_id===c.contact_id||m.recipient_id===c.contact_id);const lastMessage=last[last.length-1];const count=unread.get(c.contact_id)||0;const pinned=pinnedIds.includes(c.contact_id),archived=archivedIds.includes(c.contact_id);return <div className="ss-contact-row" key={c.contact_id}><button type="button" className={"monitor-contact-item"+(selected===c.contact_id?" is-active":"")} onClick={()=>{setSelected(c.contact_id);setThreadSearch("");}}><span className="monitor-contact-avatar">{c.display_name.slice(0,1).toUpperCase()}</span><span className="monitor-contact-copy"><strong>{c.display_name} <i className={presence[c.contact_id]==="online"?"ss-presence-dot is-online":"ss-presence-dot"} title={presenceLabel(c.contact_id)}/></strong><small>{lastMessage?.body||lastMessage?.attachment_name||(c.contact_type==="teacher"?"Teacher · Studyspace Monitor":"Student connection")}</small><small className="monitor-presence-meta">{lastMessage?new Date(lastMessage.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):presenceLabel(c.contact_id)}</small></span>{count>0&&<i className="monitor-contact-unread">{count}</i>}</button><div className="ss-contact-row-actions"><button type="button" title={pinned?"Unpin conversation":"Pin conversation"} aria-label={pinned?"Unpin conversation":"Pin conversation"} onClick={()=>toggleContactPreference(c.contact_id,"pinned")}><Pin size={13}/></button><button type="button" title={archived?"Restore conversation":"Archive conversation"} aria-label={archived?"Restore conversation":"Archive conversation"} onClick={()=>toggleContactPreference(c.contact_id,"archived")}>{archived?<ArchiveRestore size={13}/>:<Archive size={13}/>}</button></div></div>;})}{!loading&&!visibleContacts.length&&<p className="monitor-message-empty">{conversationFilter==="unread"?"No unread conversations.":conversationFilter==="pinned"?"No pinned conversations yet.":conversationFilter==="archived"?"No archived conversations.":"Your teacher and accepted student connections will appear here."}</p>}</div>
       </aside>
       <section className="monitor-conversation">
         {selectedContact?<><header className="monitor-conversation-head"><div><span className="monitor-contact-avatar">{selectedContact.display_name.slice(0,1).toUpperCase()}</span><div><strong>{selectedContact.display_name}</strong><small>{selectedContact.contact_type==="teacher"?"Teacher · Studyspace Monitor":selectedContact.grade||"Student connection"} · {presenceLabel(selectedContact.contact_id)}</small></div></div><span className="monitor-secure-label"><ShieldCheck size={13}/> Private</span></header>
-          <div className="monitor-message-list">{thread.length?thread.map(m=><article key={m.id} className={"monitor-message-bubble"+(m.sender_id===userId?" is-outgoing":"")}><div>{editingMessageId===m.id?<div className="ss-message-edit"><textarea value={editingMessageDraft} maxLength={2000} onChange={e=>setEditingMessageDraft(e.target.value)}/><div><button type="button" onClick={()=>void saveEditedMessage(m)}>Save edit</button><button type="button" onClick={()=>setEditingMessageId(null)}>Cancel</button></div></div>:m.unsent_at?<p className="ss-message-unsent">This message was unsent.</p>:m.deleted_for_everyone_at?<p className="ss-message-unsent">This message was deleted.</p>:m.body&&<p>{m.body}</p>}{!m.unsent_at&&!m.deleted_for_everyone_at&&m.attachment_path&&<a className="monitor-message-attachment" href={signedUrls[m.id]||"#"} target="_blank" rel="noreferrer" onClick={e=>{if(!signedUrls[m.id])e.preventDefault();}}><FileText size={16}/><span>{m.attachment_name||"Attachment"}<small>{byteLabel(m.attachment_size)}</small></span></a>}</div><time>{new Date(m.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}{m.edited_at&&!m.unsent_at&&!m.deleted_for_everyone_at&&<small className="ss-message-edited">Edited</small>}{m.sender_id===userId&&<small className="monitor-message-status">{m.read_at?"Seen":m.delivered_at?"Delivered":"Sent"}</small>}</time><details className="ss-message-actions"><summary aria-label="Message actions">⋯</summary><div>{m.sender_id===userId&&!m.unsent_at&&canEditMessage(m)&&<button type="button" onClick={()=>beginEditMessage(m)}>Edit</button>}{m.sender_id===userId&&!m.unsent_at&&!m.deleted_for_everyone_at&&<button type="button" onClick={()=>void unsendMessage(m)}>Unsend</button>}{m.sender_id===userId&&!m.unsent_at&&!m.deleted_for_everyone_at&&<button type="button" onClick={()=>void deleteMessageForEveryone(m)}>Delete for everyone</button>}<button type="button" onClick={()=>void deleteMessageForMe(m)}>Delete for me</button></div></details></article>):<div className="monitor-message-empty"><MessageCircle size={24}/><strong>No messages yet</strong><span>Send your first message to {selectedContact.display_name}.</span></div>}<div ref={bottomRef}/></div>
+          <div className="ss-thread-search"><label><Search size={14}/><input value={threadSearch} onChange={e=>setThreadSearch(e.target.value)} placeholder="Search this conversation"/></label><span>{filteredThread.length} messages</span></div>
+          <div className="monitor-message-list">{filteredThread.length?filteredThread.map(m=><article key={m.id} className={"monitor-message-bubble"+(m.sender_id===userId?" is-outgoing":"")}><div>{editingMessageId===m.id?<div className="ss-message-edit"><textarea value={editingMessageDraft} maxLength={2000} onChange={e=>setEditingMessageDraft(e.target.value)}/><div><button type="button" onClick={()=>void saveEditedMessage(m)}>Save edit</button><button type="button" onClick={()=>setEditingMessageId(null)}>Cancel</button></div></div>:m.unsent_at?<p className="ss-message-unsent">This message was unsent.</p>:m.deleted_for_everyone_at?<p className="ss-message-unsent">This message was deleted.</p>:m.body&&<p>{m.body}</p>}{!m.unsent_at&&!m.deleted_for_everyone_at&&m.attachment_path&&<a className="monitor-message-attachment" href={signedUrls[m.id]||"#"} target="_blank" rel="noreferrer" onClick={e=>{if(!signedUrls[m.id])e.preventDefault();}}><FileText size={16}/><span>{m.attachment_name||"Attachment"}<small>{byteLabel(m.attachment_size)}</small></span></a>}</div><time>{new Date(m.created_at).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}{m.edited_at&&!m.unsent_at&&!m.deleted_for_everyone_at&&<small className="ss-message-edited">Edited</small>}{m.sender_id===userId&&<small className="monitor-message-status">{m.read_at?"Seen":m.delivered_at?"Delivered":"Sent"}</small>}</time><details className="ss-message-actions"><summary aria-label="Message actions">⋯</summary><div>{m.sender_id===userId&&!m.unsent_at&&canEditMessage(m)&&<button type="button" onClick={()=>beginEditMessage(m)}>Edit</button>}{m.sender_id===userId&&!m.unsent_at&&!m.deleted_for_everyone_at&&<button type="button" onClick={()=>void unsendMessage(m)}>Unsend</button>}{m.sender_id===userId&&!m.unsent_at&&!m.deleted_for_everyone_at&&<button type="button" onClick={()=>void deleteMessageForEveryone(m)}>Delete for everyone</button>}<button type="button" onClick={()=>void deleteMessageForMe(m)}>Delete for me</button></div></details></article>):thread.length>0?<div className="monitor-message-empty">No messages match your search.</div>:<div className="monitor-message-empty"><MessageCircle size={24}/><strong>No messages yet</strong><span>Send your first message to {selectedContact.display_name}.</span></div>}<div ref={bottomRef}/></div>
           <form className="monitor-message-composer" onSubmit={send}>{file&&<div className="monitor-message-file"><FileText size={14}/><span>{file.name} · {byteLabel(file.size)}</span><button type="button" onClick={()=>{setFile(null);if(fileRef.current)fileRef.current.value="";}} aria-label="Remove attachment"><X size={13}/></button></div>}<div className="monitor-message-compose-row"><button className="icon-button" type="button" aria-label="Attach file" onClick={()=>fileRef.current?.click()}><Paperclip size={17}/></button><input ref={fileRef} hidden type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" onChange={e=>setFile(e.target.files?.[0]||null)}/><textarea value={draft} maxLength={2000} rows={2} onChange={e=>setDraft(e.target.value)} placeholder="Write a message…" aria-label="Message text"/><button className="primary-button" type="submit" disabled={sending||(!draft.trim()&&!file)||draftWords>350||draft.length>2000}><Send size={15}/>{sending?"Sending…":"Send"}</button></div><div className="monitor-message-limits"><span>350 words / 2,000 characters max · Attachments up to 5 MB</span><span>{draftWords}/350 words · {draft.length}/2,000</span></div></form>
         </>:<div className="monitor-message-empty"><MessageCircle size={28}/><strong>{loading?"Opening your messages…":"Choose a conversation"}</strong><span>Start with your teacher or connect with another learner after an accepted invitation.</span></div>}
       </section>
