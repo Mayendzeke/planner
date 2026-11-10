@@ -78,6 +78,20 @@ jobs:
             }
             console.log("Edge Function " + name + " is deployed and enforcing its expected access response.");
           }
+          const miaResponse = await fetch(url + "/functions/v1/mia-assistant", {
+            method: "POST",
+            headers: {
+              apikey: key,
+              "Content-Type": "application/json",
+              Origin: "https://mayendzeke.github.io",
+            },
+            body: JSON.stringify({ action: "usage_status" }),
+          });
+          if (![401, 403].includes(miaResponse.status)) {
+            const detail = (await miaResponse.text()).slice(0, 200);
+            throw new Error("Student MIΛ must be deployed and reject requests without a learner JWT (HTTP " + miaResponse.status + "): " + detail);
+          }
+          console.log("Student MIΛ Edge Function is deployed and rejects unauthenticated requests.");
           const { readFileSync } = await import('node:fs')
           const terms = readFileSync('src/components/TermsAndConditions.tsx', 'utf8')
           const studentApp = readFileSync('src/App.tsx', 'utf8')
