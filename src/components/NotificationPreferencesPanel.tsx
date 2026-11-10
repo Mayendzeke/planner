@@ -8,6 +8,7 @@ const defaults: StudyspaceNotificationPreferences = {
   homework_assignments: true, assessment_updates: true, timetable_updates: true,
   study_reminders: true, system_announcements: true, quiet_hours_enabled: false,
   quiet_hours_start: "22:00", quiet_hours_end: "07:00",
+  mia_daily_nudges_enabled: false, mia_morning_time: "07:15", mia_afternoon_time: "15:30", mia_evening_time: "19:15", mia_nudge_timezone: "Africa/Mbabane",
 };
 
 const categories = [
@@ -66,11 +67,11 @@ export default function NotificationPreferencesPanel() {
     setSaving(false);
   };
 
-  const toggle = (key: "master_enabled" | "quiet_hours_enabled" | CategoryKey, value: boolean) => {
+  const toggle = (key: "master_enabled" | "quiet_hours_enabled" | "mia_daily_nudges_enabled" | CategoryKey, value: boolean) => {
     void save({ ...prefs, [key]: value });
   };
 
-  const changeTime = (key: "quiet_hours_start" | "quiet_hours_end", value: string) => {
+  const changeTime = (key: "quiet_hours_start" | "quiet_hours_end" | "mia_morning_time" | "mia_afternoon_time" | "mia_evening_time", value: string) => {
     void save({ ...prefs, [key]: value });
   };
 
@@ -106,6 +107,19 @@ export default function NotificationPreferencesPanel() {
       </div>
       <div className="ss-notification-times"><label>From<input type="time" value={prefs.quiet_hours_start} onChange={e=>changeTime("quiet_hours_start",e.target.value)} disabled={loading||saving||!prefs.quiet_hours_enabled}/></label><label>Until<input type="time" value={prefs.quiet_hours_end} onChange={e=>changeTime("quiet_hours_end",e.target.value)} disabled={loading||saving||!prefs.quiet_hours_enabled}/></label></div>
     </div>
+    <section className="ss-notification-mia">
+      <div className="ss-notification-mia-heading">
+        <span className="ss-notification-pref-icon"><Sparkles size={17}/></span>
+        <div><strong>Daily encouragement from MIΛ</strong><small>Three gentle reminders to plan, practise and reflect. No streak-loss warnings or pressure to stay online.</small></div>
+        <label className="ss-toggle"><input type="checkbox" checked={prefs.mia_daily_nudges_enabled} onChange={e=>toggle("mia_daily_nudges_enabled",e.target.checked)} disabled={loading||saving||!prefs.master_enabled}/><span/></label>
+      </div>
+      <div className="ss-notification-mia-times">
+        <label>Morning<input type="time" value={prefs.mia_morning_time.slice(0,5)} onChange={e=>changeTime("mia_morning_time",e.target.value)} disabled={loading||saving||!prefs.mia_daily_nudges_enabled}/></label>
+        <label>Afternoon<input type="time" value={prefs.mia_afternoon_time.slice(0,5)} onChange={e=>changeTime("mia_afternoon_time",e.target.value)} disabled={loading||saving||!prefs.mia_daily_nudges_enabled}/></label>
+        <label>Evening<input type="time" value={prefs.mia_evening_time.slice(0,5)} onChange={e=>changeTime("mia_evening_time",e.target.value)} disabled={loading||saving||!prefs.mia_daily_nudges_enabled}/></label>
+      </div>
+      <p>Times use Eswatini local time. Reminders respect your quiet hours and are sent once per time slot when StudySpace is open and device notifications are allowed.</p>
+    </section>
     <div className="ss-notification-device">
       <div><strong>Device notifications</strong><small>{!supported?"This browser does not support notifications.":permission==="granted"?"Browser permission is enabled; alerts are still controlled by the options above.":permission==="denied"?"Browser permission is blocked. Change it in your browser or phone settings.":"Allow StudySpace to show notifications on this device."}</small></div>
       {permission==="granted"?<span className="ss-notification-pref-status"><ShieldCheck size={13}/> Allowed</span>:permission==="default"?<button type="button" onClick={()=>void enableBrowser()} disabled={loading}>Enable on this device</button>:<span className="ss-notification-pref-status">Blocked</span>}
