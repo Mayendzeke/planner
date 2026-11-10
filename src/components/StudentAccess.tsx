@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users, Download } from "lucide-react";
+import { BookOpen, Clock3, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users, Download } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./TermsAndConditions";
 
@@ -47,7 +47,7 @@ function isAdultOnDate(value: string): boolean { return ageOnDate(value) >= 18; 
 const todayDate = eswatiniToday;
 
 export default function StudentAccess({ installAvailable = false, onInstall }: { installAvailable?: boolean; onInstall?: () => void }) {
-  const [mode, setMode] = useState<"signin" | "enrol">("signin");
+  const [mode, setMode] = useState<"signin" | "enrol">(() => new URLSearchParams(window.location.search).get("join") === "true" ? "enrol" : "signin");
   const [studentId, setStudentId] = useState("");
   const [pin, setPin] = useState("");
   const [fullName, setFullName] = useState("");
@@ -151,7 +151,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           setPassword("");
           return;
         }
-        setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID; you will need it with your password whenever you sign in.");
+        setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID for future sign-ins. Your free 48-hour full-access trial has started.");
         setMode("signin"); setPin(""); setConfirmPassword(""); setPassword("");
         setTermsAccepted(false); setTermsAcceptedByName("");
       } else {
@@ -255,7 +255,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
       <div className="student-access-icon"><BookOpen size={25}/></div>
       <div className="student-access-heading"><div className="eyebrow"><Sparkles size={14}/> YOUR STUDY SPACE</div><h1>{mode === "signin" ? "Welcome back." : "Join your class."}</h1><p>{mode === "signin" ? "Sign in with your Studyspace Student ID and password." : publicEnrolmentEnabled ? "Create your learner account directly. StudySpace will generate your Student ID after registration." : "Use the Student ID and one-time PIN issued by your administrator, then create your password."}</p></div>
       <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} disabled={!enrolmentEnabled} onClick={() => {setMode("enrol");setError("");setNotice("");}}>{!publicEnrolmentEnabled && inviteEnrolmentEnabled ? "Redeem invitation" : "First-time enrolment"}</button></div>
-      {mode === "enrol" && publicEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>No invitation or Student ID is needed.</strong><br/>StudySpace will generate a unique Student ID for you after registration. Save it carefully; you will use it with your password whenever you sign in.</p></div>}
+      {mode === "enrol" && publicEnrolmentEnabled && <><div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>No invitation or Student ID is needed.</strong><br/>Complete the short registration and StudySpace will generate your unique Student ID automatically. Use it with your password whenever you sign in.</p></div><div className="student-access-notice" role="note"><Clock3 size={17}/><p><strong>Two days of full access, free.</strong><br/>Your 48-hour trial begins as soon as your account is eligible and, where required, guardian consent is verified. You can use the full learner workspace during the trial. After it ends, your workspace pauses until you enter a one-time access key from StudySpace or request a paid plan.</p></div></>}
       {!enrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>New learner enrolment is temporarily unavailable. Existing learners can continue to sign in.</p></div>}{!publicEnrolmentEnabled && inviteEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>Private invitation only.</strong><br/>Public self-registration is off. Only learners with a valid, single-use Student ID and PIN issued by the StudySpace administrator can create an account.</p></div>}
       <form className="student-access-form" onSubmit={submit}>
         {(mode === "signin" || (mode === "enrol" && !publicEnrolmentEnabled)) && <label>Student ID<span className="student-access-input"><UserRound size={16}/><input value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} type="text" placeholder="e.g. STU-AB12CD34" autoComplete="username" required minLength={12} maxLength={12} pattern="STU-[A-Z0-9]{8}" title="Use the 12-character Student ID issued by StudySpace."/></span></label>}
@@ -263,7 +263,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           {!publicEnrolmentEnabled && <label>One-time enrolment PIN<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,8))} type="text" inputMode="numeric" autoComplete="one-time-code" minLength={8} maxLength={8} pattern="[0-9]{8}" placeholder="Enter your 8-digit PIN" required/><small>This invitation is assigned to your Student ID and can only be used once.</small></label>}
           <label>Full legal name<input value={fullName} onChange={e=>{setFullName(e.target.value);setTermsAcceptedByName(e.target.value);}} type="text" autoComplete="name" placeholder="Enter your full name as it appears on school records" minLength={2} maxLength={120} required/></label>
           <label>Preferred name <small>Optional</small><input value={preferredName} onChange={e=>setPreferredName(e.target.value)} type="text" placeholder="What should we call you?" maxLength={80}/></label>
-          <label>Date of birth<input value={dateOfBirth} onChange={e=>{setDateOfBirth(e.target.value);setTermsAccepted(false);}} type="date" max={todayDate()} required/><small>We calculate your age using Eswatini local time. Date of birth is locked after registration; contact an authorised StudySpace administrator if it was entered incorrectly.</small></label>
+          <label>Date of birth (age verification)<input value={dateOfBirth} onChange={e=>{setDateOfBirth(e.target.value);setTermsAccepted(false);}} type="date" max={todayDate()} required/><small>We calculate your age using Eswatini local time. Date of birth is locked after registration; contact an authorised StudySpace administrator if it was entered incorrectly.</small></label>
           <fieldset className="student-access-sex-field">
             <legend>Sex <span aria-hidden="true">*</span></legend>
             <div>
