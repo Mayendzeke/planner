@@ -155,10 +155,30 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           setPassword("");
           return;
         }
-        setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID; you will need it with your password whenever you sign in.");
         try{if(/^[A-Z0-9]{10}$/.test(referralCode.trim().toUpperCase()))sessionStorage.setItem("studyspace-pending-referral-code",referralCode.trim().toUpperCase());}catch{/* Referral can still be entered from Progress after sign-in. */}
-        setMode("signin"); setPin(""); setConfirmPassword(""); setPassword(""); setReferralCode("");
-        setTermsAccepted(false); setTermsAcceptedByName("");
+        setStudentId(registeredStudentId);
+        setPin("");
+        setReferralCode("");
+        setConfirmPassword("");
+        setTermsAccepted(false);
+        setTermsAcceptedByName("");
+        try {
+          const { data: signInData, error: signInError } = await supabase.functions.invoke("student-sign-in", {
+            body: { studentId: registeredStudentId, password }
+          });
+          if (!signInError && signInData?.success && signInData?.access_token && signInData?.refresh_token) {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: signInData.access_token,
+              refresh_token: signInData.refresh_token
+            });
+            if (!sessionError) return;
+          }
+        } catch {
+          // Account creation succeeded; fall back to the ordinary sign-in screen.
+        }
+        setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID; you can sign in now or later with your password.");
+        setPassword("");
+        setMode("signin");
       } else {
         const { data, error: invokeError } = await supabase.functions.invoke("student-sign-in", {
           body: { studentId: studentId.trim().toUpperCase(), password }
