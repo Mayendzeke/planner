@@ -312,8 +312,7 @@ export default function App() {
         const cloudSubjects = (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean);
         const requiredCourseMissing = ["College", "University"].includes(String(cloud.education_level || "")) && !String(cloud.course || "").trim();
         const academicSetupComplete = Boolean(
-          String(cloud.institution || "").trim()
-          && String(cloud.education_level || "").trim()
+          String(cloud.education_level || "").trim()
           && String(cloud.grade || "").trim()
           && String(cloud.curriculum || "").trim()
           && String(cloud.academic_year || "").trim()
@@ -576,6 +575,17 @@ export default function App() {
             if (subjectsError) throw new Error("Your cloud profile was saved, but subjects could not be synced: " + subjectsError.message);
           }
       }
+      const targetMark = Number(profileToSave.targetMark);
+      const weeklyHours = Number(profileToSave.weeklyHours);
+      const { error: goalError } = await supabase.from("student_goals").upsert({
+        learner_id: authState.session.user.id,
+        goal_text: profileToSave.goals.trim() || "Improve my marks",
+        target_mark: Number.isFinite(targetMark) ? Math.max(0, Math.min(100, targetMark)) : 75,
+        weekly_hours: Number.isFinite(weeklyHours) ? Math.max(1, Math.min(80, weeklyHours)) : 6,
+        preferred_days: profileToSave.preferredDays.length ? profileToSave.preferredDays : ["Saturday", "Sunday"],
+        updated_at: new Date().toISOString()
+      }, { onConflict: "learner_id" });
+      if (goalError) throw new Error("Your profile was saved, but your study goals could not be synced: " + goalError.message);
       if (profileToSave.timetableEntries?.length) {
         const timetableRows = profileToSave.timetableEntries.map(entry => ({
           learner_id: authState.session!.user.id,
@@ -642,7 +652,6 @@ export default function App() {
   const weeklyHours = weekMinutes / 60;
   const profileRequirements = [
     Boolean(profile?.fullName?.trim()),
-    Boolean(profile?.institution?.trim()),
     Boolean(profile?.level?.trim()),
     Boolean(profile?.grade?.trim()),
     Boolean(profile?.curriculum?.trim()),
