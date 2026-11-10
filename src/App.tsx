@@ -618,7 +618,6 @@ export default function App() {
   const weeklyHours = weekMinutes / 60;
   const profileRequirements = [
     Boolean(profile?.fullName?.trim()),
-    Boolean(profile?.country?.trim()),
     Boolean(profile?.institution?.trim()),
     Boolean(profile?.level?.trim()),
     Boolean(profile?.grade?.trim()),
