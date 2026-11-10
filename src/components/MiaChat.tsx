@@ -371,7 +371,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success) throw new Error(data?.error || "The timetable could not be read.");
       setConversationId(data.conversationId);
-      setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
       setDraft(Array.isArray(data.timetableDraft) ? data.timetableDraft : []);
       setMessages(current => [...current, ...(typeof data.providerNotice === "string" && data.providerNotice.trim() ? [{ id: crypto.randomUUID(), role: "assistant" as const, content: data.providerNotice }] : []), { id: crypto.randomUUID(), role: "assistant", content: data.reply }]);
       setAttachment(null);
