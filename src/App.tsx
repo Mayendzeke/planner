@@ -14,6 +14,7 @@ import StudentAccountSecurity from "./components/StudentAccountSecurity";
 import StudentAssignmentNotifications from "./components/StudentAssignmentNotifications";
 import NotificationPreferencesPanel from "./components/NotificationPreferencesPanel";
 import StudyspaceNotificationListener from "./components/StudyspaceNotificationListener";
+import StudyspaceDailyNudges from "./components/StudyspaceDailyNudges";
 import StudentAccess from "./components/StudentAccess";
 import GuardianConsentPage from "./components/GuardianConsentPage";
 import TermsReviewPage from "./components/TermsReviewPage";
@@ -827,6 +828,7 @@ export default function App() {
   return <div className="app-shell" data-theme={theme}>
     <StudentAssignmentNotifications userId={cloudUserId} />
     <StudyspaceNotificationListener />
+    <StudyspaceDailyNudges />
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
     <aside className={"sidebar glass-panel " + (mobileMenu ? "sidebar-open" : "")}>
       <div className="brand"><div className="brand-mark"><GraduationCap size={23}/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
