@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Clock3, CreditCard, ShieldCheck, MessageCircle, LockKeyhole } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Clock3, CreditCard, ShieldCheck, MessageCircle, LockKeyhole, KeyRound } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Plan = { id: string; name: string; duration: string; price: number; days: number; description: string };
@@ -19,6 +19,9 @@ export default function StudentSubscription() {
   const [studentId, setStudentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [accessKey, setAccessKey] = useState("");
+  const [redeemingKey, setRedeemingKey] = useState(false);
+  const [keyNotice, setKeyNotice] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -49,6 +52,28 @@ export default function StudentSubscription() {
   const currentExpired = currentExpiry ? currentExpiry.getTime() <= Date.now() : true;
   const formatDate = (date: Date) => date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
+  async function redeemAccessKey(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setKeyNotice("");
+    const key = accessKey.replace(/\\s+/g, "");
+    if (!/^\\d{8}$/.test(key)) { setError("Enter the complete 8-digit access key supplied by StudySpace."); return; }
+    if (!supabase || redeemingKey) return;
+    setRedeemingKey(true);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("redeem-studyspace-access-key", { body: { key } });
+      if (invokeError) throw invokeError;
+      if (!data?.success) throw new Error(data?.error || "This access key could not be redeemed.");
+      setAccessKey("");
+      setKeyNotice("Access key accepted and linked to your StudySpace account. Your workspace is reopening.");
+      window.location.reload();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The access key could not be redeemed. Check it and try again.");
+    } finally {
+      setRedeemingKey(false);
+    }
+  }
+
   function requestPlan(plan: Plan) {
     if (!studentId) { setError("Your Student ID could not be loaded. Please sign out and sign in again, or contact StudySpace support."); return; }
     const message = [
@@ -59,7 +84,7 @@ export default function StudentSubscription() {
       "",
       "I will pay by MTN MoMo to " + MOMO_PAYMENT_NUMBER + ", using my Student ID as the payment reference, then send the payment confirmation to StudySpace on WhatsApp.",
       "I understand that my learning access will be restored only after payment is verified and the plan is activated. Thank you."
-    ].join("\n");
+    ].join("\\n");
     window.location.href = "https://wa.me/" + STUDYSPACE_SUPPORT_NUMBER + "?text=" + encodeURIComponent(message);
   }
 
@@ -73,12 +98,24 @@ export default function StudentSubscription() {
           <div><span className="subscription-label">ACCESS STATUS</span><strong className={currentExpired ? "subscription-expired" : "subscription-active"}>{currentExpired ? "Paused / expired" : "Active"}</strong></div>
           <div><span className="subscription-label">ACCESS ENDS</span><strong>{currentExpiry ? formatDate(currentExpiry) : "Not available"}</strong></div>
         </div>
-        <p className="subscription-note"><ShieldCheck size={16}/> Selecting a plan opens WhatsApp with your Student ID and plan details. It does not charge you or activate access automatically.</p>
+        <p className="subscription-note"><ShieldCheck size={16}/> During your 48-hour trial, the full learner workspace is available at no cost. When the trial ends, access pauses but your account, Student ID and saved schoolwork remain linked to you.</p>
       </>}
     </section>
 
+    {!loading && currentExpired && <section className="glass-panel settings-card access-key-card">
+      <div className="section-heading"><div><h2>Have an access key?</h2><p>Enter the one-time 8-digit key given to you by the StudySpace administrator.</p></div><KeyRound size={20}/></div>
+      <form className="access-key-form" onSubmit={redeemAccessKey}>
+        <label className="field-label" htmlFor="studyspace-access-key">8-digit access key
+          <input id="studyspace-access-key" value={accessKey} onChange={event => setAccessKey(event.target.value.replace(/\\D/g, "").slice(0, 8))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{8}" minLength={8} maxLength={8} placeholder="Enter your access key" required disabled={redeemingKey}/>
+        </label>
+        <button className="primary-button" type="submit" disabled={redeemingKey || accessKey.length !== 8 || loading}><KeyRound size={16}/>{redeemingKey ? "Checking key…" : "Unlock my study space"}</button>
+      </form>
+      <p className="subtle-note">A key can only be used once. When you redeem it, it becomes linked to your signed-in student account and cannot be used by anyone else.</p>
+      {keyNotice && <p className="inline-message" role="status">{keyNotice}</p>}
+    </section>}
+
     <section className="glass-panel settings-card">
-      <div className="section-heading"><div><h2>Choose your plan</h2><p>Choose one option below to send your request to StudySpace on WhatsApp.</p></div><Clock3 size={20}/></div>
+      <div className="section-heading"><div><h2>Choose a paid plan</h2><p>Choose one option below to send your request to StudySpace on WhatsApp.</p></div><Clock3 size={20}/></div>
       <div className="subscription-plans">
         {plans.map(plan => <button type="button" key={plan.id} className={"subscription-plan " + (plan.id === "monthly" ? "subscription-plan-premium" : "")} onClick={() => requestPlan(plan)} disabled={loading || !studentId}>
           <span className="subscription-plan-top"><strong>{plan.name}{plan.id === "monthly" ? <small className="subscription-premium-tag">28 DAYS</small> : null}</strong><span><MessageCircle size={17}/></span></span>
