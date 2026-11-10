@@ -1861,3 +1861,25 @@ select option, select optgroup {
 @media(prefers-reduced-motion:reduce){
   .mia-welcome-toast{transition:none}
 }
+
+
+/* Student MIΛ onboarding note: transient, inline and never layered over chat history. */
+.mia-learning-only-notice{
+  flex:none;margin:8px 16px 0;padding:10px 12px;max-height:110px;overflow:hidden;
+  border:1px solid var(--border);border-radius:13px;background:var(--panel-strong);
+  color:var(--muted);font-size:10px;line-height:1.5;opacity:1;transform:translateY(0);
+  transition:opacity .42s ease,transform .42s ease,max-height .42s ease,margin .42s ease,padding .42s ease,border-color .42s ease;
+}
+.mia-learning-only-notice strong{color:var(--text)}
+.mia-learning-only-notice.is-fading{
+  opacity:0;transform:translateY(-6px);pointer-events:none;max-height:0;margin-top:0;margin-bottom:0;
+  padding-top:0;padding-bottom:0;border-color:transparent;
+}
+.mia-quick-actions{
+  display:flex;flex-wrap:nowrap;align-items:center;gap:7px;padding:5px 16px 9px;
+  overflow-x:auto;overflow-y:hidden;white-space:nowrap;overscroll-behavior-x:contain;
+  scrollbar-width:thin;flex:none;
+}
+.mia-quick-actions button{flex:0 0 auto;white-space:nowrap}
+@media(max-width:520px){.mia-learning-only-notice{margin:7px 10px 0;padding:9px 10px}.mia-quick-actions{padding-inline:10px}}
+@media(prefers-reduced-motion:reduce){.mia-learning-only-notice{transition:none}}
