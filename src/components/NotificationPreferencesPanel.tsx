@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Clock3, MessageCircle, Users, BookOpen, ClipboardCheck, CalendarDays, AlarmClock, Megaphone, ShieldCheck } from "lucide-react";
+import { Bell, BellOff, Clock3, MessageCircle, Users, BookOpen, ClipboardCheck, CalendarDays, AlarmClock, Megaphone, ShieldCheck, Sparkles } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import type { StudyspaceNotificationPreferences } from "../lib/studyspaceNotifications";
 
