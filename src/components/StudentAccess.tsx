@@ -49,6 +49,7 @@ const todayDate = eswatiniToday;
 export default function StudentAccess({ installAvailable = false, onInstall }: { installAvailable?: boolean; onInstall?: () => void }) {
   const [mode, setMode] = useState<"signin" | "enrol">("signin");
   const [studentId, setStudentId] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [pin, setPin] = useState("");
   const [fullName, setFullName] = useState("");
   const [preferredName, setPreferredName] = useState("");
@@ -110,6 +111,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           body: {
             ...(publicEnrolmentEnabled ? {} : { studentId: studentId.trim().toUpperCase(), pin }),
             password,
+            referralCode: referralCode.trim().toUpperCase(),
             fullName: fullName.trim(),
             preferredName: preferredName.trim() || fullName.trim(),
             dateOfBirth,
@@ -147,12 +149,13 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           });
           setGuardianLinkNotice("");
           setPin("");
+          setReferralCode("");
           setConfirmPassword("");
           setPassword("");
           return;
         }
         setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID; you will need it with your password whenever you sign in.");
-        setMode("signin"); setPin(""); setConfirmPassword(""); setPassword("");
+        setMode("signin"); setPin(""); setConfirmPassword(""); setPassword(""); setReferralCode("");
         setTermsAccepted(false); setTermsAcceptedByName("");
       } else {
         const { data, error: invokeError } = await supabase.functions.invoke("student-sign-in", {
@@ -263,6 +266,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           {!publicEnrolmentEnabled && <label>One-time enrolment PIN<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,8))} type="text" inputMode="numeric" autoComplete="one-time-code" minLength={8} maxLength={8} pattern="[0-9]{8}" placeholder="Enter your 8-digit PIN" required/><small>This invitation is assigned to your Student ID and can only be used once.</small></label>}
           <label>Full legal name<input value={fullName} onChange={e=>{setFullName(e.target.value);setTermsAcceptedByName(e.target.value);}} type="text" autoComplete="name" placeholder="Enter your full name as it appears on school records" minLength={2} maxLength={120} required/></label>
           <label>Preferred name <small>Optional</small><input value={preferredName} onChange={e=>setPreferredName(e.target.value)} type="text" placeholder="What should we call you?" maxLength={80}/></label>
+          <label>Referral code <small>Optional</small><input value={referralCode} onChange={e=>setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,10))} type="text" placeholder="Enter a friend’s 10-character code" minLength={10} maxLength={10} autoComplete="off"/><small>Your friend receives XP after you finish setting up your academic profile.</small></label>
           <label>Date of birth<input value={dateOfBirth} onChange={e=>{setDateOfBirth(e.target.value);setTermsAccepted(false);}} type="date" max={todayDate()} required/><small>We calculate your age using Eswatini local time. Date of birth is locked after registration; contact an authorised StudySpace administrator if it was entered incorrectly.</small></label>
           <fieldset className="student-access-sex-field">
             <legend>Sex <span aria-hidden="true">*</span></legend>
