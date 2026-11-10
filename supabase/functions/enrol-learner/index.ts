@@ -70,6 +70,7 @@ Deno.serve(async request => {
     termsVersion?: string;
     acceptedByName?: string;
     acceptanceRole?: string;
+    referralCode?: string;
   };
   try { body = await request.json(); } catch { return json(400, { error: "Invalid request body." }); }
   const suppliedStudentId = String(body.studentId ?? "").trim().toUpperCase();
@@ -219,6 +220,15 @@ Deno.serve(async request => {
     return json(500, { error: "The account could not be completed. Your registration was not saved; please retry or contact Study Space." });
   }
   await admin.from("student_auth_attempts").insert({ identifier_hash: identifierHash, source_hash: sourceHash, action: "enrol", was_successful: true });
+  const referralCode = String(body.referralCode ?? "").trim().toUpperCase();
+  if (/^[A-Z0-9]{10}$/.test(referralCode)) {
+    const { error: referralError } = await admin.rpc("attribute_studyspace_referral", {
+      p_referred_id: created.user.id,
+      p_referral_code: referralCode,
+    });
+    if (referralError) console.warn("StudySpace referral attribution was not recorded:", referralError.message);
+  }
+
   if (completed === "pending_guardian_verification") {
     return json(200, {
       success: true,
