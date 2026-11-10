@@ -56,6 +56,7 @@ export default function StudentProgressPage(){
   const [xpHistory,setXpHistory]=useState<XpRow[]>([]);
   const [referrals,setReferrals]=useState<ReferralRow[]>([]);
   const [referralCode,setReferralCode]=useState("");
+  const [completedTaskRewards,setCompletedTaskRewards]=useState(0);
   const [referralInput,setReferralInput]=useState(()=>{try{return sessionStorage.getItem("studyspace-pending-referral-code")||"";}catch{return "";}});
   const [claimingReferral,setClaimingReferral]=useState(false);
   const [referralNotice,setReferralNotice]=useState("");
@@ -67,7 +68,7 @@ export default function StudentProgressPage(){
       const {data:auth,error:authError}=await supabase.auth.getUser();
       if(authError||!auth.user)throw new Error("Your student session has expired. Sign in again.");
       const id=auth.user.id;
-      const [results,mia,eventRows,growth,code,activity,xp,referralRows]=await Promise.all([
+      const [results,mia,eventRows,growth,code,activity,xp,referralRows,taskRewards]=await Promise.all([
         supabase.rpc("get_student_assessment_progress"),
         supabase.from("mia_learning_memory").select("strengths,difficulties,goals,recent_topics,updated_at").eq("learner_id",id).maybeSingle(),
         supabase.from("progress_events").select("event_type,score,max_score,duration_minutes,created_at,metadata").eq("learner_id",id).order("created_at",{ascending:false}).limit(40),
@@ -75,9 +76,10 @@ export default function StudentProgressPage(){
         supabase.rpc("get_or_create_studyspace_referral_code"),
         supabase.from("student_daily_activity").select("activity_date,study_minutes,completed_assessments,flashcards_reviewed").eq("learner_id",id).order("activity_date",{ascending:false}).limit(35),
         supabase.from("student_xp_events").select("event_type,points,metadata,created_at").eq("learner_id",id).order("created_at",{ascending:false}).limit(12),
-        supabase.from("student_referrals").select("id,status,created_at,qualified_at").eq("referrer_id",id).order("created_at",{ascending:false}).limit(100)
+        supabase.from("student_referrals").select("id,status,created_at,qualified_at").eq("referrer_id",id).order("created_at",{ascending:false}).limit(100),
+        supabase.from("student_xp_events").select("id",{count:"exact",head:true}).eq("learner_id",id).eq("event_type","task_completed")
       ]);
-      const failed=[results.error,mia.error,eventRows.error,growth.error,code.error,activity.error,xp.error,referralRows.error].find(Boolean);
+      const failed=[results.error,mia.error,eventRows.error,growth.error,code.error,activity.error,xp.error,referralRows.error,taskRewards.error].find(Boolean);
       if(failed)throw failed;
       setAssessments((results.data??[]) as Assessment[]);
       setMemory(mia.data as Memory|null);
@@ -87,6 +89,7 @@ export default function StudentProgressPage(){
       setActivityDays((activity.data??[]) as ActivityDay[]);
       setXpHistory((xp.data??[]) as XpRow[]);
       setReferrals((referralRows.data??[]) as ReferralRow[]);
+      setCompletedTaskRewards(taskRewards.count??0);
       setUpdatedAt(new Date().toISOString());
     }catch(reason){setError(reason instanceof Error?reason.message:"Academic progress could not be refreshed.");}
     finally{setLoading(false);}
@@ -139,6 +142,14 @@ export default function StudentProgressPage(){
         <article><span>📚 FLASHCARDS</span><strong>{Number(gamification.flashcards_reviewed).toLocaleString()}</strong><small>Cards reviewed</small></article>
         <article><span>🎯 TESTS COMPLETED</span><strong>{gamification.completed_assessments}</strong><small>Assigned assessments submitted</small></article>
       </div>
+      <div className="student-achievements"><div><strong>Your learning badges</strong><small>Earn these by building real study habits and completing learning milestones.</small></div><div className="student-achievement-grid">
+        <article className={Number(gamification.total_xp)>=100?"is-earned":""}><Award size={17}/><strong>Setup complete</strong><small>{Number(gamification.total_xp)>=100?"Earned":"Complete your academic profile"}</small></article>
+        <article className={gamification.completed_assessments>=1?"is-earned":""}><Award size={17}/><strong>First assessment</strong><small>{gamification.completed_assessments>=1?"Earned":"Submit your first assigned test"}</small></article>
+        <article className={Number(gamification.flashcards_reviewed)>=25?"is-earned":""}><Award size={17}/><strong>Flashcard learner</strong><small>{Number(gamification.flashcards_reviewed)>=25?"Earned":"Review 25 flashcards"}</small></article>
+        <article className={completedTaskRewards>=5?"is-earned":""}><Award size={17}/><strong>Plan finisher</strong><small>{completedTaskRewards>=5?"Earned":completedTaskRewards+" of 5 tasks completed"}</small></article>
+        <article className={gamification.longest_streak>=7?"is-earned":""}><Award size={17}/><strong>Steady scholar</strong><small>{gamification.longest_streak>=7?"Earned":"Reach a 7-day learning streak"}</small></article>
+        <article className={gamification.referrals_qualified>=1?"is-earned":""}><Award size={17}/><strong>Study ambassador</strong><small>{gamification.referrals_qualified>=1?"Earned":"Refer a learner who completes setup"}</small></article>
+      </div></div>
       <div className="student-streak-calendar"><div><strong>Consistency calendar</strong><small>Your recent study days. A day counts through a 10-minute study session, an assessment or a flashcard review.</small></div><div className="student-streak-days">{Array.from({length:28},(_,i)=>{const date=new Date();date.setDate(date.getDate()-(27-i));const key=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");const active=activityDays.some(day=>day.activity_date===key);return <span key={key} className={active?"is-active":""} title={key+(active?" · Study activity":" · No recorded activity")}>{date.getDate()}</span>;})}</div></div>
       <div className="student-xp-milestones"><strong>Streak milestones</strong><div>{[3,7,14,30,60,100].map(days=><span key={days} className={gamification.longest_streak>=days?"is-earned":""}><Award size={14}/>{days} days</span>)}</div></div>
       <div className="student-referral-panel"><div><strong>Invite a study partner</strong><small>Share your referral code. You earn 100 XP when a new learner finishes setting up an active academic profile; they receive 50 welcome XP.</small></div><div className="student-referral-code"><code>{referralCode||"Loading…"}</code><button type="button" className="secondary-button" onClick={()=>{if(referralCode&&navigator.clipboard?.writeText)void navigator.clipboard.writeText(referralCode);}} disabled={!referralCode}>Copy code</button></div><div className="student-referral-counts"><span>{referrals.filter(x=>x.status==="qualified").length} qualified</span><span>{referrals.filter(x=>x.status==="pending").length} pending</span></div><div className="student-referral-claim"><label htmlFor="student-referral-claim-code">Have a friend’s referral code?</label><div><input id="student-referral-claim-code" value={referralInput} onChange={e=>setReferralInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,10))} placeholder="10-character code" maxLength={10}/><button type="button" className="secondary-button" onClick={()=>void claimReferral()} disabled={claimingReferral||referralInput.trim().length!==10}>{claimingReferral?"Claiming…":"Claim code"}</button></div>{referralNotice&&<small role="status">{referralNotice}</small>}</div></div>
