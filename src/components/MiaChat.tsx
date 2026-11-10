@@ -199,7 +199,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   onClose?: () => void;
 }) {
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [createWelcome(profile, subjects)]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -218,6 +218,24 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const fileRef = useRef<HTMLInputElement>(null);
   const isFloating = variant === "floating";
   const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
+  const welcomeText = createWelcome(profile, subjects).content;
+  const [welcomeVisible, setWelcomeVisible] = useState(true);
+  const [welcomeFading, setWelcomeFading] = useState(false);
+  const welcomeFadeTimer = useRef<number | null>(null);
+  const welcomeDismissTimer = useRef<number | null>(null);
+
+  function dismissWelcome() {
+    if (welcomeFadeTimer.current !== null) {
+      window.clearTimeout(welcomeFadeTimer.current);
+      welcomeFadeTimer.current = null;
+    }
+    setWelcomeFading(true);
+    if (welcomeDismissTimer.current !== null) window.clearTimeout(welcomeDismissTimer.current);
+    welcomeDismissTimer.current = window.setTimeout(() => {
+      setWelcomeVisible(false);
+      welcomeDismissTimer.current = null;
+    }, 420);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -254,6 +272,14 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     }
     void restore();
     return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    welcomeFadeTimer.current = window.setTimeout(dismissWelcome, 4200);
+    return () => {
+      if (welcomeFadeTimer.current !== null) window.clearTimeout(welcomeFadeTimer.current);
+      if (welcomeDismissTimer.current !== null) window.clearTimeout(welcomeDismissTimer.current);
+    };
   }, []);
 
   const handleTranscriptScroll = () => {
@@ -387,7 +413,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
 
   function newChat() {
     keepTranscriptAtBottomRef.current = false;
-    setConversationId(null); setMessages([createWelcome(profile, subjects)]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
+    setConversationId(null); setMessages([]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
   }
 
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
@@ -402,6 +428,11 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     </header>
     <div className="mia-context-strip"><BookOpen size={14}/><span>{profile.level} · {profile.grade} · {profile.curriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
     <div className="mia-learning-only-notice" role="note"><strong>Educational use only.</strong> Use MIΛ for learning, subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information, or use MIΛ for unrelated personal advice.</div>
+    {welcomeVisible && <div className={"mia-welcome-toast" + (welcomeFading ? " is-fading" : "")} role="status" aria-live="polite">
+      <span className="mia-welcome-toast-mark"><Sparkles size={16}/></span>
+      <span className="mia-welcome-toast-copy">{welcomeText}</span>
+      <button type="button" className="mia-icon-button" onClick={dismissWelcome} aria-label="Dismiss welcome message"><X size={15}/></button>
+    </div>}
     <div className="mia-messages" ref={scrollRef} onScroll={handleTranscriptScroll} tabIndex={0} aria-label="MIΛ conversation history">
       {messages.map(message => <article key={message.id} className={"mia-message-row " + (message.role === "user" ? "is-user" : "is-assistant")}>
         {message.role === "assistant" && <div className="mia-message-avatar">Λ</div>}
@@ -451,7 +482,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       </section>}
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
-    {messages.length === 1 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
+    {messages.length === 0 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
       <div className="mia-help-options-heading"><div><span className="eyebrow">YOUR LEARNING, YOUR WAY</span><strong>What would you like help with?</strong><small>Choose a starting point. MIΛ will use your registered subjects, curriculum and learning progress to tailor the support.</small></div><span className="mia-help-options-context">{subjects.length} subjects</span></div>
       <div className="mia-help-options-grid">
         {helpOptions.filter(option => !option.tertiaryOnly || isTertiaryLearner).map(option=>{
