@@ -330,6 +330,14 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       localStorage.setItem(studentStorageKey("studyspace-known-cards-" + subjectId), JSON.stringify(nextKnown));
       localStorage.setItem(studentStorageKey("studyspace-review-cards-" + subjectId), JSON.stringify(nextReview));
     } catch { /* The current review remains usable if storage is unavailable. */ }
+    const cloudSubjectId = subjects.find(item => item.id === subjectId)?.cloudId;
+    if (supabase && cloudSubjectId) {
+      void supabase.rpc("record_studyspace_flashcard_review", {
+        p_subject_id: cloudSubjectId,
+        p_card_key: id,
+        p_known: known,
+      }).then(({ error }) => { if (error) console.warn("Flashcard progress could not be rewarded yet:", error.message); });
+    }
     setFlashcardFlipped(false);
     setFlashcardIndex(index => (index + 1) % Math.max(1, revisionDeck.length));
   }
