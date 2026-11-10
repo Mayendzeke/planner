@@ -51,7 +51,7 @@ function catalogFor(level: string, curriculum: string) {
   return core;
 }
 
-export default function StudentOnboarding({ onComplete, initialFullName = "" }: { onComplete: (profile: StudentProfile, avatarFile?: File | null) => Promise<void> | void; initialFullName?: string }) {
+export default function StudentOnboarding({ onComplete, initialFullName = "" }: { onComplete: (profile: StudentProfile, avatarFile?: File | null, skipSetup?: boolean) => Promise<void> | void; initialFullName?: string }) {
   const [step, setStep] = useState(0);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profile, setProfile] = useState<StudentProfile>(emptyProfile);
@@ -127,7 +127,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
         preferredName: profile.preferredName.trim() || name,
         subjects: [...new Set(profile.subjects)],
         timetableEntries: timetableEntries.map(entry => ({ ...entry, timetable_kind: "school" as const }))
-      }, avatarFile);
+      }, avatarFile, true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Your progress could not be saved. Check your connection and try again.");
     } finally {
