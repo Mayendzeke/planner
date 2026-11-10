@@ -2020,3 +2020,24 @@ select option, select optgroup {
 .student-achievement-grid article small{font-size:10px;line-height:1.4;color:var(--muted)}
 .student-achievement-grid article.is-earned{border-color:color-mix(in srgb,var(--mint,#26866e) 48%,transparent);background:color-mix(in srgb,var(--mint,#26866e) 9%,transparent);color:var(--mint,#26866e)}
 @media(max-width:760px){.student-achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Profile setup progress and post-trial PIN redemption. */
+.profile-completion-card{margin:0 0 18px;padding:16px 18px;border:1px solid var(--border);border-radius:15px;background:linear-gradient(115deg,color-mix(in srgb,var(--panel-strong) 92%,var(--mint) 8%),var(--panel));box-shadow:var(--raised-small)}
+.profile-completion-top{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.profile-completion-top>div{display:grid;gap:5px;min-width:0}
+.profile-completion-top .eyebrow{font-size:8px;margin:0}
+.profile-completion-top strong{font:750 14px Manrope,sans-serif;color:var(--text)}
+.profile-completion-top p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+.profile-completion-track{height:7px;margin-top:13px;border-radius:20px;background:color-mix(in srgb,var(--subtle) 20%,transparent);overflow:hidden}
+.profile-completion-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--mint),var(--blue));transition:width .25s ease}
+.onboarding-skip-row{display:grid;justify-items:center;gap:3px;margin-top:13px}
+.onboarding-skip-row .onboarding-skip{padding:6px;font-size:10px}
+.onboarding-skip-row>span{color:var(--subtle);font-size:9px;text-align:center}
+.access-pin-card .section-heading{align-items:flex-start}
+.access-pin-form{display:grid;gap:8px}
+.access-pin-form>label{font-size:10px;font-weight:700;color:var(--muted)}
+.access-pin-form>div{display:flex;gap:9px;align-items:center}
+.access-pin-form input{flex:1;min-width:0;min-height:42px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);font-size:14px;letter-spacing:2px}
+.access-pin-form .primary-button{min-height:42px}
+@media(max-width:520px){.profile-completion-top{align-items:flex-start;flex-direction:column}.profile-completion-top .secondary-button{width:100%}.access-pin-form>div{align-items:stretch;flex-direction:column}.access-pin-form .primary-button{width:100%}}
