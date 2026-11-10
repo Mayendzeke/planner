@@ -18,6 +18,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Verify transient student MIΛ welcome
+        run: node --test scripts/mia-welcome.test.mjs
       - name: Report dependency audit
         run: |
           npm audit --json > audit-all.json || true
