@@ -52,7 +52,8 @@ jobs:
           }
           console.log("Studyspace Supabase project and public API key validated.");
           const checks = [
-            ["enrol-learner", { studentId: "INVALID", pin: "00000000", password: "validation-only", fullName: "Student", preferredName: "Student" }],
+            // No Student ID or PIN is sent: reach server-side DOB validation on the self-service path.
+            ["enrol-learner", { password: "validation-only", fullName: "Validation Student", preferredName: "Validation", dateOfBirth: "invalid", sex: "male" }],
             ["student-sign-in", { studentId: "INVALID", password: "validation-only" }],
           ];
           for (const [name, payload] of checks) {
@@ -72,8 +73,8 @@ jobs:
               console.error("Edge Function " + name + " did not return its expected response (HTTP " + response.status + ", expected " + expected + "): " + detail);
               process.exit(1);
             }
-            if (name === "enrol-learner" && !detail.toLowerCase().includes("student id")) {
-              console.error("The active enrolment endpoint did not reach Student ID/PIN validation: " + detail)
+            if (name === "enrol-learner" && !detail.toLowerCase().includes("valid date of birth")) {
+              console.error("The PIN-free self-service enrolment endpoint did not reach date-of-birth validation: " + detail)
               process.exit(1)
             }
             console.log("Edge Function " + name + " is deployed and enforcing its expected access response.");
