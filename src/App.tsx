@@ -83,6 +83,7 @@ export default function App() {
   const [page, setPage] = useState<Page>("Overview");
   const [cloudAuthReady, setCloudAuthReady] = useState(!supabase);
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
+  const [cloudUserName, setCloudUserName] = useState("");
   const cloudAuthenticated = Boolean(cloudUserId);
   const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -142,8 +143,10 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
       const initialUserId = data.session?.user.id ?? null;
+      const initialName = data.session?.user.user_metadata?.full_name ?? data.session?.user.user_metadata?.fullName ?? "";
       lastAuthUserIdRef.current = initialUserId;
       setCloudUserId(initialUserId);
+      setCloudUserName(typeof initialName === "string" ? initialName : "");
       setCloudAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -164,7 +167,9 @@ export default function App() {
       }
       // Token refreshes for the same user must not clear the already-checked
       // terms state or the app would remain on the splash screen indefinitely.
+      const nextName = session?.user.user_metadata?.full_name ?? session?.user.user_metadata?.fullName ?? "";
       setCloudUserId(nextUserId);
+      setCloudUserName(typeof nextName === "string" ? nextName : "");
       setCloudAuthReady(true);
     });
     return () => { alive = false; subscription.unsubscribe(); };
@@ -523,29 +528,36 @@ export default function App() {
       if (!supabase) throw new Error("Studyspace is not connected. Reconnect and sign in again.");
       const { data: authState, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !authState.session) throw new Error("Your secure session has expired. Sign in again before completing setup.");
+      const accountName = String(authState.session.user.user_metadata?.full_name ?? authState.session.user.user_metadata?.fullName ?? cloudUserName ?? "").trim();
+      const safeName = nextProfile.fullName.trim() || accountName || "Student";
+      const profileToSave: StudentProfile = {
+        ...nextProfile,
+        fullName: safeName,
+        preferredName: nextProfile.preferredName.trim() || safeName
+      };
       {
           const { error: profileError } = await supabase.rpc("update_studyspace_learner_profile", {
-            p_full_name: nextProfile.fullName,
-            p_preferred_name: nextProfile.preferredName,
-            p_country: nextProfile.country,
-            p_institution: nextProfile.institution,
-            p_education_level: nextProfile.level,
-            p_grade: nextProfile.grade,
-            p_curriculum: nextProfile.curriculum,
-            p_academic_year: nextProfile.academicYear,
-            p_course: nextProfile.course || ""
+            p_full_name: profileToSave.fullName,
+            p_preferred_name: profileToSave.preferredName,
+            p_country: profileToSave.country,
+            p_institution: profileToSave.institution,
+            p_education_level: profileToSave.level,
+            p_grade: profileToSave.grade,
+            p_curriculum: profileToSave.curriculum,
+            p_academic_year: profileToSave.academicYear,
+            p_course: profileToSave.course || ""
           });
           if (profileError) throw new Error("Your cloud profile could not be saved: " + profileError.message);
-          if (nextProfile.subjects.length) {
+          if (profileToSave.subjects.length) {
             const { error: subjectsError } = await supabase.from("student_subjects").upsert(
-              nextProfile.subjects.map(name => ({ learner_id: authState.session!.user.id, name })),
+              profileToSave.subjects.map(name => ({ learner_id: authState.session!.user.id, name })),
               { onConflict: "learner_id,name", ignoreDuplicates: true }
             );
             if (subjectsError) throw new Error("Your cloud profile was saved, but subjects could not be synced: " + subjectsError.message);
           }
       }
-      if (nextProfile.timetableEntries?.length) {
-        const timetableRows = nextProfile.timetableEntries.map(entry => ({
+      if (profileToSave.timetableEntries?.length) {
+        const timetableRows = profileToSave.timetableEntries.map(entry => ({
           learner_id: authState.session!.user.id,
           timetable_kind: entry.timetable_kind || "school",
           subject_name: entry.subject_name,
@@ -560,7 +572,7 @@ export default function App() {
         const { error: timetableError } = await supabase.from("student_timetable_entries").insert(timetableRows);
         if (timetableError) throw new Error("Your profile was saved, but the timetable could not be saved: " + timetableError.message);
       }
-      let avatarPath = nextProfile.avatarPath || "";
+      let avatarPath = profileToSave.avatarPath || "";
       if (avatarFile) {
         if (!["image/png", "image/jpeg", "image/webp"].includes(avatarFile.type) || avatarFile.size > 2 * 1024 * 1024) {
           throw new Error("Choose a PNG, JPG or WebP profile picture up to 2 MB.");
@@ -578,12 +590,12 @@ export default function App() {
         }
         avatarPath = uploadPath;
       }
-      const savedProfile: StudentProfile = { ...nextProfile, avatarPath };
+      const savedProfile: StudentProfile = { ...profileToSave, avatarPath };
       localStorage.setItem("studyspace-profile:" + authState.session.user.id, JSON.stringify(savedProfile));
       setProfile(savedProfile);
       const existing = await plannerDb.subjects.toArray();
       const names = new Set(existing.map(subject => subject.name.toLocaleLowerCase()));
-      const additions = nextProfile.subjects.filter(name => !names.has(name.toLocaleLowerCase()));
+      const additions = profileToSave.subjects.filter(name => !names.has(name.toLocaleLowerCase()));
       if (additions.length) await plannerDb.subjects.bulkAdd(additions.map((name, index) => ({ id: Date.now() + index, name, color: colors[index % colors.length], createdAt: new Date().toISOString() })));
       await refresh();
     } catch (reason) {
@@ -604,6 +616,18 @@ export default function App() {
   const weekSessions = sessions.filter(s => new Date(s.date) >= weekStart);
   const weekMinutes = weekSessions.reduce((n,s) => n + s.minutes, 0);
   const weeklyHours = weekMinutes / 60;
+  const profileRequirements = [
+    Boolean(profile?.fullName?.trim()),
+    Boolean(profile?.country?.trim()),
+    Boolean(profile?.institution?.trim()),
+    Boolean(profile?.level?.trim()),
+    Boolean(profile?.grade?.trim()),
+    Boolean(profile?.curriculum?.trim()),
+    Boolean(profile?.academicYear?.trim()),
+    subjects.length > 0,
+    ...((profile?.level === "College" || profile?.level === "University") ? [Boolean(profile?.course?.trim())] : [])
+  ];
+  const profileCompletion = Math.round(profileRequirements.filter(Boolean).length / profileRequirements.length * 100);
   const visibleTasks = tasks.filter(t => {
     const sub = subjectById.get(t.subjectId ?? -1)?.name ?? "";
     const matches = (t.title + " " + sub + " " + t.kind + " " + t.notes).toLowerCase().includes(search.toLowerCase());
@@ -822,7 +846,7 @@ export default function App() {
     <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
   </section></main>;
   if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
-  if (!profile) return <StudentOnboarding onComplete={finishOnboarding} />;
+  if (!profile) return <StudentOnboarding onComplete={finishOnboarding} initialFullName={cloudUserName} />;
   if (!ready || !splashElapsed) return <SplashScreen theme={theme} />;
 
   return <div className="app-shell" data-theme={theme}>
@@ -842,6 +866,13 @@ export default function App() {
       <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects" disabled={expiredAccess}/><kbd>/</kbd></label><button className="icon-button" onClick={()=>setPage("Messages")} aria-label="Open messages" title="Messages"><MessageCircle size={18}/></button><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><button type="button" className="top-avatar top-avatar-button" onClick={()=>setPage("My profile")} aria-label="Open my profile">{avatarUrl ? <img src={avatarUrl} alt=""/> : <span>{(profile?.preferredName || profile?.fullName || "S").trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()).join("")}</span>}</button></div></header>
       <div className={"page-content "+(expiredAccess && page!=="Subscription" ? "access-locked-content" : "")} aria-disabled={expiredAccess && page!=="Subscription"}>
         <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="My profile"?"Your profile.":page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your timetable, organised.":page==="MIΛ"?"Your learning companion.":page==="Testimonials"?"Your StudySpace story.":page==="Study & Exams"?"Test your knowledge.":page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Messages"?"Your conversations.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="My profile"?"View and update the details you choose to share.":page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View your school lessons and personal study availability in one place.":page==="MIΛ"?"Educational support for your subjects, homework, revision and study planning.":page==="Testimonials"?"Share how StudySpace has helped you learn. Your testimonial stays private unless separate marketing permission is given and it is approved.":page==="Study & Exams"?"Practise with multiple choice, word puzzles, fill-in-the-blanks and quick checks.":page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your results, learning history and MIΛ guidance.":page==="Messages"?"Contact your teacher, ask for help or connect with approved classmates.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
+        {profileCompletion < 100 && page !== "My profile" && page !== "Subscription" && <section className="profile-completion-card">
+          <div className="profile-completion-top">
+            <div><span className="eyebrow">YOUR PROFILE</span><strong>{profileCompletion}% complete</strong><p>{100 - profileCompletion}% left · Add your school details and subjects to personalise MIΛ and your study plan.</p></div>
+            <button type="button" className="secondary-button" onClick={() => setPage(subjects.length ? "My profile" : "Subjects")}>{subjects.length ? "Continue setup" : "Add subjects"}</button>
+          </div>
+          <div className="profile-completion-track" role="progressbar" aria-label="Profile setup progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profileCompletion}><span style={{width: profileCompletion + "%"}} /></div>
+        </section>}
         {error&&<div className="alert error-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div>}
         {!ready?<section className="glass-panel loading-panel"><div className="loader"/><strong>Opening your study space…</strong><p>Your local records are being loaded.</p></section>:<>
         {page==="Overview"&&<><section className="stats-grid">
@@ -859,7 +890,7 @@ export default function App() {
         {page==="Testimonials"&&<StudentFeedback currentPage="Testimonials" initialCategory="Testimonial" lockCategory/>}
         {page==="Help & feedback"&&<StudentFeedback currentPage={page}/> }
         {page==="My profile"&&profile&&<StudentProfileEditor profile={profile} avatarUrl={avatarUrl} onSaved={next => { setProfile(next); if (cloudUserId) { try { localStorage.setItem("studyspace-profile:" + cloudUserId, JSON.stringify(next)); } catch { setError("Profile was updated in the cloud, but this device could not cache the new copy."); } } setSyncRequested(value => value + 1); }}/>} 
-        {page==="Subscription"&&<StudentSubscription/>}
+        {page==="Subscription"&&<StudentSubscription onAccessRestored={() => setAccessRetry(value => value + 1)}/>} 
         {page==="My Library"&&<StudentLibrary subjects={subjects}/>}
         {page==="Timetable"&&<StudentTimetable subjects={subjects}/>}
         {page==="Planner"&&<section className="glass-panel planner-panel"><div className="section-heading"><div><h2>Study calendar</h2><p>Plan around your deadlines. Select a day to add a task.</p></div><span className="count-chip">{visibleTasks.length} shown</span></div><div className="filter-row"><div className="filter-tabs">{["All","Open","Overdue","Completed"].map(v=><button key={v} className={filter===v?"selected":""} onClick={()=>setFilter(v)}>{v}</button>)}</div><div className="filter-tabs"><button className={plannerMode==="week"?"selected":""} onClick={()=>setPlannerMode("week")}>Week view</button><button className={plannerMode==="list"?"selected":""} onClick={()=>setPlannerMode("list")}>List view</button><button className="primary-button compact-button" onClick={()=>openNewTask()}><Plus size={15}/> Add task</button></div></div>{plannerMode==="week"&&<WeekCalendar tasks={visibleTasks} subjects={subjectById} offset={weekOffset} onOffset={setWeekOffset} onAdd={openNewTask} onEdit={openEditTask}/ >}{plannerMode==="list"&&(visibleTasks.length?<TaskList tasks={visibleTasks} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<CalendarDays size={22}/>} title={search||filter!=="All"?"No tasks match this view":"Your planner is ready"} text={search||filter!=="All"?"Try changing your search or filter.":"Add a task with a deadline, subject and priority to start planning."} action="Add a task" onAction={()=>openNewTask()}/>)}</section>}
