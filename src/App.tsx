@@ -298,7 +298,7 @@ export default function App() {
         // Always refresh from the cloud when online. A local cache must not
         // silently overwrite profile changes made on another signed-in device.
         const [profileResult, goalResult, subjectsResult] = await Promise.all([
-          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,grade,curriculum,academic_year,avatar_path,date_of_birth,sex").eq("id", cloudUserId).single(),
+          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,grade,curriculum,academic_year,avatar_path,date_of_birth,sex,profile_setup_dismissed_at").eq("id", cloudUserId).single(),
           supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
           supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
         ]);
@@ -309,6 +309,26 @@ export default function App() {
         const goalData = goalResult.data;
         const fullName = String(cloud.full_name || "");
         const preferredName = String(cloud.preferred_name || "");
+        const cloudSubjects = (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean);
+        const requiredCourseMissing = ["College", "University"].includes(String(cloud.education_level || "")) && !String(cloud.course || "").trim();
+        const academicSetupComplete = Boolean(
+          String(cloud.institution || "").trim()
+          && String(cloud.education_level || "").trim()
+          && String(cloud.grade || "").trim()
+          && String(cloud.curriculum || "").trim()
+          && String(cloud.academic_year || "").trim()
+          && cloudSubjects.length > 0
+          && !requiredCourseMissing
+        );
+        if (!cloud.profile_setup_dismissed_at && !academicSetupComplete) {
+          if (alive) {
+            setCloudUserName(fullName || preferredName || cloudUserName);
+            setProfile(null);
+            setProfileOwnerId(cloudUserId);
+            setError("");
+          }
+          return;
+        }
         if (!fullName.trim() && !preferredName.trim()) {
           if (alive) {
             setProfile(null);
@@ -335,7 +355,7 @@ export default function App() {
           targetMark: String(goalData?.target_mark ?? 75),
           weeklyHours: String(goalData?.weekly_hours ?? 6),
           preferredDays: Array.isArray(goalData?.preferred_days) ? goalData.preferred_days.filter((day: unknown): day is string => typeof day === "string") : ["Saturday", "Sunday"],
-          subjects: (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean),
+          subjects: cloudSubjects,
         };
         if (alive) {
           localStorage.setItem(key, JSON.stringify(restored));
@@ -523,7 +543,7 @@ export default function App() {
   }, [cloudUserId, profileOwnerId, profile, ready, goal, syncRequested, expiredAccess, accessLoading]);
 
 
-  async function finishOnboarding(nextProfile: StudentProfile, avatarFile?: File | null) {
+  async function finishOnboarding(nextProfile: StudentProfile, avatarFile?: File | null, skipSetup = false) {
     try {
       if (!supabase) throw new Error("Studyspace is not connected. Reconnect and sign in again.");
       const { data: authState, error: sessionError } = await supabase.auth.getSession();
@@ -589,6 +609,10 @@ export default function App() {
           throw new Error("Your profile picture could not be saved: " + avatarSaveError.message);
         }
         avatarPath = uploadPath;
+      }
+      if (skipSetup) {
+        const { error: dismissalError } = await supabase.rpc("dismiss_studyspace_learner_profile_setup");
+        if (dismissalError) throw new Error("Your details were saved, but StudySpace could not remember that setup was skipped. Please try again.");
       }
       const savedProfile: StudentProfile = { ...profileToSave, avatarPath };
       localStorage.setItem("studyspace-profile:" + authState.session.user.id, JSON.stringify(savedProfile));
