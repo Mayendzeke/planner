@@ -51,7 +51,7 @@ function catalogFor(level: string, curriculum: string) {
   return core;
 }
 
-export default function StudentOnboarding({ onComplete }: { onComplete: (profile: StudentProfile, avatarFile?: File | null) => Promise<void> | void }) {
+export default function StudentOnboarding({ onComplete, initialFullName = "" }: { onComplete: (profile: StudentProfile, avatarFile?: File | null) => Promise<void> | void; initialFullName?: string }) {
   const [step, setStep] = useState(0);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profile, setProfile] = useState<StudentProfile>(emptyProfile);
@@ -62,6 +62,16 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
   const [error, setError] = useState("");
   const [timetableEntries, setTimetableEntries] = useState<OnboardingTimetableEntry[]>([]);
   const [timetableDraft, setTimetableDraft] = useState<OnboardingTimetableEntry>({ subject_name: "", title: "", day_of_week: 1, starts_at: "08:00", ends_at: "09:00", location: "", notes: "" });
+
+  useEffect(() => {
+    const name = initialFullName.trim();
+    if (!name) return;
+    setProfile(current => current.fullName.trim() ? current : {
+      ...current,
+      fullName: name,
+      preferredName: current.preferredName.trim() || name
+    });
+  }, [initialFullName]);
 
   useEffect(() => {
     if (!avatarFile) { setAvatarPreview(""); return; }
@@ -103,6 +113,26 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
         ? current.preferredDays.filter(item => item !== day)
         : [...current.preferredDays, day]
     }));
+  }
+
+  async function saveProgress() {
+    if (savingProfile) return;
+    setSavingProfile(true);
+    setError("");
+    const name = profile.fullName.trim() || initialFullName.trim() || "Student";
+    try {
+      await onComplete({
+        ...profile,
+        fullName: name,
+        preferredName: profile.preferredName.trim() || name,
+        subjects: [...new Set(profile.subjects)],
+        timetableEntries: timetableEntries.map(entry => ({ ...entry, timetable_kind: "school" as const }))
+      }, avatarFile);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Your progress could not be saved. Check your connection and try again.");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   async function next() {
@@ -237,7 +267,13 @@ export default function StudentOnboarding({ onComplete }: { onComplete: (profile
         {step > 0 && <button className="secondary-button" onClick={() => { setError(""); setStep(current => current - 1); }}><ArrowLeft size={15}/> Back</button>}
         <button className="primary-button onboarding-next" onClick={() => void next()} disabled={savingProfile}>{savingProfile ? "Saving your profile…" : step === 3 ? <><BookOpen size={16}/> Create my study space</> : <>Continue <ArrowRight size={15}/></>}</button>
       </div>
-      <p className="onboarding-privacy">Your account profile is saved securely to Studyspace. Planner activity is stored on this device in this release.</p>
+      <div className="onboarding-skip-row">
+        <button type="button" className="text-button onboarding-skip" onClick={() => void saveProgress()} disabled={savingProfile}>
+          {savingProfile ? "Saving your progress…" : "Skip for now — finish setup later"}
+        </button>
+        <span>Your dashboard is ready even when your profile is incomplete.</span>
+      </div>
+      <p className="onboarding-privacy">Your account profile is saved securely to StudySpace. You can complete the remaining details from your dashboard at any time.</p>
     </section>
   </main>;
 }
