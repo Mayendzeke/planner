@@ -207,8 +207,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [draft, setDraft] = useState<TimetableEntry[]>([]);
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
-  const [remaining, setRemaining] = useState<number | null>(null);
-  const [usageChecked, setUsageChecked] = useState(false);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
@@ -219,6 +217,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const isFloating = variant === "floating";
   const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
   const welcomeText = createWelcome(profile, subjects);
+  const [learningNoticeVisible, setLearningNoticeVisible] = useState(true);
+  const [learningNoticeFading, setLearningNoticeFading] = useState(false);
   const [welcomeVisible, setWelcomeVisible] = useState(true);
   const [welcomeFading, setWelcomeFading] = useState(false);
   const welcomeFadeTimer = useRef<number | null>(null);
@@ -244,13 +244,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
       if (!userId) return;
-      try {
-        const { data: usage, error: usageError } = await supabase.functions.invoke("mia-assistant", { body: { action: "usage_status" } });
-        if (alive) {
-          setUsageChecked(true);
-          if (!usageError && typeof usage?.remainingDailyRequests === "number") setRemaining(usage.remainingDailyRequests);
-        }
-      } catch { if (alive) setUsageChecked(true); }
       const { data: conv } = await supabase.from("mia_conversations").select("id")
         .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (!alive || !conv?.id) return;
@@ -272,6 +265,12 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     }
     void restore();
     return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    const fadeTimer = window.setTimeout(() => setLearningNoticeFading(true), 4200);
+    const removeTimer = window.setTimeout(() => setLearningNoticeVisible(false), 4620);
+    return () => { window.clearTimeout(fadeTimer); window.clearTimeout(removeTimer); };
   }, []);
 
   useEffect(() => {
@@ -317,7 +316,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
-      setRemaining(typeof data.remainingDailyRequests === "number" ? data.remainingDailyRequests : null);
       const providerNotice = typeof data.providerNotice === "string" && data.providerNotice.trim() ? [{ id: crypto.randomUUID(), role: "assistant" as const, content: data.providerNotice }] : [];
       const cards = extractFlashcards(data.reply);
       const groundingSources = Array.isArray(data.sources)
@@ -421,18 +419,22 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <div className="mia-brand-mark">Λ</div>
       <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMMA 4</span></div>
       <div className="mia-header-actions">
-        <span className="mia-remaining">{remaining === null ? (usageChecked ? "Limit unavailable" : "Checking daily limit…") : remaining + " left · 24h"}</span>
         <button className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
         {onClose && <button className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
     </header>
     <div className="mia-context-strip"><BookOpen size={14}/><span>{profile.level} · {profile.grade} · {profile.curriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
-    <div className="mia-learning-only-notice" role="note"><strong>Educational use only.</strong> Use MIΛ for learning, subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information, or use MIΛ for unrelated personal advice.</div>
+    {learningNoticeVisible && <div className={"mia-learning-only-notice" + (learningNoticeFading ? " is-fading" : "")} role="note"><strong>Educational use only.</strong> Use MIΛ for learning, subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information, or use MIΛ for unrelated personal advice.</div>}
     {welcomeVisible && <div className={"mia-welcome-toast" + (welcomeFading ? " is-fading" : "")} role="status" aria-live="polite">
       <span className="mia-welcome-toast-mark"><Sparkles size={16}/></span>
       <span className="mia-welcome-toast-copy">{welcomeText}</span>
       <button type="button" className="mia-icon-button" onClick={dismissWelcome} aria-label="Dismiss welcome message"><X size={15}/></button>
     </div>}
+    {messages.length > 0 && <nav className="mia-quick-actions" aria-label="MIΛ learning actions">
+      {helpOptions.filter(option => !option.tertiaryOnly || isTertiaryLearner).map(option => (
+        <button type="button" key={option.id} disabled={busy} title={option.description} onClick={() => { void sendMessage(option.prompt); }}>{option.title}</button>
+      ))}
+    </nav>}
     <div className="mia-messages" ref={scrollRef} onScroll={handleTranscriptScroll} tabIndex={0} aria-label="MIΛ conversation history">
       {messages.map(message => <article key={message.id} className={"mia-message-row " + (message.role === "user" ? "is-user" : "is-assistant")}>
         {message.role === "assistant" && <div className="mia-message-avatar">Λ</div>}
@@ -498,13 +500,12 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     </section>}
     </div>
     {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
-    <div className="mia-usage-note">{remaining === null ? (usageChecked ? "Daily usage limit unavailable" : "Checking your daily allowance…") : remaining + " requests remaining"} · rolling 24-hour limit</div>
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); void sendMessage();}}>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,application/json,application/xml,.txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.pptx,.xlsx" hidden onChange={event=>{const file=event.target.files?.[0];if(file){const ext=file.name.split(".").pop()?.toLowerCase()||"";const allowed=file.type.startsWith("image/")&&["image/jpeg","image/png","image/webp"].includes(file.type)||["pdf","txt","md","csv","json","xml","html","docx","pptx","xlsx"].includes(ext);if(!allowed){setError("Attach an image, PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV, JSON or XML file.");}else if(file.size>4*1024*1024){setError("Choose a file smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
       <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach an image, PDF or text file" aria-label="Attach a file"><Paperclip size={19}/></button>
       <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
       <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
-    <div className="mia-footnote">Study-focused · Short answers · Cloudflare Workers AI processes prompts; avoid sharing personal details</div>
+    <div className="mia-footnote">Study-focused · Short answers · Gemma 4 with Qwen backup · Provider quotas apply</div>
   </section>;
 }
