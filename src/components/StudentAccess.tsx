@@ -105,8 +105,8 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
     try {
       if (mode === "enrol") {
         const { data, error: invokeError } = await supabase.functions.invoke("enrol-learner", {
-          // Compatibility fields let an older deployed Edge Function accept the request;
-          // the authenticated onboarding step immediately replaces these placeholders.
+          // Public enrolment sends no pre-issued credentials; the server generates the Student ID.
+          // Invitation details are only sent when the deployment is in invitation-only mode.
           body: {
             ...(publicEnrolmentEnabled ? {} : { studentId: studentId.trim().toUpperCase(), pin }),
             password,
