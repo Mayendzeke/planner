@@ -2009,3 +2009,14 @@ select option, select optgroup {
 .student-referral-claim>div{display:flex;gap:8px;min-width:0}
 .student-referral-claim input{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--glass-border,rgba(128,148,170,.3));border-radius:9px;background:var(--panel-strong,transparent);color:var(--text,var(--ink));letter-spacing:.06em}
 .student-referral-claim>small{font-size:11px;color:var(--muted)}
+
+
+.student-achievements{display:grid;gap:10px;margin-top:16px}
+.student-achievements>div:first-child{display:grid;gap:3px}
+.student-achievements>div:first-child small{font-size:11px;color:var(--muted)}
+.student-achievement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.student-achievement-grid article{display:grid;gap:5px;padding:11px;border:1px solid var(--glass-border,rgba(128,148,170,.22));border-radius:11px;background:var(--glass-bg,rgba(128,148,170,.04));color:var(--muted)}
+.student-achievement-grid article strong{font-size:12px;color:var(--text,var(--ink))}
+.student-achievement-grid article small{font-size:10px;line-height:1.4;color:var(--muted)}
+.student-achievement-grid article.is-earned{border-color:color-mix(in srgb,var(--mint,#26866e) 48%,transparent);background:color-mix(in srgb,var(--mint,#26866e) 9%,transparent);color:var(--mint,#26866e)}
+@media(max-width:760px){.student-achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
