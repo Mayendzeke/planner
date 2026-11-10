@@ -148,7 +148,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
             message: pendingMessage,
           });
           setGuardianLinkNotice("");
-          try{if(/^[A-Z0-9]{10}$/.test(referralCode.trim().toUpperCase()))sessionStorage.setItem("studyspace-pending-referral-code",referralCode.trim().toUpperCase());}catch{/* Referral can still be entered from Progress after sign-in. */}
+          try{if(/^[A-Z0-9]{10}$/.test(referralCode.trim().toUpperCase()))localStorage.setItem("studyspace-pending-referral-code",referralCode.trim().toUpperCase());}catch{/* Referral can still be entered from Progress after sign-in. */}
           setPin("");
           setReferralCode("");
           setConfirmPassword("");
