@@ -56,6 +56,9 @@ export default function StudentProgressPage(){
   const [xpHistory,setXpHistory]=useState<XpRow[]>([]);
   const [referrals,setReferrals]=useState<ReferralRow[]>([]);
   const [referralCode,setReferralCode]=useState("");
+  const [referralInput,setReferralInput]=useState(()=>{try{return sessionStorage.getItem("studyspace-pending-referral-code")||"";}catch{return "";}});
+  const [claimingReferral,setClaimingReferral]=useState(false);
+  const [referralNotice,setReferralNotice]=useState("");
 
   const refresh=useCallback(async()=>{
     if(!supabase){setError("Studyspace is not connected. Sign in again to load your academic records.");setLoading(false);return;}
@@ -90,6 +93,22 @@ export default function StudentProgressPage(){
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
 
+  const claimReferral=async()=>{
+    if(!supabase||claimingReferral)return;
+    const code=referralInput.trim().toUpperCase();
+    if(!/^[A-Z0-9]{10}$/.test(code)){setReferralNotice("Enter a 10-character referral code.");return;}
+    setClaimingReferral(true);setReferralNotice("");
+    const {data,error:claimError}=await supabase.rpc("claim_studyspace_referral_code",{p_code:code});
+    if(claimError)setReferralNotice(claimError.message);
+    else{
+      setReferralNotice(data==="already_claimed"?"This referral has already been linked to your account.":"Referral linked. Rewards are released when your academic profile is complete.");
+      setReferralInput("");
+      try{sessionStorage.removeItem("studyspace-pending-referral-code");}catch{/* The referral is already recorded on the server. */}
+      await refresh();
+    }
+    setClaimingReferral(false);
+  };
+
   const mean=average(assessments);
   const first=assessments.length>1?Number(assessments[assessments.length-1].score_percent):null;
   const latest=assessments.length?Number(assessments[0].score_percent):null;
@@ -122,7 +141,7 @@ export default function StudentProgressPage(){
       </div>
       <div className="student-streak-calendar"><div><strong>Consistency calendar</strong><small>Your recent study days. A day counts through a 10-minute study session, an assessment or a flashcard review.</small></div><div className="student-streak-days">{Array.from({length:28},(_,i)=>{const date=new Date();date.setDate(date.getDate()-(27-i));const key=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");const active=activityDays.some(day=>day.activity_date===key);return <span key={key} className={active?"is-active":""} title={key+(active?" · Study activity":" · No recorded activity")}>{date.getDate()}</span>;})}</div></div>
       <div className="student-xp-milestones"><strong>Streak milestones</strong><div>{[3,7,14,30,60,100].map(days=><span key={days} className={gamification.longest_streak>=days?"is-earned":""}><Award size={14}/>{days} days</span>)}</div></div>
-      <div className="student-referral-panel"><div><strong>Invite a study partner</strong><small>Share your referral code. You earn 100 XP when a new learner finishes setting up an active academic profile; they receive 50 welcome XP.</small></div><div className="student-referral-code"><code>{referralCode||"Loading…"}</code><button type="button" className="secondary-button" onClick={()=>{if(referralCode&&navigator.clipboard?.writeText)void navigator.clipboard.writeText(referralCode);}} disabled={!referralCode}>Copy code</button></div><div className="student-referral-counts"><span>{referrals.filter(x=>x.status==="qualified").length} qualified</span><span>{referrals.filter(x=>x.status==="pending").length} pending</span></div></div>
+      <div className="student-referral-panel"><div><strong>Invite a study partner</strong><small>Share your referral code. You earn 100 XP when a new learner finishes setting up an active academic profile; they receive 50 welcome XP.</small></div><div className="student-referral-code"><code>{referralCode||"Loading…"}</code><button type="button" className="secondary-button" onClick={()=>{if(referralCode&&navigator.clipboard?.writeText)void navigator.clipboard.writeText(referralCode);}} disabled={!referralCode}>Copy code</button></div><div className="student-referral-counts"><span>{referrals.filter(x=>x.status==="qualified").length} qualified</span><span>{referrals.filter(x=>x.status==="pending").length} pending</span></div><div className="student-referral-claim"><label htmlFor="student-referral-claim-code">Have a friend’s referral code?</label><div><input id="student-referral-claim-code" value={referralInput} onChange={e=>setReferralInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,10))} placeholder="10-character code" maxLength={10}/><button type="button" className="secondary-button" onClick={()=>void claimReferral()} disabled={claimingReferral||referralInput.trim().length!==10}>{claimingReferral?"Claiming…":"Claim code"}</button></div>{referralNotice&&<small role="status">{referralNotice}</small>}</div></div>
       <div className="student-xp-history"><strong>Recent rewards</strong>{xpHistory.length?xpHistory.slice(0,6).map((item,i)=><article key={item.event_type+item.created_at+i}><span>{item.event_type.replaceAll("_"," ")}</span><strong className={item.points>=0?"":"is-negative"}>{item.points>0?"+":""}{item.points} XP</strong><small>{new Date(item.created_at).toLocaleDateString()}</small></article>):<p>Complete your first learning activity to see rewards here.</p>}</div>
       <p className="student-gamification-note"><ShieldCheck size={13}/> Streaks do not require daily app opening. Take a rest day when needed; there are no XP penalties for breaks.</p>
     </section>}
