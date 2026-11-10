@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 type Plan = { id: string; name: string; duration: string; price: number; days: number; description: string };
 const plans: Plan[] = [
   { id: "weekly", name: "Weekly", duration: "7 days", price: 100, days: 7, description: "Seven consecutive days of full learner access." },
-  { id: "two_weeks", name: "2 Weeks", duration: "14 days", price: 200, days: 14, description: "Fourteen consecutive days of uninterrupted learning." },
+  { id: "two_weeks", name: "2 Weeks", duration: "14 days", price: 180, days: 14, description: "Fourteen consecutive days of uninterrupted learning." },
   { id: "monthly", name: "Monthly", duration: "28 days", price: 350, days: 28, description: "Twenty-eight days of full learning access." },
 ];
 
