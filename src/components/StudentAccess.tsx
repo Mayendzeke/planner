@@ -105,10 +105,11 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
     try {
       if (mode === "enrol") {
         const { data, error: invokeError } = await supabase.functions.invoke("enrol-learner", {
-          // Compatibility fields let an older deployed Edge Function accept the request;
-          // the authenticated onboarding step immediately replaces these placeholders.
+          // Public enrolment sends no pre-issued credentials; the server generates the Student ID.
+          // Invitation details are only sent when the deployment is in invitation-only mode.
           body: {
-            studentId: studentId.trim().toUpperCase(), pin, password,
+            ...(publicEnrolmentEnabled ? {} : { studentId: studentId.trim().toUpperCase(), pin }),
+            password,
             fullName: fullName.trim(),
             preferredName: preferredName.trim() || fullName.trim(),
             dateOfBirth,
@@ -121,12 +122,17 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
         });
         if (invokeError) throw invokeError;
         if (!data?.success) throw new Error(data?.error || "The account could not be created.");
+        const registeredStudentId = typeof data.studentId === "string" && /^STU-[A-Z0-9]{8}$/.test(data.studentId)
+          ? data.studentId
+          : (!publicEnrolmentEnabled ? studentId.trim().toUpperCase() : "");
+        if (!registeredStudentId) throw new Error("StudySpace could not confirm your new Student ID. Please contact the administrator before trying to sign in.");
+        setStudentId(registeredStudentId);
         if (data.accountStatus === "pending_guardian_verification") {
           let guardianUrl = typeof data.guardianUrl === "string" ? data.guardianUrl : null;
           let pendingMessage = data.message || "Your account is registered and waiting for guardian verification.";
           if (!guardianUrl) {
             const linkResult = await supabase.functions.invoke("guardian-consent", {
-              body: { action: "issue_invite", studentId: studentId.trim().toUpperCase(), password },
+              body: { action: "issue_invite", studentId: registeredStudentId, password },
             });
             if (!linkResult.error && linkResult.data?.success && typeof linkResult.data.guardianUrl === "string") {
               guardianUrl = linkResult.data.guardianUrl;
@@ -135,7 +141,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
             }
           }
           setPendingGuardian({
-            studentId: data.studentId || studentId.trim().toUpperCase(),
+            studentId: registeredStudentId,
             guardianUrl,
             message: pendingMessage,
           });
@@ -145,7 +151,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
           setPassword("");
           return;
         }
-        setNotice("Your account is ready. Sign in with your Student ID and password.");
+        setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID; you will need it with your password whenever you sign in.");
         setMode("signin"); setPin(""); setConfirmPassword(""); setPassword("");
         setTermsAccepted(false); setTermsAcceptedByName("");
       } else {
@@ -221,7 +227,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
         }}><Download size={16}/>{installAvailable ? "Install StudySpace Student" : "Add Student App to home screen"}</button>
         {installHelpOpen && <div className="student-access-install-help" role="status">
           <strong>Install StudySpace Student</strong>
-          <p><b>Android:</b> open this page in Chrome, tap the three-dot menu (⋮), then choose <b>Install app</b>. If Chrome offers <b>Add to Home screen</b> instead, use that.</p>
+          <p><b>Android:</b> open this page in Chrome, tap the three-dot menu (⋮), then choose <b>Install app</b>. <b>Add to Home screen</b> may create only a browser shortcut on some devices; do not choose <b>Create shortcut</b> when you want an installed web app.</p>
           <p><b>iPhone:</b> open in Safari, tap Share, then <b>Add to Home Screen</b>.</p>
           <p>Use the app's own icon on your home screen next time. Do not download an APK from an unofficial site.</p>
         </div>}
@@ -238,7 +244,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
         {guardianLinkNotice && <p className="student-access-notice" role="status">{guardianLinkNotice}</p>}
       </> : <div className="student-access-notice"><Users size={17}/><p>A guardian link could not be generated automatically. Ask a StudySpace representative to open Monitor, select Guardian verification and record the guardian’s consent in person. They can also create a fresh link.</p></div>}
       <div className="student-access-notice"><Users size={17}/><p><strong>No smartphone or email?</strong><br/>Your parent or guardian does not need a smartphone, email address or national ID for the in-person route. You and the guardian can meet a StudySpace representative, who will record the guardian’s details and approval in the Monitor app.</p></div>
-      <button type="button" className="access-expiry-secondary" onClick={() => { setPendingGuardian(null); setMode("signin"); setNotice("Your account is still waiting for guardian verification. You cannot sign in until StudySpace approves it."); }}>Return to sign in</button>
+      <button type="button" className="access-expiry-secondary" onClick={() => { setPendingGuardian(null); setMode("signin"); setNotice("Student ID " + pendingGuardian.studentId + " is still waiting for guardian verification. You cannot sign in until StudySpace approves it."); }}>Return to sign in</button>
     </section>
   </main>;
 
@@ -247,13 +253,14 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
     <section className="student-access-card">
       <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
       <div className="student-access-icon"><BookOpen size={25}/></div>
-      <div className="student-access-heading"><div className="eyebrow"><Sparkles size={14}/> YOUR STUDY SPACE</div><h1>{mode === "signin" ? "Welcome back." : "Join your class."}</h1><p>{mode === "signin" ? "Sign in with your Studyspace Student ID and password." : "Use the Student ID and one-time PIN issued by your administrator, then create your password."}</p></div>
+      <div className="student-access-heading"><div className="eyebrow"><Sparkles size={14}/> YOUR STUDY SPACE</div><h1>{mode === "signin" ? "Welcome back." : "Join your class."}</h1><p>{mode === "signin" ? "Sign in with your Studyspace Student ID and password." : publicEnrolmentEnabled ? "Create your learner account directly. StudySpace will generate your Student ID after registration." : "Use the Student ID and one-time PIN issued by your administrator, then create your password."}</p></div>
       <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} disabled={!enrolmentEnabled} onClick={() => {setMode("enrol");setError("");setNotice("");}}>{!publicEnrolmentEnabled && inviteEnrolmentEnabled ? "Redeem invitation" : "First-time enrolment"}</button></div>
+      {mode === "enrol" && publicEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>No invitation or Student ID is needed.</strong><br/>StudySpace will generate a unique Student ID for you after registration. Save it carefully; you will use it with your password whenever you sign in.</p></div>}
       {!enrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p>New learner enrolment is temporarily unavailable. Existing learners can continue to sign in.</p></div>}{!publicEnrolmentEnabled && inviteEnrolmentEnabled && <div className="student-access-notice" role="status"><ShieldCheck size={17}/><p><strong>Private invitation only.</strong><br/>Public self-registration is off. Only learners with a valid, single-use Student ID and PIN issued by the StudySpace administrator can create an account.</p></div>}
       <form className="student-access-form" onSubmit={submit}>
-        <label>Student ID<span className="student-access-input"><UserRound size={16}/><input value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} type="text" placeholder="e.g. STU-AB12CD34" autoComplete="username" required minLength={12} maxLength={12} pattern="STU-[A-Z0-9]{8}" title="Use the 12-character Student ID issued by your administrator."/></span></label>
+        {(mode === "signin" || (mode === "enrol" && !publicEnrolmentEnabled)) && <label>Student ID<span className="student-access-input"><UserRound size={16}/><input value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} type="text" placeholder="e.g. STU-AB12CD34" autoComplete="username" required minLength={12} maxLength={12} pattern="STU-[A-Z0-9]{8}" title="Use the 12-character Student ID issued by StudySpace."/></span></label>}
         {mode === "enrol" && <>
-          <label>One-time enrolment PIN<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,8))} type="text" inputMode="numeric" autoComplete="one-time-code" minLength={8} maxLength={8} pattern="[0-9]{8}" placeholder="Enter your 8-digit PIN" required/><small>This invitation is assigned to your Student ID and can only be used once.</small></label>
+          {!publicEnrolmentEnabled && <label>One-time enrolment PIN<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,"").slice(0,8))} type="text" inputMode="numeric" autoComplete="one-time-code" minLength={8} maxLength={8} pattern="[0-9]{8}" placeholder="Enter your 8-digit PIN" required/><small>This invitation is assigned to your Student ID and can only be used once.</small></label>}
           <label>Full legal name<input value={fullName} onChange={e=>{setFullName(e.target.value);setTermsAcceptedByName(e.target.value);}} type="text" autoComplete="name" placeholder="Enter your full name as it appears on school records" minLength={2} maxLength={120} required/></label>
           <label>Preferred name <small>Optional</small><input value={preferredName} onChange={e=>setPreferredName(e.target.value)} type="text" placeholder="What should we call you?" maxLength={80}/></label>
           <label>Date of birth<input value={dateOfBirth} onChange={e=>{setDateOfBirth(e.target.value);setTermsAccepted(false);}} type="date" max={todayDate()} required/><small>We calculate your age using Eswatini local time. Date of birth is locked after registration; contact an authorised StudySpace administrator if it was entered incorrectly.</small></label>
