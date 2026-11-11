@@ -10,6 +10,7 @@ import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage"
 import { syncStudentWorkspace } from "./lib/cloudSync";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
+import StudentProfileEngagementCard from "./components/StudentProfileEngagementCard";
 import StudentAccountSecurity from "./components/StudentAccountSecurity";
 import StudentAssignmentNotifications from "./components/StudentAssignmentNotifications";
 import NotificationPreferencesPanel from "./components/NotificationPreferencesPanel";
@@ -86,6 +87,7 @@ export default function App() {
   const [cloudUserName, setCloudUserName] = useState("");
   const cloudAuthenticated = Boolean(cloudUserId);
   const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
+  const [profileProgressGraceUserId, setProfileProgressGraceUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -261,6 +263,22 @@ export default function App() {
     const timer = window.setTimeout(() => setSplashElapsed(true), 5200);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const profileReady = Boolean(cloudUserId && profile && profileOwnerId === cloudUserId);
+
+  useEffect(() => {
+    if (!profileReady || !cloudUserId) {
+      setProfileProgressGraceUserId(current => current === cloudUserId ? null : current);
+      return;
+    }
+    // Keep the 100% completion confirmation visible briefly after sign-in.
+    // Incomplete profiles remain visible until the learner finishes setup.
+    setProfileProgressGraceUserId(cloudUserId);
+    const timer = window.setTimeout(() => {
+      setProfileProgressGraceUserId(current => current === cloudUserId ? null : current);
+    }, 15000);
+    return () => window.clearTimeout(timer);
+  }, [cloudUserId, profileReady]);
 
   // Restore the cloud profile when a student signs in on a new device.
   // The local profile remains a fast cache, not the only copy of account setup.
@@ -910,10 +928,16 @@ export default function App() {
       <header className="topbar"><button className="icon-button mobile-menu-button" aria-label="Open navigation" onClick={()=>setMobileMenu(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{page}</strong></div><div className="topbar-actions"><label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects" disabled={expiredAccess}/><kbd>/</kbd></label><button className="icon-button" onClick={()=>setPage("Messages")} aria-label="Open messages" title="Messages"><MessageCircle size={18}/></button><button className="icon-button theme-toggle" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label={"Switch to "+(theme==="dark"?"light":"dark")+" theme"} title="Switch theme">{theme==="dark"?<Sun size={18}/>:<Moon size={18}/>}</button><button type="button" className="top-avatar top-avatar-button" onClick={()=>setPage("My profile")} aria-label="Open my profile">{avatarUrl ? <img src={avatarUrl} alt=""/> : <span>{(profile?.preferredName || profile?.fullName || "S").trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()).join("")}</span>}</button></div></header>
       <div className={"page-content "+(expiredAccess && page!=="Subscription" ? "access-locked-content" : "")} aria-disabled={expiredAccess && page!=="Subscription"}>
         <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="My profile"?"Your profile.":page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your timetable, organised.":page==="MIΛ"?"Your learning companion.":page==="Testimonials"?"Your StudySpace story.":page==="Study & Exams"?"Test your knowledge.":page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Messages"?"Your conversations.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="My profile"?"View and update the details you choose to share.":page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View your school lessons and personal study availability in one place.":page==="MIΛ"?"Educational support for your subjects, homework, revision and study planning.":page==="Testimonials"?"Share how StudySpace has helped you learn. Your testimonial stays private unless separate marketing permission is given and it is approved.":page==="Study & Exams"?"Practise with multiple choice, word puzzles, fill-in-the-blanks and quick checks.":page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your results, learning history and MIΛ guidance.":page==="Messages"?"Contact your teacher, ask for help or connect with approved classmates.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}</section>
-        {profileCompletion < 100 && page !== "My profile" && page !== "Subscription" && <section className="profile-completion-card">
+        {profileReady && page !== "Subscription" && (profileCompletion < 100 || page === "My profile" || profileProgressGraceUserId === cloudUserId) && <section className={"profile-completion-card " + (profileCompletion === 100 ? "is-complete" : "")}>
           <div className="profile-completion-top">
-            <div><span className="eyebrow">YOUR PROFILE</span><strong>{profileCompletion}% complete</strong><p>{100 - profileCompletion}% left · Add your school details and subjects to personalise MIΛ and your study plan.</p></div>
-            <button type="button" className="secondary-button" onClick={() => setPage(subjects.length ? "My profile" : "Subjects")}>{subjects.length ? "Continue setup" : "Add subjects"}</button>
+            <div>
+              <span className="eyebrow">{profileCompletion === 100 ? "PROFILE COMPLETE" : "YOUR PROFILE"}</span>
+              <strong>{profileCompletion}% complete</strong>
+              <p>{profileCompletion === 100
+                ? "Your learning profile is ready. You can review or update your details below."
+                : (100 - profileCompletion) + "% left · Add your school details and subjects to personalise MIΛ and your study plan."}</p>
+            </div>
+            {profileCompletion < 100 && page !== "My profile" && <button type="button" className="secondary-button" onClick={() => setPage(subjects.length ? "My profile" : "Subjects")}>{subjects.length ? "Continue setup" : "Add subjects"}</button>}
           </div>
           <div className="profile-completion-track" role="progressbar" aria-label="Profile setup progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={profileCompletion}><span style={{width: profileCompletion + "%"}} /></div>
         </section>}
@@ -933,7 +957,7 @@ export default function App() {
         {page==="Study & Exams"&&<><SchoolHomeworkHelp/><AssignedAssessments/><WeeklyTest subjects={subjects}/></>}
         {page==="Testimonials"&&<StudentFeedback currentPage="Testimonials" initialCategory="Testimonial" lockCategory/>}
         {page==="Help & feedback"&&<StudentFeedback currentPage={page}/> }
-        {page==="My profile"&&profile&&<StudentProfileEditor profile={profile} avatarUrl={avatarUrl} onSaved={next => { setProfile(next); if (cloudUserId) { try { localStorage.setItem("studyspace-profile:" + cloudUserId, JSON.stringify(next)); } catch { setError("Profile was updated in the cloud, but this device could not cache the new copy."); } } setSyncRequested(value => value + 1); }}/>} 
+        {page==="My profile"&&profile&&<><StudentProfileEditor profile={profile} avatarUrl={avatarUrl} onSaved={next => { setProfile(next); if (cloudUserId) { try { localStorage.setItem("studyspace-profile:" + cloudUserId, JSON.stringify(next)); } catch { setError("Profile was updated in the cloud, but this device could not cache the new copy."); } } setSyncRequested(value => value + 1); }}/><StudentProfileEngagementCard /></>} 
         {page==="Subscription"&&<StudentSubscription onAccessRestored={() => setAccessRetry(value => value + 1)}/>} 
         {page==="My Library"&&<StudentLibrary subjects={subjects}/>}
         {page==="Timetable"&&<StudentTimetable subjects={subjects}/>}
