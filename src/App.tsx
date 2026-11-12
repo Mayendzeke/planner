@@ -908,7 +908,7 @@ export default function App() {
     <div className="eyebrow"><ShieldCheck size={14}/> SECURE YOUR ACCOUNT</div>
     <h1>Set your own password.</h1>
     <p>Your StudySpace representative has issued a temporary password. Before entering your learning space, replace it with a private password that only you know. Your Student ID will stay the same.</p>
-    <StudentAccountSecurity required onPasswordChanged={() => setMustChangePassword(false)}/>
+    <StudentAccountSecurity required expectedUserId={cloudUserId ?? undefined} onPasswordChanged={() => setMustChangePassword(false)}/>
     <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
   </section></main>;
   if (accessStatusError) return <main className="terms-gate-shell"><section className="terms-gate-card"><h1>Unable to verify access</h1><p>{accessStatusError}</p><button className="primary-button" onClick={() => setAccessRetry(value => value + 1)}>Retry access check</button><button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button></section></main>;
