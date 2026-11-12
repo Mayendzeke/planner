@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText } from "lucide-react";
+import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText, Target } from "lucide-react";
 import { strFromU8, unzipSync } from "fflate";
 import * as pdfjs from "pdfjs-dist";
 pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
