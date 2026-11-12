@@ -29,6 +29,8 @@ jobs:
         run: npm install
       - name: Verify transient student MIΛ welcome
         run: node --test scripts/mia-welcome.test.mjs
+      - name: Verify student password authentication and error handling
+        run: node --test scripts/change-student-password-auth.test.mjs
       - name: Validate Studyspace Supabase connection
         env:
           VITE_SUPABASE_URL: https://tibcoottzstnqkfpwabk.supabase.co
@@ -103,11 +105,11 @@ jobs:
             },
             body: JSON.stringify({ password: "validation-only-password" }),
           });
-          if (passwordChangeResponse.status !== 401) {
-            const detail = (await passwordChangeResponse.text()).slice(0, 200);
-            throw new Error("Student password changes must require a valid learner session (HTTP " + passwordChangeResponse.status + "): " + detail);
+          const passwordChangeDetail = (await passwordChangeResponse.text()).slice(0, 200);
+          if (passwordChangeResponse.status !== 401 || !passwordChangeDetail.toLowerCase().includes("your sign-in has expired")) {
+            throw new Error("Student password-change Edge Function must parse the Bearer header and then reject the invalid test token (HTTP " + passwordChangeResponse.status + "): " + passwordChangeDetail);
           }
-          console.log("Student password-change Edge Function requires an authenticated learner session.");
+          console.log("Student password-change Edge Function parses Bearer authentication and rejects invalid sessions.");
           const { readFileSync } = await import('node:fs')
           const terms = readFileSync('src/components/TermsAndConditions.tsx', 'utf8')
           const studentApp = readFileSync('src/App.tsx', 'utf8')
