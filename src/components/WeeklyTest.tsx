@@ -406,7 +406,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       && /note|lesson|study|revision|learning material/i.test(item.resource_type + " " + item.title))
     .map(item => ({ key: "teacher:" + item.id, name: item.title, topic: item.topic || item.description || "", source: "teacher", teacher: item }));
   const noteChoices = [...personalNoteChoices, ...teacherNoteChoices];
-  const selectedNote = noteChoices.find(item => item.key === selectedNoteKey) ?? noteChoices[0] ?? null;
+  const selectedNote = selectedNoteKey === "none" ? null : noteChoices.find(item => item.key === selectedNoteKey) ?? noteChoices[0] ?? null;
   function openResource(resource: typeof notes[number]) { setViewingNote(resource); }
   useEffect(() => {
     if (!viewingNote) { setNotePreviewText(""); return; }
@@ -434,28 +434,40 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   function restart() { setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false); }
 
   async function generateTopicTest() {
-    if (!selectedNote || !activeSubject || generatingTest) return;
+    if (!activeSubject || generatingTest) return;
     setGeneratingTest(true); setGenerationMessage(""); setNoteError("");
     try {
-      let file: Blob;
-      if (selectedNote.source === "personal" && selectedNote.personal) {
-        file = selectedNote.personal.file;
-      } else if (selectedNote.source === "teacher" && selectedNote.teacher && supabase) {
-        const { data, error } = await supabase.storage.from("studyspace-resources").download(selectedNote.teacher.storage_path);
-        if (error) throw error;
-        file = data;
-      } else {
-        throw new Error("This note is not available on this device. Open it while online and try again.");
-      }
-      const notesText = await extractNoteText(file, selectedNote.name);
-      if (notesText.length < 50) {
-        throw new Error("There is not enough readable text yet. Add a short paragraph of notes or choose a clearer text-based PDF, TXT or RTF file.");
+      const topic = (testTopicInput.trim() || topicName.trim() || selectedNote?.topic.trim()
+        || selectedNote?.name.replace(/\.[^.]+$/, "").slice(0, 160) || "").slice(0, 160);
+      if (!topic) throw new Error("Enter the topic you want MIΛ to test you on.");
+      let notesText = "";
+      if (selectedNote) {
+        let file: Blob;
+        if (selectedNote.source === "personal" && selectedNote.personal) {
+          file = selectedNote.personal.file;
+        } else if (selectedNote.source === "teacher" && selectedNote.teacher && supabase) {
+          const { data, error } = await supabase.storage.from("studyspace-resources").download(selectedNote.teacher.storage_path);
+          if (error) throw error;
+          file = data;
+        } else {
+          throw new Error("This note is not available on this device. Open it while online and try again.");
+        }
+        notesText = await extractNoteText(file, selectedNote.name);
+        if (notesText.length < 50) {
+          throw new Error("There is not enough readable text in this file. Choose a text-based PDF, TXT or RTF, or generate the test without notes.");
+        }
       }
       if (!supabase) throw new Error("StudySpace is not connected. Sign in again and retry.");
-      const topic = (testTopicInput.trim() || topicName.trim() || selectedNote.topic.trim()
-        || selectedNote.name.replace(/\.[^.]+$/, "").slice(0, 160));
       const { data, error } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "generate_topic_test", subject: activeSubject.name, topic, fileName: selectedNote.name, notesText },
+        body: {
+          action: "generate_topic_test",
+          subject: activeSubject.name,
+          topic,
+          fileName: selectedNote?.name ?? "",
+          notesText,
+          questionCount: 10,
+          difficulty: "adaptive",
+        },
       });
       if (error) throw new Error(await getEdgeErrorMessage(error));
       const questions = Array.isArray(data?.questions) ? data.questions.filter((item: any) =>
@@ -467,11 +479,12 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
         difficulty: typeof item.difficulty === "string" ? item.difficulty : "Medium",
         topic: typeof item.topic === "string" ? item.topic : topic,
       })) : [];
-      if (questions.length < 3) throw new Error(data?.error || "MIΛ could not create three reliable questions from these notes. Add a little more readable lesson material and try again.");
+      if (questions.length < 3) throw new Error(data?.error || "MIΛ could not create a reliable topic test. Try a narrower topic.");
       setGeneratedQuestions(questions);
       setTopicName(topic);
       setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false);
-      setGenerationMessage("Created " + questions.length + " questions from " + selectedNote.name + ". Your answers will be checked against these notes.");
+      const source = selectedNote ? " using " + selectedNote.name : " using your registered level and curriculum";
+      setGenerationMessage("Created " + questions.length + " adaptive questions on " + topic + source + ".");
     } catch (reason) {
       setGenerationMessage(reason instanceof Error ? reason.message : "The topic test could not be created. Please try again.");
     } finally { setGeneratingTest(false); }
@@ -503,21 +516,21 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
       <div className="section-heading"><div><h2>3. Choose a topic or use your notes</h2><p>Practice an existing topic or create a new test from notes for {subject}.</p></div><Target size={20}/></div>
       {topics.length>0&&<div className="study-topic-list">{topics.map(topic=><button key={topic.name} className={topicName===topic.name&&!generatedQuestions.length?"study-topic-option selected":"study-topic-option"} onClick={()=>{setGeneratedQuestions([]);setGenerationMessage("");setTopicName(topic.name);setTestTopicInput(topic.name);restart();}}><span><strong>{topic.name}</strong><small>Existing topic question bank</small></span><ChevronRight size={16}/></button>)}</div>}
       <div className="topic-notes-generator">
-        <div className="topic-notes-copy"><strong>Build a topic test from uploaded notes</strong><span>MIΛ reads the selected subject notes and creates questions from that material only. Personal notes and teacher-assigned notes are supported.</span></div>
-        <label className="field-label">Notes to use
-          <select value={selectedNote?.key ?? ""} onChange={event=>{const key=event.target.value;const choice=noteChoices.find(note=>note.key===key);setSelectedNoteKey(key);setTopicName("");setTestTopicInput(choice?.topic || "");setGeneratedQuestions([]);setGenerationMessage("");setQuestionIndex(0);setResponse("");setSubmitted(false);setFinished(false);setScore(0);}}>
-            <option value="">Choose notes for {subject}</option>
+        <div className="topic-notes-copy"><strong>Generate a test for any topic</strong><span>MIΛ uses your registered grade, education level, curriculum, course, learning goals and recent assessment results to set the right level. Your notes are optional, but can make the questions more specific.</span></div>
+        <label className="field-label">Use reference notes (optional)
+          <select value={selectedNote?.key ?? "none"} onChange={event=>{const key=event.target.value;const choice=key==="none"?null:noteChoices.find(note=>note.key===key)??null;setSelectedNoteKey(key);setTopicName("");setTestTopicInput(choice?.topic || "");setGeneratedQuestions([]);setGenerationMessage("");setQuestionIndex(0);setResponse("");setSubmitted(false);setFinished(false);setScore(0);}}>
+            <option value="none">No notes — use my curriculum</option>
             {personalNoteChoices.length>0&&<optgroup label="My uploaded notes">{personalNoteChoices.map(note=><option key={note.key} value={note.key}>{note.name}{note.topic?" · "+note.topic:""}</option>)}</optgroup>}
             {teacherNoteChoices.length>0&&<optgroup label="Teacher-assigned notes">{teacherNoteChoices.map(note=><option key={note.key} value={note.key}>{note.name}{note.topic?" · "+note.topic:""}</option>)}</optgroup>}
           </select>
         </label>
-        <label className="field-label">Topic (optional)<input value={testTopicInput} onChange={event=>setTestTopicInput(event.target.value)} placeholder={selectedNote?.topic || "Leave blank and MIΛ will identify the topic"} maxLength={160}/></label>
-        <button type="button" className="primary-button" disabled={!selectedNote||generatingTest} onClick={()=>void generateTopicTest()}>
-          {generatingTest?<><Sparkles size={16}/> Creating test…</>:<><Target size={16}/> Generate topic test from notes</>}
+        <label className="field-label">Topic<input value={testTopicInput} onChange={event=>setTestTopicInput(event.target.value)} placeholder="e.g. Linear equations, cell structure, market segmentation" maxLength={160} aria-required="true"/></label>
+        <button type="button" className="primary-button" disabled={generatingTest||!(testTopicInput.trim()||topicName.trim()||selectedNote?.topic.trim()||selectedNote?.name)} onClick={()=>void generateTopicTest()}>
+          {generatingTest?<><Sparkles size={16}/> Creating test…</>:<><Target size={16}/> Generate topic test</>}
         </button>
-        {!noteChoices.length&&<p className="topic-notes-hint">No notes are linked to {subject} yet. Upload them under My Library or Study notes first.</p>}
+        {!noteChoices.length&&<p className="topic-notes-hint">No notes yet? That is fine. MIΛ can build a curriculum-aware test from the subject and topic alone. You can add notes later for more targeted questions.</p>}
         {generationMessage&&<p className="inline-message" role="status">{generationMessage}</p>}
-        <p className="topic-notes-hint">PDFs must contain selectable text. Scanned image-only PDFs are not processed. Only extracted text is sent to MIΛ; the original file is not saved in the AI conversation.</p>
+        {selectedNote&&<p className="topic-notes-hint">Only the text extracted from this selected note is sent to MIΛ. The original file is not saved in the AI conversation.</p>}
       </div>
     </section>}
     {(path==="Topic test"&&topicName||path==="Weekly test"||path==="Examination")&&<section className="weekly-test-card glass-panel study-quiz-card">
