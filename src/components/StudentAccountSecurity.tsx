@@ -2,6 +2,22 @@ import { useState, type FormEvent } from "react";
 import { KeyRound, ShieldCheck, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
+async function edgeFunctionError(reason: unknown, fallback: string): Promise<string> {
+  if (reason && typeof reason === "object" && "context" in reason) {
+    const context = (reason as { context?: unknown }).context;
+    if (context instanceof Response) {
+      try {
+        const payload = await context.clone().json() as { error?: unknown; message?: unknown };
+        if (typeof payload.error === "string") return payload.error;
+        if (typeof payload.message === "string") return payload.message;
+      } catch {
+        // Fall back to the SDK error when the response is not JSON.
+      }
+    }
+  }
+  return reason instanceof Error && reason.message ? reason.message : fallback;
+}
+
 type Props = {
   required?: boolean;
   onPasswordChanged?: () => void;
@@ -28,7 +44,7 @@ export default function StudentAccountSecurity({ required = false, onPasswordCha
       const { data, error: invokeError } = await supabase.functions.invoke("change-student-password", {
         body: { password },
       });
-      if (invokeError) throw invokeError;
+      if (invokeError) throw new Error(await edgeFunctionError(invokeError, "Your password could not be updated. Try again."));
       if (!data?.success) throw new Error(data?.error || "Your password could not be updated. Try again.");
 
       setPassword("");
@@ -42,7 +58,7 @@ export default function StudentAccountSecurity({ required = false, onPasswordCha
       setNotice("Your account password has been updated.");
       onPasswordChanged?.();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Your password could not be updated. Try again.");
+      setError(await edgeFunctionError(reason, "Your password could not be updated. Try again."));
     } finally {
       setSaving(false);
     }
