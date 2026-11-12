@@ -11,7 +11,7 @@ test("student password Edge Function extracts a normal Bearer token", () => {
     edge.includes("authorization.match(/^Bearer\\s+(.+)$/i)"),
     "the function must use a single whitespace escape in its Bearer matcher"
   );
-  const matcher = /^Bearer\\s+(.+)$/i;
+  const matcher = /^Bearer\s+(.+)$/i;
   const token = "eyJhbGciOiJIUzI1NiJ9.test.signature";
   assert.equal(matcher.exec("Bearer " + token)?.[1], token);
   assert.equal(matcher.exec("bearer " + token)?.[1], token);
@@ -19,7 +19,7 @@ test("student password Edge Function extracts a normal Bearer token", () => {
 });
 
 test("student password screen displays the server's actionable error response", () => {
-  assert.match(security, /context instanceof Response/);
-  assert.match(security, /payload\\.error/);
-  assert.match(security, /edgeFunctionError\\(invokeError/);
+  assert.ok(security.includes("context instanceof Response"));
+  assert.ok(security.includes("payload.error"));
+  assert.ok(security.includes("edgeFunctionError(invokeError"));
 });
