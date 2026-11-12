@@ -70,6 +70,12 @@ Deno.serve(async request => {
   const admin = createClient(url, secret, { auth: { persistSession: false } });
   const { data: auth, error: authError } = await userClient.auth.getUser(token);
   if (authError || !auth.user) return json(401, { error: "Your session has expired. Sign in again." });
+  if (auth.user.app_metadata?.must_change_password === true) {
+    return json(403, {
+      error: "Set your private StudySpace password before using MIΛ or other learning tools.",
+      must_change_password: true,
+    });
+  }
   const learnerId = auth.user.id;
   const { data: profile, error: profileError } = await admin.from("profiles")
     .select("role,account_status,date_of_birth,education_level,grade,curriculum,academic_year,course,subscription_tier,subscription_expires_at,trial_started_at,trial_expires_at,terms_accepted_at,terms_version")
