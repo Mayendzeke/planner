@@ -180,6 +180,28 @@ export default function App() {
     return () => { alive = false; subscription.unsubscribe(); };
   }, []);
 
+  // Session metadata can be stale in a tab that was already open when Monitor
+  // resets a learner's password. Ask Auth for the current user and re-check
+  // periodically so an existing tab is also moved to the password gate.
+  useEffect(() => {
+    if (!supabase || !cloudUserId) {
+      setMustChangePassword(false);
+      return;
+    }
+    let active = true;
+    const checkPasswordReset = async () => {
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (!active || userError || !data.user || data.user.id !== cloudUserId) return;
+      setMustChangePassword(data.user.app_metadata?.must_change_password === true);
+    };
+    void checkPasswordReset();
+    const interval = window.setInterval(() => void checkPasswordReset(), 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [cloudUserId]);
+
   useEffect(() => {
     if (!cloudUserId || !supabase) {
       setAccessLoading(false);
