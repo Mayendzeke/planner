@@ -39,7 +39,7 @@ Deno.serve(async request => {
   if (!origin || origin !== allowedOrigin) return json(403, { error: "This StudySpace origin is not allowed." });
 
   const authorization = request.headers.get("Authorization") ?? "";
-  const accessToken = authorization.match(/^Bearer\\s+(.+)$/i)?.[1]?.trim();
+  const accessToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
   if (!accessToken) return json(401, { error: "Sign in with your Student ID and temporary password first." });
 
   const url = Deno.env.get("SUPABASE_URL");
