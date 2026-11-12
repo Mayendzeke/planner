@@ -247,14 +247,14 @@ Deno.serve(async request => {
     const subject = String(body.subject ?? "").trim().slice(0, 120);
     const topic = String(body.topic ?? "").trim().slice(0, 160);
     const fileName = String(body.fileName ?? "").trim().slice(0, 160);
-    const notesText = String(body.notesText ?? "").trim().slice(0, 20000);
+    const notesText = String(body.notesText ?? "").trim().slice(0, 23000);
     const count = Math.max(3, Math.min(20, Number.isFinite(Number(body.questionCount)) ? Math.floor(Number(body.questionCount)) : 10));
     const requestedDifficulty = String(body.difficulty ?? "adaptive").trim().slice(0, 40);
     if (!subject || !topic) return json(400, { error: "Choose a subject and enter the topic you want to practise." });
     if (!subjects.some((item: any) => String(item.name).trim().toLowerCase() === subject.toLowerCase())) {
       return json(403, { error: "Choose one of the subjects saved in your StudySpace profile." });
     }
-    if (String(body.notesText ?? "").length > 20000) return json(413, { error: "The selected notes are too long. Use a shorter set of notes." });
+    if (String(body.notesText ?? "").length > 23000) return json(413, { error: "The selected notes are too long. Use a shorter set of notes." });
 
     const systemPrompt = [
       "You are MIΛ, StudySpace's learner-facing educational assessment generator.",
