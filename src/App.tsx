@@ -184,13 +184,14 @@ export default function App() {
   // resets a learner's password. Ask Auth for the current user and re-check
   // periodically so an existing tab is also moved to the password gate.
   useEffect(() => {
-    if (!supabase || !cloudUserId) {
+    const authClient = supabase;
+    if (!authClient || !cloudUserId) {
       setMustChangePassword(false);
       return;
     }
     let active = true;
     const checkPasswordReset = async () => {
-      const { data, error: userError } = await supabase.auth.getUser();
+      const { data, error: userError } = await authClient.auth.getUser();
       if (!active || userError || !data.user || data.user.id !== cloudUserId) return;
       setMustChangePassword(data.user.app_metadata?.must_change_password === true);
     };
