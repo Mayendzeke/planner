@@ -18,12 +18,44 @@ async function edgeFunctionError(reason: unknown, fallback: string): Promise<str
   return reason instanceof Error && reason.message ? reason.message : fallback;
 }
 
+async function getVerifiedAccessToken(expectedUserId?: string): Promise<string> {
+  if (!supabase) throw new Error("StudySpace sign-in is unavailable. Refresh the app and sign in again.");
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error("StudySpace could not read your sign-in session. Sign out and sign in again.");
+  let session = sessionData.session;
+
+  if (!session?.access_token) {
+    throw new Error("Your secure student sign-in session is missing. Sign out, then sign in again with your Student ID and temporary password.");
+  }
+
+  let verification = await supabase.auth.getUser(session.access_token);
+  if (verification.error || !verification.data.user) {
+    const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshed.session?.access_token) {
+      throw new Error("Your student sign-in session has expired. Sign out and sign in again before changing your password.");
+    }
+    session = refreshed.session;
+    verification = await supabase.auth.getUser(session.access_token);
+  }
+
+  if (verification.error || !verification.data.user) {
+    throw new Error("StudySpace could not verify your sign-in. Sign out and sign in again before changing your password.");
+  }
+  if (expectedUserId && verification.data.user.id !== expectedUserId) {
+    throw new Error("The signed-in account changed. Sign out and sign in again before changing this password.");
+  }
+
+  return session.access_token;
+}
+
 type Props = {
   required?: boolean;
+  expectedUserId?: string;
   onPasswordChanged?: () => void;
 };
 
-export default function StudentAccountSecurity({ required = false, onPasswordChanged }: Props) {
+export default function StudentAccountSecurity({ required = false, expectedUserId, onPasswordChanged }: Props) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
@@ -41,8 +73,12 @@ export default function StudentAccountSecurity({ required = false, onPasswordCha
     if (password !== confirm) { setError("The password confirmation does not match."); return; }
     setSaving(true);
     try {
+      // Never allow supabase-js to fall back to the public API key as the
+      // Authorization bearer value. This operation requires a real learner JWT.
+      const accessToken = await getVerifiedAccessToken(expectedUserId);
       const { data, error: invokeError } = await supabase.functions.invoke("change-student-password", {
         body: { password },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (invokeError) throw new Error(await edgeFunctionError(invokeError, "Your password could not be updated. Try again."));
       if (!data?.success) throw new Error(data?.error || "Your password could not be updated. Try again.");
