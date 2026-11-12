@@ -2,7 +2,12 @@ import { useState, type FormEvent } from "react";
 import { KeyRound, ShieldCheck, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-export default function StudentAccountSecurity() {
+type Props = {
+  required?: boolean;
+  onPasswordChanged?: () => void;
+};
+
+export default function StudentAccountSecurity({ required = false, onPasswordChanged }: Props) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
@@ -16,14 +21,26 @@ export default function StudentAccountSecurity() {
     setNotice("");
     setError("");
     if (password.length < 12) { setError("Use at least 12 characters for your new password."); return; }
+    if (password.length > 128) { setError("Your new password must be no longer than 128 characters."); return; }
     if (password !== confirm) { setError("The password confirmation does not match."); return; }
     setSaving(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) throw updateError;
+      const { data, error: invokeError } = await supabase.functions.invoke("change-student-password", {
+        body: { password },
+      });
+      if (invokeError) throw invokeError;
+      if (!data?.success) throw new Error(data?.error || "Your password could not be updated. Try again.");
+
       setPassword("");
       setConfirm("");
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session || refreshed.session.user.app_metadata?.must_change_password === true) {
+        await supabase.auth.signOut();
+        setNotice("Your password has been saved. Sign in again with your new password to continue.");
+        return;
+      }
       setNotice("Your account password has been updated.");
+      onPasswordChanged?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Your password could not be updated. Try again.");
     } finally {
@@ -48,14 +65,14 @@ export default function StudentAccountSecurity() {
   }
 
   return <section className="glass-panel settings-card account-security-settings">
-    <div className="section-heading"><div><h2>Account security</h2><p>Keep your StudySpace account protected across devices.</p></div><ShieldCheck size={20}/></div>
+    <div className="section-heading"><div><h2>{required ? "Choose a private password" : "Account security"}</h2><p>{required ? "Your temporary password is only for getting into your account this one time. Set a password you will remember." : "Keep your StudySpace account protected across devices."}</p></div><ShieldCheck size={20}/></div>
     <form className="onboarding-fields" onSubmit={event => void updatePassword(event)}>
-      <label className="field-label">New password<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} placeholder="Use at least 12 characters"/></label>
-      <label className="field-label">Confirm new password<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={confirm} onChange={event => setConfirm(event.target.value)} placeholder="Enter the new password again"/></label>
-      <div className="modal-actions"><span className="privacy-hint">Your current password is never displayed.</span><button type="submit" className="primary-button" disabled={saving || !password || !confirm}><KeyRound size={15}/>{saving ? "Updating…" : "Change password"}</button></div>
+      <label className="field-label">New password<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} placeholder="Use at least 12 characters" required/></label>
+      <label className="field-label">Confirm new password<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={confirm} onChange={event => setConfirm(event.target.value)} placeholder="Enter the new password again" required/></label>
+      <div className="modal-actions"><span className="privacy-hint">Your password is private. StudySpace staff cannot view it.</span><button type="submit" className="primary-button" disabled={saving || !password || !confirm}><KeyRound size={15}/>{saving ? "Saving…" : required ? "Set my password" : "Change password"}</button></div>
     </form>
     {error && <p className="inline-message error-message" role="alert">{error}</p>}
     {notice && <p className="inline-message" role="status">{notice}</p>}
-    <div className="setting-row"><div><strong>Other signed-in devices</strong><span>Sign out other browser sessions without signing out this device.</span></div><button type="button" className="secondary-button" onClick={() => void signOutOtherDevices()} disabled={signingOutOthers}><LogOut size={15}/>{signingOutOthers ? "Signing out…" : "Sign out other devices"}</button></div>
+    {!required && <div className="setting-row"><div><strong>Other signed-in devices</strong><span>Sign out other browser sessions without signing out this device.</span></div><button type="button" className="secondary-button" onClick={() => void signOutOtherDevices()} disabled={signingOutOthers}><LogOut size={15}/>{signingOutOthers ? "Signing out…" : "Sign out other devices"}</button></div>}
   </section>;
 }
