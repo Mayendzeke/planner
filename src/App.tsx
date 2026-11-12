@@ -85,6 +85,7 @@ export default function App() {
   const [cloudAuthReady, setCloudAuthReady] = useState(!supabase);
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const [cloudUserName, setCloudUserName] = useState("");
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const cloudAuthenticated = Boolean(cloudUserId);
   const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
   const [profileProgressGraceUserId, setProfileProgressGraceUserId] = useState<string | null>(null);
@@ -149,6 +150,7 @@ export default function App() {
       lastAuthUserIdRef.current = initialUserId;
       setCloudUserId(initialUserId);
       setCloudUserName(typeof initialName === "string" ? initialName : "");
+      setMustChangePassword(data.session?.user.app_metadata?.must_change_password === true);
       setCloudAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -172,6 +174,7 @@ export default function App() {
       const nextName = session?.user.user_metadata?.full_name ?? session?.user.user_metadata?.fullName ?? "";
       setCloudUserId(nextUserId);
       setCloudUserName(typeof nextName === "string" ? nextName : "");
+      setMustChangePassword(session?.user.app_metadata?.must_change_password === true);
       setCloudAuthReady(true);
     });
     return () => { alive = false; subscription.unsubscribe(); };
@@ -876,6 +879,13 @@ export default function App() {
     <h1>Welcome to StudySpace.</h1>
     <p>This is an administrator account, not a learner account. Administrator tools, MIΛ and Classroom Studio are available in StudySpace Monitor. You do not need to accept learner terms here.</p>
     <a className="primary-button terms-accept-button" href="https://mayendzeke.github.io/studyspace-monitor/">Open StudySpace Monitor</a>
+    <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
+  </section></main>;
+  if (mustChangePassword) return <main className="terms-gate-shell"><section className="terms-gate-card">
+    <div className="eyebrow"><ShieldCheck size={14}/> SECURE YOUR ACCOUNT</div>
+    <h1>Set your own password.</h1>
+    <p>Your StudySpace representative has issued a temporary password. Before entering your learning space, replace it with a private password that only you know. Your Student ID will stay the same.</p>
+    <StudentAccountSecurity required onPasswordChanged={() => setMustChangePassword(false)}/>
     <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
   </section></main>;
   if (accessStatusError) return <main className="terms-gate-shell"><section className="terms-gate-card"><h1>Unable to verify access</h1><p>{accessStatusError}</p><button className="primary-button" onClick={() => setAccessRetry(value => value + 1)}>Retry access check</button><button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button></section></main>;
