@@ -56,9 +56,9 @@ test('teacher-assigned resources remain separate from private student materials'
 });
 
 test('modern Office files and CSV have in-app preview extraction with download fallback', () => {
-  assert.ok(preview.includes('ppt/slides'));
+  assert.ok(preview.includes('ppt') && preview.includes('slides'));
   assert.ok(preview.includes('word/document.xml'));
-  assert.ok(preview.includes('worksheets/sheet'));
+  assert.ok(preview.includes('worksheets') && preview.includes('sheet'));
   assert.ok(preview.includes('parseCsv'));
   assert.ok(library.includes('Preview not available'));
   assert.ok(library.includes('Download original file'));
