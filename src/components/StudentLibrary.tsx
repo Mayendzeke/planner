@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type DragEvent } from "react";
 import {
-  AlertCircle, BookOpen, Download, Eye, FileSpreadsheet, FileText, FolderOpen,
+  AlertCircle, BookOpen, Brain, Download, Eye, FileSpreadsheet, FileText, FolderOpen,
   Image as ImageIcon, Plus, Presentation, Search, ShieldCheck, Trash2, Upload, X,
 } from "lucide-react";
 import PdfViewer from "./PdfViewer";
@@ -45,7 +45,16 @@ function downloadFile(resource: Pick<StudentResource, "file" | "name">) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[] }) {
+const MIA_ATTACHMENT_LIMIT = 4 * 1024 * 1024;
+const MIA_STUDY_PROMPT = "Please turn this material into a clear study guide for my level and curriculum. Explain the key ideas in simple language, highlight important definitions or formulas, include one worked example, then create five practice questions and let me answer them one at a time.";
+
+function canStudyWithMia(name: string, size: number) {
+  const extension = extensionOf(name);
+  return size > 0 && size <= MIA_ATTACHMENT_LIMIT
+    && [".pdf", ".txt", ".md", ".csv", ".json", ".xml", ".html", ".docx", ".pptx", ".xlsx", ".jpg", ".jpeg", ".png", ".webp"].includes(extension);
+}
+
+export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?: Subject[]; onAskMia: (file: File, prompt: string) => void }) {
   const [files, setFiles] = useState<StudentResource[]>([]);
   const [teacherFiles, setTeacherFiles] = useState<TeacherResource[]>([]);
   const [teacherLoading, setTeacherLoading] = useState(true);
@@ -206,6 +215,22 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
     }
   }
 
+  async function studyTeacherFileWithMia(resource: TeacherResource) {
+    if (!supabase || teacherBusyId) return;
+    setTeacherBusyId(resource.id);
+    setMessage("");
+    setMessageIsError(false);
+    try {
+      const { data, error } = await supabase.storage.from("studyspace-resources").download(resource.storage_path);
+      if (error) throw error;
+      const file = new File([data], resource.title, { type: resource.mime_type || data.type || "application/octet-stream" });
+      onAskMia(file, MIA_STUDY_PROMPT);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "This material could not be attached to MIΛ.");
+      setMessageIsError(true);
+    } finally { setTeacherBusyId(""); }
+  }
+
   async function viewTeacherFile(resource: TeacherResource) {
     if (!supabase || teacherBusyId) return;
     setTeacherBusyId(resource.id);
@@ -341,6 +366,7 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
           <div className="library-file-copy"><strong>{file.title}</strong><span>{file.subject_name||"General"} · {formatCategory(file.resource_type)} · {fileType(file.title)} · {formatSize(Number(file.file_size))}</span>{file.description&&<span>{file.description}</span>}</div>
           <div className="library-file-actions">
             <button type="button" className="icon-button" aria-label={"Download "+file.title} title="Download original file" disabled={teacherBusyId===file.id} onClick={()=>void (async()=>{if(!supabase)return;setTeacherBusyId(file.id);try{const {data,error}=await supabase.storage.from("studyspace-resources").download(file.storage_path);if(error)throw error;downloadFile({file:data,name:file.title});}catch(reason){setMessage(reason instanceof Error?reason.message:"The file could not be downloaded.");setMessageIsError(true);}finally{setTeacherBusyId("");}})()}><Download size={15}/></button>
+            {canStudyWithMia(file.title, Number(file.file_size))&&<button type="button" className="icon-button" aria-label={"Study "+file.title+" with MIΛ"} title="Study with MIΛ · summarise, explain and practise" disabled={teacherBusyId===file.id} onClick={()=>void studyTeacherFileWithMia(file)}><Brain size={15}/></button>}
             <button type="button" className="icon-button" aria-label={"Preview "+file.title} title="Preview material" disabled={teacherBusyId===file.id} onClick={()=>void viewTeacherFile(file)}><Eye size={15}/></button>
           </div>
         </article>)}</div>:<div className="library-empty"><div><BookOpen size={23}/></div><strong>No teacher materials match</strong><p>When your teacher assigns materials, they will appear here. Try changing the filters if you expected to see a file.</p></div>}
@@ -353,6 +379,7 @@ export default function StudentLibrary({ subjects = [] }: { subjects?: Subject[]
           <div className="library-file-copy"><strong>{file.name}</strong><span>{subjectName(file,subjects)} · {file.resourceType||"Study notes"} · {fileType(file.name)} · {formatSize(file.size)}</span>{file.topic&&<span>{file.topic}</span>}</div>
           <div className="library-file-actions">
             <button type="button" className="icon-button" aria-label={"Download "+file.name} title="Download original file" onClick={()=>downloadResource(file)}><Download size={15}/></button>
+            {canStudyWithMia(file.name, file.size)&&<button type="button" className="icon-button" aria-label={"Study "+file.name+" with MIΛ"} title="Study with MIΛ · summarise, explain and practise" onClick={()=>onAskMia(new File([file.file],file.name,{type:file.mimeType||file.file.type||"application/octet-stream"}),MIA_STUDY_PROMPT)}><Brain size={15}/></button>}
             <button type="button" className="icon-button" aria-label={"Preview "+file.name} title="Preview material" onClick={()=>setViewing(file)}><Eye size={15}/></button>
             <button type="button" className="icon-button" aria-label={"Remove "+file.name} title="Remove from personal library" onClick={()=>void removeFile(file)}><Trash2 size={15}/></button>
           </div>

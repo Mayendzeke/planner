@@ -31,6 +31,8 @@ jobs:
         run: node --test scripts/mia-welcome.test.mjs
       - name: Verify Study Materials & Resources and student navigation
         run: node --test scripts/study-materials-ui.test.mjs
+      - name: Verify Study Materials to MIΛ handoff
+        run: node --test scripts/mia-study-materials-bridge.test.mjs
       - name: Verify student password authentication and error handling
         run: node --test scripts/change-student-password-auth.test.mjs
       - name: Validate Studyspace Supabase connection

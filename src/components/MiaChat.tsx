@@ -193,11 +193,14 @@ async function functionErrorMessage(error: unknown): Promise<string> {
     : "MIΛ could not complete the request. Check your connection and retry.";
 }
 
-export default function MiaChat({ profile, subjects, variant = "studio", onClose }: {
+export default function MiaChat({ profile, subjects, variant = "studio", onClose, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
   onClose?: () => void;
+  initialAttachment?: File | null;
+  initialPrompt?: string;
+  onAttachmentConsumed?: () => void;
 }) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -237,6 +240,14 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       welcomeDismissTimer.current = null;
     }, 420);
   }
+
+  useEffect(() => {
+    if (!initialAttachment) return;
+    setAttachment(initialAttachment);
+    if (initialPrompt) setText(initialPrompt);
+    setError("");
+    onAttachmentConsumed?.();
+  }, [initialAttachment, initialPrompt, onAttachmentConsumed]);
 
   useEffect(() => {
     let alive = true;
