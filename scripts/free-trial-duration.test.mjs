@@ -5,6 +5,11 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(path, "utf8");
 const access = read("src/components/StudentAccess.tsx");
 const subscription = read("src/components/StudentSubscription.tsx");
+const enrolment = read("supabase/functions/enrol-learner/index.ts");
+
+test("student enrolment API returns the seven-day free-trial duration", () => {
+  assert.match(enrolment, /trialHours: 168/);
+});
 
 test("student sign-up clearly promises a seven-day free trial", () => {
   assert.match(access, /starts a 7-day free trial/);
