@@ -164,10 +164,21 @@ export default function SoloStudyCoach({ subjects }: { subjects: Subject[] }) {
   }
 
   return <div className="glass-panel solo-study-panel">
-    <div className="session-section-heading">
-      <div><h3>Study independently</h3><p>A clear routine for learning when your teacher is not online.</p></div>
-      <Target size={21}/>
-    </div>
+    <section className="solo-study-hero">
+      <div className="solo-study-hero-copy">
+        <span className="solo-study-kicker"><Target size={13}/> YOUR SELF-STUDY WORKSPACE</span>
+        <h3>Study independently, with purpose.</h3>
+        <p>Choose one topic, set a clear goal and follow a simple routine that turns your study time into measurable progress.</p>
+        <div className="solo-study-hero-tags"><span>Guided focus</span><span>Active recall</span><span>Saved progress</span></div>
+      </div>
+      <div className="solo-study-hero-art" aria-hidden="true">
+        <div className="solo-study-hero-orbit"><Target size={34}/></div>
+        <strong>ONE GOAL</strong><small>Five steps to progress</small>
+      </div>
+    </section>
+    {!hasStarted && <div className="solo-study-roadmap" aria-label="Your five independent study steps">
+      {stages.map((item,index)=><div className="solo-study-roadmap-step" key={item.title}><span>{String(index+1).padStart(2,"0")}</span><strong>{item.title}</strong></div>)}
+    </div>}
     {!runningSince && elapsedSeconds === 0 && <div className="solo-study-setup">
       {subjects.length ? <label className="session-field">Subject
         <select value={subjectId} onChange={event => setSubjectId(Number(event.target.value))}>

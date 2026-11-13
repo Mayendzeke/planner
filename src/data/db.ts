@@ -95,7 +95,7 @@ export type StudentResource = {
   file: Blob;
   createdAt: string;
   subjectId?: number;
-  resourceType?: "Study notes" | "Revision notes";
+  resourceType?: "Study notes" | "Revision notes" | "Worksheet" | "Past paper" | "Reference" | "Other";
   topic?: string;
   cloudId?: string;
   localUpdatedAt?: string;

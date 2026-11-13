@@ -46,6 +46,16 @@ function timestamp(value?: string | null): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalisePersonalResourceType(value: unknown): NonNullable<StudentResource["resourceType"]> {
+  const type = String(value || "");
+  if (type === "Revision") return "Revision notes";
+  if (type === "Notes" || type === "Personal") return "Study notes";
+  if (["Study notes", "Revision notes", "Worksheet", "Past paper", "Reference", "Other"].includes(type)) {
+    return type as NonNullable<StudentResource["resourceType"]>;
+  }
+  return "Study notes";
+}
+
 function makeLocalId(existing: number[]): number {
   let value = Date.now();
   const used = new Set(existing);
@@ -216,7 +226,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         size: Number(remote.file_size),
         file: data,
         createdAt: String(remote.created_at),
-        resourceType: remote.resource_type === "Revision notes" ? "Revision notes" : "Study notes",
+        resourceType: normalisePersonalResourceType(remote.resource_type),
         topic: remote.topic || "",
         subjectId: subjects.find(subject => subject.name.toLocaleLowerCase() === String(remote.subject_name || "").toLocaleLowerCase())?.id,
       };
@@ -239,7 +249,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         createdAt: String(remote.created_at),
         topic: remote.topic || "",
         subjectId: subjects.find(subject => subject.name.toLocaleLowerCase() === String(remote.subject_name || "").toLocaleLowerCase())?.id,
-        resourceType: remote.resource_type === "Revision notes" ? "Revision notes" : "Study notes",
+        resourceType: normalisePersonalResourceType(remote.resource_type),
         cloudId: String(remote.id),
         localUpdatedAt: remoteStamp,
         cloudUpdatedAt: remoteStamp,
