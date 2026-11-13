@@ -6,9 +6,17 @@ const read = path => readFileSync(path, "utf8");
 const access = read("src/components/StudentAccess.tsx");
 const subscription = read("src/components/StudentSubscription.tsx");
 const enrolment = read("supabase/functions/enrol-learner/index.ts");
+const terms = read("src/components/TermsAndConditions.tsx");
 
 test("student enrolment API returns the seven-day free-trial duration", () => {
   assert.match(enrolment, /trialHours: 168/);
+});
+
+test("learner terms explain the seven-day trial and guardian activation timing", () => {
+  assert.match(terms, /lasts 7 consecutive days/);
+  assert.match(terms, /trial begins only after guardian verification/);
+  assert.match(terms, /after 6 days/);
+  assert.doesNotMatch(terms, /48 consecutive hours|48-hour free trial/);
 });
 
 test("student sign-up clearly promises a seven-day free trial", () => {
