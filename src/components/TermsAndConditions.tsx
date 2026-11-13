@@ -34,7 +34,7 @@ export const TERMS_SECTIONS: { heading: string; paragraphs: string[] }[] = [
     paragraphs: [
       "Each learner is assigned a Student ID. The one-time enrolment PIN is valid for exactly 24 hours after it is generated, can be redeemed once, and is only for first-time account creation. The 24-hour PIN expiry is separate from the learner’s free trial.",
       "The learner or guardian must keep the Student ID, password and any one-time PIN confidential and must not share an account. Tell StudySpace promptly if an account may have been accessed by someone else.",
-      "The learner’s free trial starts only after successful account registration and lasts 48 consecutive hours. A reminder is shown in the app after 24 hours. When the 48 hours end, learning features are paused until a paid subscription is requested, paid for and activated by StudySpace."
+      "The learner’s free trial starts when the account is activated and lasts 7 consecutive days. For learners under 18, the trial begins only after guardian verification. A reminder is shown in the app after 6 days. When the 7 days end, learning features are paused until a paid subscription is requested, paid for and activated by StudySpace."
     ]
   },
   {
@@ -65,7 +65,7 @@ export const TERMS_SECTIONS: { heading: string; paragraphs: string[] }[] = [
   {
     heading: "8. Cancellations and refunds",
     paragraphs: [
-      "The 48-hour free trial is provided so the learner can explore the available features before choosing a paid plan. Please check the plan, duration and price carefully before paying.",
+      "The 7-day free trial is provided so the learner can explore the available features before choosing a paid plan. Please check the plan, duration and price carefully before paying.",
       "Except where applicable law gives you a cancellation or refund right, payments are not refundable merely because a learner changes their mind, does not use the service, stops studying, forgets to renew or does not use the full plan period.",
       "StudySpace will investigate exceptional cases caused materially by StudySpace, including an account or saved work being deleted by a teacher or administrator by mistake, a duplicate payment, or a verified payment for which access was not provided. We will first try to restore the account or work, correct the account, or extend the subscription where that reasonably resolves the problem. If the problem cannot reasonably be fixed, an appropriate refund may be considered.",
       "Nothing in this section removes a consumer’s rights that cannot lawfully be excluded, including any cancellation, cooling-off, remedy or refund rights that apply under Eswatini law. If a mandatory legal right conflicts with this policy, the mandatory legal right takes priority."
