@@ -343,7 +343,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
         </section>
       </div>}
       {error && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>{error}</p></div>}
-      <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID access — no student email or enrolment PIN required.</strong><br/>StudySpace generates your Student ID after registration and starts a 7-day free trial for eligible adult learners. When your trial or paid plan ends, your account pauses until you redeem a one-time renewal PIN issued for your Student ID. Your saved work stays linked to your account. Never share your password or renewal PIN.</p></div>
+      <div className="student-access-notice"><ShieldCheck size={17}/><p><strong>Student ID access — no student email or enrolment PIN required.</strong><br/>StudySpace generates your Student ID after registration and starts a 7-day free trial when your account is activated. For learners under 18, the trial begins after guardian verification. When your trial or paid plan ends, your account pauses until you redeem a one-time renewal PIN issued for your Student ID. Your saved work stays linked to your account. Never share your password or renewal PIN.</p></div>
       {!supabase && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>Student access is not connected to the Studyspace server. Account creation and sign-in are unavailable until the administrator fixes the app configuration.</p></div>}
       {!online && <div className="student-access-notice" role="alert"><ShieldCheck size={17}/><p>An internet connection is required for first-time enrolment and sign-in.</p></div>}
     </section>
