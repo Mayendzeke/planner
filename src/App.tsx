@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
@@ -94,6 +94,12 @@ const downloadJson = (filename: string, value: unknown) => {
 
 export default function App() {
   const [page, setPage] = useState<Page>("Overview");
+  const [miaResourceStart, setMiaResourceStart] = useState<{ file: File; prompt: string } | null>(null);
+  const startMiaWithResource = useCallback((file: File, prompt: string) => {
+    setMiaResourceStart({ file, prompt });
+    setPage("MIΛ");
+  }, []);
+  const consumeMiaResourceStart = useCallback(() => setMiaResourceStart(null), []);
   const [cloudAuthReady, setCloudAuthReady] = useState(!supabase);
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const [cloudUserName, setCloudUserName] = useState("");
@@ -998,14 +1004,14 @@ export default function App() {
           <div className="glass-panel week-panel"><div className="section-heading"><div><h2>Study time</h2><p>Minutes you have logged this week.</p></div><Clock3 size={20}/></div><div className="week-summary"><div><strong>{Math.floor(weekMinutes/60)}h {weekMinutes%60}m</strong><span>recorded this week</span></div><span className="week-trend">{Math.min(100,Math.round(weeklyHours/Math.max(1,goal)*100))}% of goal</span></div><div className="goal-track"><span style={{width:Math.min(100,weeklyHours/Math.max(1,goal)*100)+"%"}}/></div><div className="goal-label"><span>0h</span><span>{goal}h weekly goal</span></div><div className="session-actions"><label>Log a session<select id="quick-session-subject" defaultValue=""><option value="">General study</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,25);}}>+25 min</button><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,50);}}>+50 min</button></div><p className="subtle-note">Sessions are logged when you choose a duration. This does not run a background timer.</p></div></section>
           <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your Studyspace data travels with your account.</strong> Subjects, tasks, study sessions, academic calendar records and personal files sync to your private Studyspace account when online. This device keeps an offline copy so you can continue studying without a connection.</p><span className="note-pill">CLOUD + OFFLINE</span></section></>}
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
-        {page==="MIΛ"&&profile&&<MiaChat profile={profile} subjects={subjects} variant="studio"/>}
+        {page==="MIΛ"&&profile&&<MiaChat profile={profile} subjects={subjects} variant="studio" initialAttachment={miaResourceStart?.file} initialPrompt={miaResourceStart?.prompt} onAttachmentConsumed={consumeMiaResourceStart}/>}
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<><SchoolHomeworkHelp/><AssignedAssessments/><WeeklyTest subjects={subjects}/></>}
         {page==="Testimonials"&&<StudentFeedback currentPage="Testimonials" initialCategory="Testimonial" lockCategory/>}
         {page==="Help & feedback"&&<StudentFeedback currentPage={page}/> }
         {page==="My profile"&&profile&&<><StudentProfileEditor profile={profile} avatarUrl={avatarUrl} onSaved={next => { setProfile(next); if (cloudUserId) { try { localStorage.setItem("studyspace-profile:" + cloudUserId, JSON.stringify(next)); } catch { setError("Profile was updated in the cloud, but this device could not cache the new copy."); } } setSyncRequested(value => value + 1); }}/><StudentProfileEngagementCard /></>} 
         {page==="Subscription"&&<StudentSubscription onAccessRestored={() => setAccessRetry(value => value + 1)}/>} 
-        {page==="Study Materials & Resources"&&<StudentLibrary subjects={subjects}/>}
+        {page==="Study Materials & Resources"&&<StudentLibrary subjects={subjects} onAskMia={startMiaWithResource}/>}
         {page==="Timetable"&&<StudentTimetable subjects={subjects}/>}
         {page==="Planner"&&<section className="glass-panel planner-panel"><div className="section-heading"><div><h2>Study calendar</h2><p>Plan around your deadlines. Select a day to add a task.</p></div><span className="count-chip">{visibleTasks.length} shown</span></div><div className="filter-row"><div className="filter-tabs">{["All","Open","Overdue","Completed"].map(v=><button key={v} className={filter===v?"selected":""} onClick={()=>setFilter(v)}>{v}</button>)}</div><div className="filter-tabs"><button className={plannerMode==="week"?"selected":""} onClick={()=>setPlannerMode("week")}>Week view</button><button className={plannerMode==="list"?"selected":""} onClick={()=>setPlannerMode("list")}>List view</button><button className="primary-button compact-button" onClick={()=>openNewTask()}><Plus size={15}/> Add task</button></div></div>{plannerMode==="week"&&<WeekCalendar tasks={visibleTasks} subjects={subjectById} offset={weekOffset} onOffset={setWeekOffset} onAdd={openNewTask} onEdit={openEditTask}/ >}{plannerMode==="list"&&(visibleTasks.length?<TaskList tasks={visibleTasks} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<CalendarDays size={22}/>} title={search||filter!=="All"?"No tasks match this view":"Your planner is ready"} text={search||filter!=="All"?"Try changing your search or filter.":"Add a task with a deadline, subject and priority to start planning."} action="Add a task" onAction={()=>openNewTask()}/>)}</section>}
         {page==="Academic Calendar"&&<><UpcomingCalendar tasks={tasks}/><AcademicCalendar/></>}
