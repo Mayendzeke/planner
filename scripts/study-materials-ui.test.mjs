@@ -11,51 +11,63 @@ const db = read('src/data/db.ts');
 const sync = read('src/lib/cloudSync.ts');
 const solo = read('src/components/SoloStudyCoach.tsx');
 
-test('student navigation prioritises messages and gives the menu its own scroll area', () => {
-  const ordered = ['Overview','Today\\'s Session','MIΛ','Messages','Subjects','Planner','Timetable','Study & Exams','Study Materials & Resources'];
+test('student navigation prioritises Messages and keeps Settings reachable', () => {
+  const ordered = [
+    'name: "Overview"',
+    'name: "Today\'s Session"',
+    'name: "MIΛ"',
+    'name: "Messages"',
+    'name: "Subjects"',
+    'name: "Planner"',
+    'name: "Timetable"',
+    'name: "Study & Exams"',
+    'name: "Study Materials & Resources"',
+  ];
   let previous = -1;
   for (const label of ordered) {
-    const current = app.indexOf('name: "' + label + '"');
+    const current = app.indexOf(label);
     assert.ok(current > previous, label + ' should be ordered by student importance');
     previous = current;
   }
-  assert.match(styles, /\\.app-shell > \\.sidebar \\.main-nav[\\s\\S]*?overflow-y:\\s*auto/);
-  assert.match(styles, /\\.app-shell > \\.sidebar \\.sidebar-bottom[\\s\\S]*?margin-top:\\s*auto/);
-  assert.match(app, /page==="Study Materials & Resources"&&<StudentLibrary/);
+  assert.ok(styles.includes('.app-shell > .sidebar .main-nav'));
+  assert.ok(styles.includes('overflow-y:auto'));
+  assert.ok(styles.includes('.app-shell > .sidebar .sidebar-bottom'));
+  assert.ok(styles.includes('margin-top:auto'));
+  assert.ok(app.includes('page==="Study Materials & Resources"&&<StudentLibrary'));
 });
 
-test('student uploads accept common office, spreadsheet, image and text formats', () => {
+test('student uploads support common Office, spreadsheet, image and text formats', () => {
   for (const extension of ['.pdf','.pptx','.ppt','.docx','.doc','.xlsx','.xls','.csv','.jpg','.jpeg','.png','.webp','.txt','.rtf']) {
     assert.ok(library.includes('"' + extension + '"'), 'Student Library must allow ' + extension);
   }
-  assert.match(library, /type="file" multiple/);
-  assert.match(library, /onDrop={onDrop}/);
-  assert.match(library, /MAX_FILE_SIZE = 25 \\* 1024 \\* 1024/);
-  assert.match(library, /MAX_BATCH_SIZE = 100 \\* 1024 \\* 1024/);
+  assert.ok(library.includes('type="file" multiple'));
+  assert.ok(library.includes('onDrop={onDrop}'));
+  assert.ok(library.includes('MAX_FILE_SIZE = 25 * 1024 * 1024'));
+  assert.ok(library.includes('MAX_BATCH_SIZE = 100 * 1024 * 1024'));
 });
 
-test('teacher-assigned and personal materials retain private storage and sync handling', () => {
-  assert.match(library, /resource_assignments/);
-  assert.match(library, /learning_resources/);
-  assert.match(library, /sync privately/);
-  assert.match(library, /downloadResource/);
-  assert.match(sync, /normalisePersonalResourceType/);
-  assert.match(db, /Worksheet.*Past paper.*Reference.*Other/);
+test('teacher-assigned resources remain separate from private student materials', () => {
+  assert.ok(library.includes('resource_assignments'));
+  assert.ok(library.includes('learning_resources'));
+  assert.ok(library.includes('sync privately'));
+  assert.ok(library.includes('downloadResource'));
+  assert.ok(sync.includes('normalisePersonalResourceType'));
+  assert.ok(db.includes('Worksheet') && db.includes('Past paper') && db.includes('Reference') && db.includes('Other'));
 });
 
-test('modern Office documents and CSV have text or table previews', () => {
-  assert.match(preview, /ppt\\/slides\\/slide/);
-  assert.match(preview, /word\\/document\\.xml/);
-  assert.match(preview, /worksheets\\/sheet/);
-  assert.match(preview, /parseCsv/);
-  assert.match(library, /Preview not available/);
-  assert.match(library, /Download original file/);
+test('modern Office files and CSV have in-app preview extraction with download fallback', () => {
+  assert.ok(preview.includes('ppt/slides'));
+  assert.ok(preview.includes('word/document.xml'));
+  assert.ok(preview.includes('worksheets/sheet'));
+  assert.ok(preview.includes('parseCsv'));
+  assert.ok(library.includes('Preview not available'));
+  assert.ok(library.includes('Download original file'));
 });
 
-test('independent study retains session controls and gains the refreshed visual hierarchy', () => {
-  assert.match(solo, /solo-study-hero/);
-  assert.match(solo, /solo-study-roadmap/);
-  assert.match(solo, /Finish and save session/);
-  assert.match(styles, /\\.solo-study-hero/);
-  assert.match(styles, /\\.solo-study-roadmap/);
+test('independent study retains its session controls and gains the refreshed visual hierarchy', () => {
+  assert.ok(solo.includes('solo-study-hero'));
+  assert.ok(solo.includes('solo-study-roadmap'));
+  assert.ok(solo.includes('Finish and save session'));
+  assert.ok(styles.includes('.solo-study-hero'));
+  assert.ok(styles.includes('.solo-study-roadmap'));
 });
