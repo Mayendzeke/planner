@@ -35,6 +35,8 @@ jobs:
         run: node --test scripts/mia-study-materials-bridge.test.mjs
       - name: Verify student password authentication and error handling
         run: node --test scripts/change-student-password-auth.test.mjs
+      - name: Verify seven-day free trial messaging
+        run: node --test scripts/free-trial-duration.test.mjs
       - name: Validate Studyspace Supabase connection
         env:
           VITE_SUPABASE_URL: https://tibcoottzstnqkfpwabk.supabase.co

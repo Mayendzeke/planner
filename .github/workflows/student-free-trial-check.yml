@@ -1,0 +1,28 @@
+name: Student free-trial checks
+
+on:
+  pull_request:
+    paths:
+      - "src/components/StudentAccess.tsx"
+      - "src/components/StudentSubscription.tsx"
+      - "supabase/functions/enrol-learner/index.ts"
+      - "scripts/free-trial-duration.test.mjs"
+      - ".github/workflows/student-free-trial-check.yml"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify seven-day trial and unchanged paid plans
+        run: node --test scripts/free-trial-duration.test.mjs
