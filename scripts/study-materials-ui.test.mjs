@@ -29,10 +29,15 @@ test('student navigation prioritises Messages and keeps Settings reachable', () 
     assert.ok(current > previous, label + ' should be ordered by student importance');
     previous = current;
   }
-  assert.ok(styles.includes('.app-shell > .sidebar .main-nav'));
+  assert.ok(app.includes('<div className="sidebar-nav-slot">'));
+  assert.ok(app.includes('<nav className="main-nav" aria-label="Main navigation">'));
+  assert.ok(styles.includes('.app-shell > .sidebar > .sidebar-nav-slot'));
+  assert.ok(styles.includes('flex:1 1 0%'));
+  assert.ok(styles.includes('min-height:0'));
   assert.ok(styles.includes('overflow-y:auto'));
-  assert.ok(styles.includes('.app-shell > .sidebar .sidebar-bottom'));
-  assert.ok(styles.includes('margin-top:auto'));
+  assert.ok(styles.includes('overscroll-behavior-y:contain'));
+  assert.ok(styles.includes('.app-shell > .sidebar > .sidebar-bottom'));
+  assert.ok(styles.includes('flex:0 0 auto'));
   assert.ok(app.includes('page==="Study Materials & Resources"&&<StudentLibrary'));
 });
 
