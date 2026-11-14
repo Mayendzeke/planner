@@ -294,7 +294,7 @@ export default function App() {
       setAccessStatusError("");
       setAccessLoading(false);
 
-      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialStart + 24 * 60 * 60 * 1000) {
+      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialStart + 3.5 * 24 * 60 * 60 * 1000) {
         const { data: marked, error: reminderError } = await supabase!.rpc("mark_studyspace_trial_reminder_shown");
         if (alive && !reminderError && marked === true) setTrialReminder(true);
       }
@@ -962,7 +962,7 @@ export default function App() {
       <div className="onboarding-brand"><span className="onboarding-mark"><GraduationCap size={24}/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="eyebrow"><LockKeyhole size={14}/> ACCESS PAUSED</div>
       <div className="onboarding-heading">
-        <h1>Your 48-hour trial has ended.</h1>
+        <h1>Your 7-day free trial has ended.</h1>
         <p>Your account and Student ID are saved. Restore access with a renewal PIN or request a plan below. Once access is restored, you can finish setting up your study profile.</p>
       </div>
       <StudentSubscription onAccessRestored={() => setAccessRetry(value => value + 1)}/>
@@ -1058,9 +1058,9 @@ export default function App() {
     {trialReminder && !expiredAccess && <div className="trial-reminder-overlay" role="dialog" aria-modal="true" aria-labelledby="trial-reminder-title">
       <section className="trial-reminder-dialog">
         <div className="access-lock-symbol"><Clock3 size={23}/></div>
-        <span className="eyebrow">24-HOUR TRIAL REMINDER</span>
-        <h2 id="trial-reminder-title">Your free trial is halfway through</h2>
-        <p>You have enjoyed 24 hours of free StudySpace access. There are 24 hours remaining. Choose a plan now to avoid interruption when your trial ends.</p>
+        <span className="eyebrow">MID-TRIAL REMINDER</span>
+        <h2 id="trial-reminder-title">You’re halfway through your free week</h2>
+        <p>You have enjoyed 3 days and 12 hours of free StudySpace access. There are 3 days and 12 hours remaining. Choose a plan now to avoid interruption when your trial ends.</p>
         <button className="primary-button" onClick={() => { setTrialReminder(false); setPage("Subscription"); }}>Choose a plan</button>
         <button className="access-expiry-secondary" onClick={() => setTrialReminder(false)}>Continue studying</button>
       </section>
