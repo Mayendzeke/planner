@@ -109,6 +109,10 @@ test('Learning Studio connects study tools without replacing existing student wo
   assert.ok(studio.includes('learning-studio-concept-map'));
   assert.ok(studio.includes('Check my answer'));
   assert.ok(studio.includes('learning-studio-number-line'));
+  assert.ok(studio.includes('Daily challenge'));
+  assert.ok(studio.includes('Find my weak areas'));
+  assert.ok(studio.includes('Previous recall confidence'));
+  assert.ok(studio.includes('setInterval(() => setNow(Date.now()), 60_000)'));
   assert.ok(studio.includes('type=\"range\"'));
   assert.ok(styles.includes('.learning-studio-hero'));
   assert.ok(styles.includes('.learning-studio-record-list'));
