@@ -20,6 +20,7 @@ import StudentAccess from "./components/StudentAccess";
 import GuardianConsentPage from "./components/GuardianConsentPage";
 import TermsReviewPage from "./components/TermsReviewPage";
 import StudentLibrary from "./components/StudentLibrary";
+import LearningStudio from "./components/LearningStudio";
 import AcademicCalendar from "./components/AcademicCalendar";
 import UpcomingCalendar from "./components/UpcomingCalendar";
 import StudyReminders from "./components/StudyReminders";
@@ -39,7 +40,7 @@ import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./c
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 
-type Page = "Overview" | "Today's Session" | "MIΛ" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "Study Materials & Resources" | "Academic Calendar" | "Progress" | "Messages" | "Testimonials" | "Help & feedback" | "My profile" | "Settings" | "Subscription";
+type Page = "Overview" | "Today's Session" | "MIΛ" | "Learning Studio" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "Study Materials & Resources" | "Academic Calendar" | "Progress" | "Messages" | "Testimonials" | "Help & feedback" | "My profile" | "Settings" | "Subscription";
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
@@ -48,6 +49,7 @@ const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard },
   { name: "Today's Session", icon: Sparkles },
   { name: "MIΛ", icon: Brain },
+  { name: "Learning Studio", icon: Sparkles },
   { name: "Messages", icon: MessageCircle },
   { name: "Subjects", icon: BookOpen },
   { name: "Planner", icon: CalendarDays },
@@ -94,9 +96,13 @@ const downloadJson = (filename: string, value: unknown) => {
 
 export default function App() {
   const [page, setPage] = useState<Page>("Overview");
-  const [miaResourceStart, setMiaResourceStart] = useState<{ file: File; prompt: string } | null>(null);
+  const [miaResourceStart, setMiaResourceStart] = useState<{ file: File | null; prompt: string } | null>(null);
   const startMiaWithResource = useCallback((file: File, prompt: string) => {
     setMiaResourceStart({ file, prompt });
+    setPage("MIΛ");
+  }, []);
+  const startMiaWithPrompt = useCallback((prompt: string) => {
+    setMiaResourceStart({ file: null, prompt });
     setPage("MIΛ");
   }, []);
   const consumeMiaResourceStart = useCallback(() => setMiaResourceStart(null), []);
@@ -969,7 +975,7 @@ export default function App() {
     <StudyspaceDailyNudges />
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
     <aside className={"sidebar glass-panel " + (mobileMenu ? "sidebar-open" : "")}>
-      <div className="brand"><div className="brand-mark"><GraduationCap size={23}/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
+      <div className="brand"><div className="brand-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
       <div className="workspace-label">YOUR WORKSPACE</div>
       <button type="button" className="profile-card profile-card-button" onClick={()=>{setPage("My profile");setMobileMenu(false);}} aria-label="View and edit my profile"><div className="avatar">{avatarUrl ? <img src={avatarUrl} alt=""/> : <span>{(profile?.preferredName || profile?.fullName || "S").trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()).join("")}</span>}</div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span><small>View / edit profile</small></div><UserRound className="profile-open-icon" size={15}/></button>
       <div className="nav-label">STUDY</div>
@@ -1008,6 +1014,7 @@ export default function App() {
           <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your Studyspace data travels with your account.</strong> Subjects, tasks, study sessions, academic calendar records and personal files sync to your private Studyspace account when online. This device keeps an offline copy so you can continue studying without a connection.</p><span className="note-pill">CLOUD + OFFLINE</span></section></>}
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
         {page==="MIΛ"&&profile&&<MiaChat profile={profile} subjects={subjects} variant="studio" initialAttachment={miaResourceStart?.file} initialPrompt={miaResourceStart?.prompt} onAttachmentConsumed={consumeMiaResourceStart}/>}
+        {page==="Learning Studio"&&profile&&<LearningStudio subjects={subjects} learnerLevel={profile.level} grade={profile.grade} curriculum={profile.curriculum} onAskMia={startMiaWithPrompt} onOpenAssessments={()=>setPage("Study & Exams")} onOpenMaterials={()=>setPage("Study Materials & Resources")}/>}
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<><SchoolHomeworkHelp/><AssignedAssessments/><WeeklyTest subjects={subjects}/></>}
         {page==="Testimonials"&&<StudentFeedback currentPage="Testimonials" initialCategory="Testimonial" lockCategory/>}
