@@ -2564,3 +2564,11 @@ select option, select optgroup {
 
 /* The shared StudySpace mark carries its own colour system across every workspace. */
 .app-shell .sidebar .brand-mark{background:transparent;box-shadow:none;border-radius:0;color:inherit}
+
+
+@media(max-width:480px){
+  .library-viewer-header{flex-wrap:wrap}
+  .library-viewer-header>div:first-child{flex:1 0 100%;max-width:none}
+  .library-viewer-header-actions{width:100%;justify-content:flex-end}
+  .library-viewer.is-fullscreen .library-viewer-header>div:first-child{max-width:none}
+}
