@@ -40,3 +40,12 @@ test("learning actions remain available after a student opens a conversation", (
 test("the student chat client no longer displays an artificial rolling daily allowance", () => {
   assert.doesNotMatch(mia, /remainingDailyRequests|usage_status|requests remaining|rolling 24-hour limit/);
 });
+
+
+test("student-facing MIΛ does not reveal AI providers or model names", () => {
+  const provider = readFileSync("supabase/functions/mia-assistant/provider.ts", "utf8");
+  assert.match(mia, /Study-focused · Short answers · Learning support/);
+  assert.doesNotMatch(mia, /Gemma|Qwen|Gemini|Cloudflare Workers AI|Google Gemini API/);
+  assert.match(provider, /MIΛ’s primary learning model was temporarily unavailable/);
+  assert.doesNotMatch(provider, /Gemma 4 was unavailable|Qwen 3\.8 completed it as the secondary/);
+});
