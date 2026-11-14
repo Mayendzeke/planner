@@ -18,7 +18,7 @@ type Assignment = {
   questions: Question[];
 };
 type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; aiMarked: number; markingStatus: string; markingNotice: string; teacherFeedback?: string; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string;markingMethod?:string;confidence?:number;status?:string}> };
-type StoredAttempt = { score:number; total_points:number; submitted_at:string; marked_at:string|null; teacher_feedback:string; marking_status:string; teacher_review_required:boolean; ai_marked_at:string|null; marking_details:Record<string,unknown> };
+type StoredAttempt = { score:number; total_points:number; submitted_at:string; marked_at:string|null; teacher_feedback:string; marking_status:string; teacher_review_required:boolean; ai_marked_at:string|null; marking_details:Record<string,unknown>; manual_marks:Record<string,number> };
 
 export default function AssignedAssessments() {
   const [assignments,setAssignments] = useState<Assignment[]>([]);
@@ -50,7 +50,7 @@ export default function AssignedAssessments() {
       const [{data:sets,error:setError},{data:questions,error:questionError},{data:attemptRows,error:attemptError}]=await Promise.all([
         supabase.from("exercise_sets").select("id,title,subject_name,instructions,duration_minutes,grade,curriculum").in("id",ids).eq("is_published",true),
         supabase.from("exercise_questions").select("id,exercise_set_id,position,question_type,prompt,points,content").in("exercise_set_id",ids).order("position"),
-        supabase.from("exercise_attempts").select("assignment_id,score,total_points,submitted_at,marked_at,teacher_feedback,marking_status,teacher_review_required,ai_marked_at,marking_details")
+        supabase.from("exercise_attempts").select("assignment_id,score,total_points,submitted_at,marked_at,teacher_feedback,marking_status,teacher_review_required,ai_marked_at,marking_details,manual_marks")
           .eq("learner_id",authState.user.id).in("assignment_id",rows.map(row=>row.id)).order("submitted_at",{ascending:false}),
       ]);
       if(setError) throw setError;
@@ -100,6 +100,12 @@ export default function AssignedAssessments() {
     setSubmission(current=>current?{
       ...current,score,totalPoints:total,percentage:total>0?Math.round(score/total*10000)/100:0,
       manualReview:0,markingStatus:"teacher_marked",teacherFeedback:attempt.teacher_feedback||"",
+      results:Object.fromEntries(Object.entries(current.results).map(([questionId,result])=>{
+        const teacherMark=attempt.manual_marks?.[questionId];
+        if(teacherMark===undefined)return [questionId,result];
+        const awarded=Number(teacherMark);
+        return [questionId,{...result,awarded,correct:awarded>=result.points?true:awarded>0?null:false,markingMethod:"teacher",status:"marked" as const,explanation:attempt.teacher_feedback||result.explanation}];
+      })),
     }:current);
   },[activeId,attemptsByAssignment,submission]);
 
@@ -154,7 +160,7 @@ export default function AssignedAssessments() {
         score:Number(data.score||0),total_points:Number(data.totalPoints||0),
         submitted_at:String(data.submittedAt||new Date().toISOString()),marked_at:null,teacher_feedback:"",
         marking_status:String(data.markingStatus||"not_required"),teacher_review_required:Number(data.manualReview||0)>0,
-        ai_marked_at:Number(data.aiMarked||0)>0?String(data.submittedAt||new Date().toISOString()):null,marking_details:{}
+        ai_marked_at:Number(data.aiMarked||0)>0?String(data.submittedAt||new Date().toISOString()):null,marking_details:{},manual_marks:{}
       }}));
     }catch(reason){setError(reason instanceof Error?reason.message:"Your answers could not be submitted. Try again.");}
     finally{setBusy(false);}
