@@ -517,6 +517,6 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
       <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
-    <div className="mia-footnote">Study-focused · Short answers · Gemma 4 with Qwen backup · Provider quotas apply</div>
+    <div className="mia-footnote">Study-focused · Short answers · Learning support</div>
   </section>;
 }
