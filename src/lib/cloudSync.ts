@@ -304,7 +304,11 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
           created_at: local.createdAt,
           updated_at: local.localUpdatedAt,
         }, { onConflict: "id" }).select("*").single();
-        if (error) throw new Error("Could not save personal file details: " + error.message);
+        if (error) {
+          await supabase.storage.from("studyspace-resources").remove([path]);
+          await supabase.rpc("release_studyspace_personal_storage_reservation", { p_object_path: path });
+          throw new Error("Could not save personal file details: " + error.message);
+        }
         await completePersonalCloudFile(path);
         const stamp = String(data.updated_at || data.created_at);
         await pause(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
@@ -332,7 +336,11 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
       created_at: local.createdAt,
       updated_at: local.localUpdatedAt || new Date().toISOString(),
     }, { onConflict: "id" }).select("*").single();
-    if (error) throw new Error("Could not save personal file details: " + error.message);
+    if (error) {
+      await supabase.storage.from("studyspace-resources").remove([path]);
+      await supabase.rpc("release_studyspace_personal_storage_reservation", { p_object_path: path });
+      throw new Error("Could not save personal file details: " + error.message);
+    }
     await completePersonalCloudFile(path);
     const stamp = String(data.updated_at || data.created_at);
     await pause(() => table.update(local.id, {
