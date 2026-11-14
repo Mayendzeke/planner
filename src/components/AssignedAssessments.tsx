@@ -103,8 +103,9 @@ export default function AssignedAssessments() {
       results:Object.fromEntries(Object.entries(current.results).map(([questionId,result])=>{
         const teacherMark=attempt.manual_marks?.[questionId];
         if(teacherMark===undefined)return [questionId,result];
+        const previous=result??{correct:null,points:0,awarded:0};
         const awarded=Number(teacherMark);
-        return [questionId,{...result,awarded,correct:awarded>=result.points?true:awarded>0?null:false,markingMethod:"teacher",status:"marked" as const,explanation:attempt.teacher_feedback||result.explanation}];
+        return [questionId,{...previous,awarded,correct:awarded>=previous.points?true:awarded>0?null:false,markingMethod:"teacher",status:"marked" as const,explanation:attempt.teacher_feedback||previous.explanation}];
       })),
     }:current);
   },[activeId,attemptsByAssignment,submission]);
