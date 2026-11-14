@@ -17,6 +17,7 @@ type TeacherResource = {
   resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string;
 };
 type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" } | { kind: "powerpoint" };
+type StorageStatus = { used_bytes: number; quota_bytes: number; reserved_bytes: number; available_bytes: number; used_percent: number };
 const resourceTypes: ResourceType[] = ["Study notes", "Revision notes", "Worksheet", "Past paper", "Reference", "Other"];
 const PowerPointDocumentViewer = lazy(() => import("./PowerPointDocumentViewer"));
 
@@ -25,6 +26,12 @@ function formatSize(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "File size unavailable";
   if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB";
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+function formatStorage(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  return bytes >= 1024 * 1024 * 1024
+    ? (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB"
+    : (bytes / (1024 * 1024)).toFixed(0) + " MB";
 }
 function fileType(name: string) { return extensionOf(name).replace(".", "").toUpperCase() || "FILE"; }
 function formatCategory(value?: string) {
@@ -75,6 +82,9 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
   const [viewing, setViewing] = useState<StudentResource | null>(null);
   const [preview, setPreview] = useState<PreviewState>({ kind: "loading" });
   const [previewImageUrl, setPreviewImageUrl] = useState("");
+  const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
+  const [storageLoading, setStorageLoading] = useState(true);
+  const [storageError, setStorageError] = useState("");
 
   async function refresh() {
     try {
@@ -84,6 +94,20 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       setMessage("Your personal library could not be read from this device.");
       setMessageIsError(true);
     }
+  }
+
+  async function refreshStorageStatus() {
+    if (!supabase) { setStorageLoading(false); return; }
+    setStorageLoading(true);
+    const { data, error } = await supabase.rpc("get_studyspace_storage_status");
+    if (error) {
+      setStorageError("Cloud storage usage is unavailable. Sync your account or contact your teacher.");
+      setStorageStatus(null);
+    } else {
+      setStorageError("");
+      setStorageStatus(data as StorageStatus);
+    }
+    setStorageLoading(false);
   }
 
   async function refreshTeacherFiles() {
@@ -110,10 +134,13 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
   useEffect(() => {
     void refresh();
     void refreshTeacherFiles();
-    const interval = window.setInterval(() => void refreshTeacherFiles(), 30000);
-    const onVisible = () => { if (document.visibilityState === "visible") void refreshTeacherFiles(); };
+    void refreshStorageStatus();
+    const interval = window.setInterval(() => { void refreshTeacherFiles(); void refreshStorageStatus(); }, 60000);
+    const onVisible = () => { if (document.visibilityState === "visible") { void refreshTeacherFiles(); void refreshStorageStatus(); } };
+    const onStorageUpdated = () => void refreshStorageStatus();
     window.addEventListener("focus", onVisible);
-    return () => { window.clearInterval(interval); window.removeEventListener("focus", onVisible); };
+    window.addEventListener("studyspace-storage-updated", onStorageUpdated);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", onVisible); window.removeEventListener("studyspace-storage-updated", onStorageUpdated); };
   }, []);
 
   useEffect(() => {
@@ -301,6 +328,18 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
           </div>
         </div>
         <div className="library-hero-art" aria-hidden="true"><div className="library-hero-art-mark"><BookOpen size={34}/></div><strong>YOUR LIBRARY</strong><small>Organised. Private. Ready.</small></div>
+      </section>
+
+      <section className="glass-panel library-storage-card" aria-label="Personal cloud storage">
+        <div className="library-storage-heading">
+          <div><span className="eyebrow">YOUR PERSONAL STORAGE</span><h3>Cloud storage allowance</h3><p>Personal study files sync privately to your StudySpace account. Teacher-assigned materials use the shared school library and do not reduce this allowance.</p></div>
+          <div className="library-storage-total"><strong>{storageLoading ? "…" : storageStatus ? formatStorage(storageStatus.used_bytes) : "—"}</strong><span>USED</span></div>
+        </div>
+        {storageStatus ? <>
+          <div className="library-storage-track" role="progressbar" aria-label="Personal cloud storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100,storageStatus.used_percent)}><span style={{width:Math.min(100,Math.max(0,storageStatus.used_percent))+"%"}}/></div>
+          <div className="library-storage-meta"><strong>{formatStorage(storageStatus.used_bytes + storageStatus.reserved_bytes)} of {formatStorage(storageStatus.quota_bytes)} used</strong><span>{formatStorage(storageStatus.available_bytes)} available</span></div>
+        </> : <p className="library-storage-error">{storageError || "Checking your cloud storage…"}</p>}
+        {files.some(file=>!file.cloudId)&&<small className="library-storage-pending">{files.filter(file=>!file.cloudId).length} personal file(s) are saved on this device and waiting to sync.</small>}
       </section>
 
       <section className="glass-panel library-upload-panel">
