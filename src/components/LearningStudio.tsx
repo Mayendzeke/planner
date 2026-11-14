@@ -77,7 +77,6 @@ export default function LearningStudio({
   const [tab, setTab] = useState<"study" | "visual" | "revision" | "mastery">("study");
   const [storageWarning, setStorageWarning] = useState("");
   const [notice, setNotice] = useState("");
-  const [selectedRecordId, setSelectedRecordId] = useState("");
   const selectedSubject = subjects.find(item => item.id === subjectId);
   const topicKey = selectedSubject && topic.trim()
     ? String(selectedSubject.id) + ":" + topic.trim().toLocaleLowerCase()
@@ -176,7 +175,6 @@ export default function LearningStudio({
     setSubjectId(record.subjectId);
     setTopic(record.topic);
     setNotes(record.notes);
-    setSelectedRecordId(record.id);
     setTab("study");
   };
 
