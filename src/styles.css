@@ -2531,3 +2531,13 @@ select option, select optgroup {
 @keyframes connection-pulse{70%{box-shadow:0 0 0 9px rgba(255,189,118,0)}100%{box-shadow:0 0 0 0 rgba(255,189,118,0)}}
 @media(max-width:480px){.connection-status-banner{padding:11px 12px;border-radius:14px;gap:9px}.connection-status-copy strong{font-size:10px}.connection-status-copy small{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.connection-status-banner,.connection-status-pulse{animation:none}}
+
+
+/* Liquid fill animation inside the Student graduation-cap mark. */
+.studyspace-cap-water-fill{opacity:0;transform:translateY(172px);animation:studyspace-cap-water-rise 2.55s cubic-bezier(.2,.76,.22,1) .65s forwards}
+.studyspace-cap-water-wave{transform-box:fill-box;transform-origin:center;animation:studyspace-cap-water-wave 2.4s ease-in-out .8s infinite}
+.studyspace-cap-water-bubbles{animation:studyspace-cap-bubbles 2.6s ease-in-out .8s infinite}
+@keyframes studyspace-cap-water-rise{0%{opacity:0;transform:translateY(172px)}12%{opacity:.94}100%{opacity:1;transform:translateY(0)}}
+@keyframes studyspace-cap-water-wave{0%,100%{transform:translateX(-3px);opacity:.4}50%{transform:translateX(4px);opacity:.82}}
+@keyframes studyspace-cap-bubbles{0%,100%{transform:translateY(2px);opacity:.45}50%{transform:translateY(-9px);opacity:.9}}
+@media(prefers-reduced-motion:reduce){.studyspace-cap-water-fill,.studyspace-cap-water-wave,.studyspace-cap-water-bubbles{opacity:1;animation:none;transform:none}}
