@@ -294,7 +294,7 @@ export default function App() {
       setAccessStatusError("");
       setAccessLoading(false);
 
-      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialStart + 3.5 * 24 * 60 * 60 * 1000) {
+      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialStart + 6 * 24 * 60 * 60 * 1000) {
         const { data: marked, error: reminderError } = await supabase!.rpc("mark_studyspace_trial_reminder_shown");
         if (alive && !reminderError && marked === true) setTrialReminder(true);
       }
@@ -1058,9 +1058,9 @@ export default function App() {
     {trialReminder && !expiredAccess && <div className="trial-reminder-overlay" role="dialog" aria-modal="true" aria-labelledby="trial-reminder-title">
       <section className="trial-reminder-dialog">
         <div className="access-lock-symbol"><Clock3 size={23}/></div>
-        <span className="eyebrow">MID-TRIAL REMINDER</span>
-        <h2 id="trial-reminder-title">You’re halfway through your free week</h2>
-        <p>You have enjoyed 3 days and 12 hours of free StudySpace access. There are 3 days and 12 hours remaining. Choose a plan now to avoid interruption when your trial ends.</p>
+        <span className="eyebrow">24-HOUR TRIAL REMINDER</span>
+        <h2 id="trial-reminder-title">Your free trial ends tomorrow</h2>
+        <p>You have enjoyed 6 days of free StudySpace access. There are 24 hours remaining. Choose a plan now to avoid interruption when your trial ends.</p>
         <button className="primary-button" onClick={() => { setTrialReminder(false); setPage("Subscription"); }}>Choose a plan</button>
         <button className="access-expiry-secondary" onClick={() => setTrialReminder(false)}>Continue studying</button>
       </section>
