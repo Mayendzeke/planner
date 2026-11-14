@@ -92,3 +92,36 @@ test('PowerPoint files use a native slide viewer with images, thumbnails and nav
   assert.ok(powerpoint.includes('ViewerErrorBoundary'));
   assert.ok(powerpoint.includes('Embedded pictures'));
 });
+
+
+test('Learning Studio connects study tools without replacing existing student workspaces', () => {
+  const studio = read('src/components/LearningStudio.tsx');
+  assert.ok(app.includes('name: "Learning Studio"'));
+  assert.ok(app.includes('page==="Learning Studio"&&profile&&<LearningStudio'));
+  assert.ok(studio.includes('onOpenAssessments'));
+  assert.ok(studio.includes('onOpenMaterials'));
+  for (const action of ['Explain this topic','Teach me step by step','Quiz me','Make flashcards','Visual explanation','Build revision plan']) {
+    assert.ok(studio.includes(action), 'Learning Studio must offer ' + action);
+  }
+  assert.ok(studio.includes('studyspace-learning-studio-v1'));
+  assert.ok(studio.includes('nextReviewAt'));
+  assert.ok(studio.includes('setRecords'));
+  assert.ok(studio.includes('learning-studio-concept-map'));
+  assert.ok(studio.includes('Check my answer'));
+  assert.ok(studio.includes('learning-studio-number-line'));
+  assert.ok(studio.includes('Daily challenge'));
+  assert.ok(studio.includes('Find my weak areas'));
+  assert.ok(studio.includes('Previous recall confidence'));
+  assert.ok(studio.includes('setInterval(() => setNow(Date.now()), 60_000)'));
+  assert.ok(studio.includes('type=\"range\"'));
+  assert.ok(styles.includes('.learning-studio-hero'));
+  assert.ok(styles.includes('.learning-studio-record-list'));
+});
+
+test('MIΛ accepts prompt-only handoffs and PowerPoint previews can open a slide-aware tutor request', () => {
+  const mia = read('src/components/MiaChat.tsx');
+  assert.ok(mia.includes('if (!initialAttachment && !initialPrompt) return;'));
+  assert.ok(mia.includes('if (initialPrompt) setText(initialPrompt);'));
+  assert.ok(library.includes('Ask MIΛ about these slides'));
+  assert.ok(library.includes('Do not skip slide visuals.'));
+});

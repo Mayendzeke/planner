@@ -22,8 +22,10 @@ export default defineConfig({
         scope: "/planner/",
         prefer_related_applications: false,
         icons: [
-          { src: "/planner/student-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
-          { src: "/planner/student-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: "/planner/student-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/planner/student-icon-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: "/planner/student-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/planner/student-icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
           { src: "/planner/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }
         ]
       },
