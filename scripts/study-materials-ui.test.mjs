@@ -160,7 +160,7 @@ test('student personal cloud storage is visible and cloud uploads reserve quota 
   assert.ok(library.includes('get_studyspace_storage_status'));
   assert.ok(library.includes('library-storage-card'));
   assert.ok(library.includes('available_bytes'));
-  assert.ok(library.includes('teacher-assigned materials use the shared school library'));
+  assert.ok(library.includes('Teacher-assigned materials use the shared school library'));
   assert.ok(sync.includes('reserve_studyspace_personal_storage'));
   assert.ok(sync.includes('complete_studyspace_personal_storage_upload'));
   assert.ok(sync.includes('release_studyspace_personal_storage_reservation'));
