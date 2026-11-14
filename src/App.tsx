@@ -313,7 +313,7 @@ export default function App() {
     };
   }, [cloudUserId, accessRetry]);
   useEffect(() => {
-    const timer = window.setTimeout(() => setSplashElapsed(true), 6600);
+    const timer = window.setTimeout(() => setSplashElapsed(true), 4800);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -920,6 +920,7 @@ export default function App() {
 
   if (new URLSearchParams(window.location.search).has("studyspace_terms")) return <TermsReviewPage />;
   if (new URLSearchParams(window.location.search).has("guardian_consent")) return <GuardianConsentPage />;
+  if (!splashElapsed) return <SplashScreen theme={theme} displayName={profile?.preferredName || cloudUserName} />;
   if (!supabase) return <StudentAccess installAvailable={Boolean(installPrompt)} onInstall={() => void installStudyspace()} />;
   if (!cloudAuthReady) return <SplashScreen theme={theme} displayName={profile?.preferredName || cloudUserName} />;
   if (!cloudAuthenticated) return <StudentAccess installAvailable={Boolean(installPrompt)} onInstall={() => void installStudyspace()} />;
