@@ -176,7 +176,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
         } catch {
           // Account creation succeeded; fall back to the ordinary sign-in screen.
         }
-        setNotice("Your account is ready. Your Student ID is " + registeredStudentId + ". Save this ID; you can sign in now or later with your password.");
+        setNotice("Your account is ready and your 7-day free trial has started. Your Student ID is " + registeredStudentId + ". Save this ID; you can sign in now or later with your password.");
         setPassword("");
         setMode("signin");
       } else {
