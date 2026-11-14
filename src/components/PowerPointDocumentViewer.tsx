@@ -34,7 +34,7 @@ export default function PowerPointDocumentViewer({ file }: { file: Blob }) {
     <div className="library-powerpoint-viewer">
       <div className="library-preview-note">
         <span aria-hidden="true">▣</span>
-        <span>PowerPoint preview · Browse slides, use the thumbnail rail, search supported text and adjust zoom. Embedded pictures and supported slide elements render in place. Animations and some advanced PowerPoint effects may appear as static content.</span>
+        <span>Browse slides with the thumbnail rail and toolbar. Move between slides, adjust zoom and search supported slide text. Some PowerPoint animations may appear as still content.</span>
       </div>
       <div className="library-powerpoint-viewer-stage">
         <ViewerErrorBoundary>
@@ -44,7 +44,6 @@ export default function PowerPointDocumentViewer({ file }: { file: Blob }) {
             defaultZoom="fit-width"
             showThumbnails
             showToolbar
-            showDiagnostics
           />
         </ViewerErrorBoundary>
       </div>

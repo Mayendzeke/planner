@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   AlertCircle, BookOpen, Brain, Download, Eye, FileSpreadsheet, FileText, FolderOpen,
-  Image as ImageIcon, Plus, Presentation, Search, ShieldCheck, Trash2, Upload, X,
+  Image as ImageIcon, Maximize2, Minimize2, Plus, Presentation, Search, ShieldCheck, Trash2, Upload, X,
 } from "lucide-react";
 import PdfViewer from "./PdfViewer";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
@@ -80,6 +80,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
   const [filterType, setFilterType] = useState("All");
   const [filterSource, setFilterSource] = useState("All");
   const [viewing, setViewing] = useState<StudentResource | null>(null);
+  const [fullscreenPreview, setFullscreenPreview] = useState(false);
   const [preview, setPreview] = useState<PreviewState>({ kind: "loading" });
   const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
@@ -173,10 +174,21 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
 
   useEffect(() => {
     if (!viewing) return;
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setViewing(null); };
+    const close = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (fullscreenPreview) setFullscreenPreview(false);
+      else setViewing(null);
+    };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [viewing]);
+  }, [viewing, fullscreenPreview]);
+
+  useEffect(() => {
+    if (!fullscreenPreview) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [fullscreenPreview]);
 
   function queueFiles(incoming: FileList | File[]) {
     const selected = Array.from(incoming);
@@ -428,10 +440,10 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         </article>)}</div>:<div className="library-empty"><div><FolderOpen size={23}/></div><strong>Your personal library is ready</strong><p>Save notes, presentations, worksheets, images and spreadsheets here. Choose files above to begin building your own study collection.</p></div>}
       </section>}
 
-      {viewing&&<div className="modal-backdrop library-viewer-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setViewing(null);}}>
-        <section className="library-viewer" role="dialog" aria-modal="true" aria-label={"Previewing "+viewing.name}>
+      {viewing&&<div className={"modal-backdrop library-viewer-backdrop" + (fullscreenPreview ? " is-fullscreen" : "")} onMouseDown={event=>{if(event.target===event.currentTarget){setFullscreenPreview(false);setViewing(null);}}}>
+        <section className={"library-viewer" + (fullscreenPreview ? " is-fullscreen" : "")} role="dialog" aria-modal="true" aria-label={"Previewing "+viewing.name}>
           <header className="library-viewer-header"><div><span>STUDYSPACE MATERIAL PREVIEW</span><strong>{viewing.name}</strong></div>
-            <div className="library-viewer-header-actions">{preview.kind==="powerpoint"&&canStudyWithMia(viewing.name,viewing.file.size)&&<button type="button" className="icon-button" aria-label="Ask MIΛ about this presentation" title="Ask MIΛ about these slides" onClick={()=>onAskMia(new File([viewing.file],viewing.name,{type:viewing.file.type||"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),"Please guide me through this presentation slide by slide. Explain the main idea, unpack any diagrams and images, define unfamiliar terms, connect ideas to my level and curriculum, and pause for a short question after each important section. Do not skip slide visuals.")}><Brain size={16}/></button>}<button type="button" className="icon-button" aria-label="Download original file" title="Download original file" onClick={()=>downloadResource(viewing)}><Download size={16}/></button><button type="button" className="icon-button" aria-label="Close preview" onClick={()=>setViewing(null)}><X size={18}/></button></div>
+            <div className="library-viewer-header-actions">{preview.kind==="powerpoint"&&<button type="button" className="secondary-button library-fullscreen-toggle" aria-pressed={fullscreenPreview} onClick={()=>setFullscreenPreview(value=>!value)}>{fullscreenPreview?<Minimize2 size={15}/>:<Maximize2 size={15}/>}<span>{fullscreenPreview?"Exit full screen":"Full screen"}</span></button>}{preview.kind==="powerpoint"&&canStudyWithMia(viewing.name,viewing.file.size)&&<button type="button" className="icon-button" aria-label="Ask MIΛ about this presentation" title="Ask MIΛ about these slides" onClick={()=>onAskMia(new File([viewing.file],viewing.name,{type:viewing.file.type||"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),"Please guide me through this presentation slide by slide. Explain the main idea, unpack any diagrams and images, define unfamiliar terms, connect ideas to my level and curriculum, and pause for a short question after each important section. Do not skip slide visuals.")}><Brain size={16}/></button>}<button type="button" className="icon-button" aria-label="Download original file" title="Download original file" onClick={()=>downloadResource(viewing)}><Download size={16}/></button><button type="button" className="icon-button" aria-label="Close preview" onClick={()=>{setFullscreenPreview(false);setViewing(null);}}><X size={18}/></button></div>
           </header>
           <div className="library-viewer-content">
             {preview.kind==="loading"&&<div className="library-empty"><strong>Preparing preview…</strong></div>}
