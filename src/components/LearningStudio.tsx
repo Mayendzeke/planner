@@ -76,6 +76,7 @@ export default function LearningStudio({
   const [answerDraft, setAnswerDraft] = useState("");
   const [numberLineValue, setNumberLineValue] = useState(0);
   const [records, setRecords] = useState<ReviewRecord[]>(readRecords);
+  const [now, setNow] = useState(Date.now());
   const [tab, setTab] = useState<"study" | "visual" | "revision" | "mastery">("study");
   const [storageWarning, setStorageWarning] = useState("");
   const [notice, setNotice] = useState("");
@@ -85,8 +86,13 @@ export default function LearningStudio({
     : "";
   const activeRecord = records.find(item => item.id === topicKey) || null;
   const dueRecords = useMemo(() => records
-    .filter(item => safeDate(item.nextReviewAt).getTime() <= Date.now())
-    .sort((a, b) => safeDate(a.nextReviewAt).getTime() - safeDate(b.nextReviewAt).getTime()), [records]);
+     .filter(item => safeDate(item.nextReviewAt).getTime() <= now)
+    .sort((a, b) => safeDate(a.nextReviewAt).getTime() - safeDate(b.nextReviewAt).getTime()), [records, now]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const masteredCount = records.filter(item => item.mastery === "mastered").length;
 
   useEffect(() => {
@@ -116,6 +122,8 @@ export default function LearningStudio({
     learnerLevel ? "Level: " + learnerLevel : "",
     grade ? "Grade/year: " + grade : "",
     curriculum ? "Curriculum: " + curriculum : "",
+    activeRecord ? "Previous recall confidence: " + masteryLabel[activeRecord.mastery] + "; reviews recorded: " + activeRecord.reviewCount + "; next review: " + formatDate(activeRecord.nextReviewAt) : "",
+    notes.trim() ? "My saved study notes: " + notes.trim() : "",
   ].filter(Boolean).join("\n");
 
   const requireTopic = () => {
@@ -229,6 +237,8 @@ export default function LearningStudio({
             <button type="button" className="secondary-button" onClick={() => ask("Create up to 12 concise revision flashcards for this topic. Format every card exactly as Front: and Back:, include a simple memory cue when useful, and cover key definitions, methods and common mistakes.")}><Layers3 size={15}/> Make flashcards</button>
             <button type="button" className="secondary-button" onClick={() => ask("Help me understand this topic visually. Describe a labelled concept map or diagram, explain how each part relates, and give a simple way to draw or interpret it. For mathematics, show the steps and relationships; for geography or science, explain the relevant process or spatial relationships.")}><Compass size={15}/> Visual explanation</button>
             <button type="button" className="secondary-button" onClick={() => ask("Build a revision plan for this topic using retrieval practice and spaced repetition. Start with a short diagnostic check, then set realistic review checkpoints and practice tasks.")}><CalendarClock size={15}/> Build revision plan</button>
+            <button type="button" className="secondary-button" onClick={() => ask("Create one fresh five-minute daily challenge for this topic. Match the learner\u0027s grade and curriculum, ask one question at a time, wait for the learner\u0027s response, and give brief explanatory feedback before a second question.")}><Target size={15}/> Daily challenge</button>
+            <button type="button" className="secondary-button" onClick={() => ask("Review my saved topic recall history below. Identify up to three areas that appear least secure, explain the self-reported evidence and suggest a small next practice task. These are learner-rated recall signals only, not official assessment marks; do not infer or fabricate test scores. If there is too little history, ask me for recent marked work instead.")}><Brain size={15}/> Find my weak areas</button>
           </div>
           <div className="learning-studio-answer-check">
             <label htmlFor="learning-studio-answer">Check my answer with MIΛ</label>
