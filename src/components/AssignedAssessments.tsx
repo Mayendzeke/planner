@@ -200,7 +200,7 @@ export default function AssignedAssessments() {
                 </>}
             {submission&&<div className={result?.correct===true?"assigned-result correct":result?.correct===false?"assigned-result incorrect":"assigned-result review"}>
               {result?.correct===true?<CheckCircle2 size={15}/>:result?.correct===false?<AlertCircle size={15}/>:<Clock3 size={15}/>}
-              <span>{result?.status==="teacher_review"?"Teacher review pending":result?.markingMethod==="miλ"?"MIΛ marked · "+result.awarded+"/"+result.points+" marks · "+Math.round(Number(result.confidence||0)*100)+"% confidence":result?.correct===true?"Correct · "+result.awarded+"/"+result.points+" marks":result?.correct===false?"Not correct · "+result.awarded+"/"+result.points+" marks":"Marked · "+result.awarded+"/"+result.points+" marks"}</span>
+              <span>{!result?"Result details are not available yet":result.status==="teacher_review"?"Teacher review pending":result.markingMethod==="miλ"?"MIΛ marked · "+result.awarded+"/"+result.points+" marks · "+Math.round(Number(result.confidence||0)*100)+"% confidence":result.correct===true?"Correct · "+result.awarded+"/"+result.points+" marks":result.correct===false?"Not correct · "+result.awarded+"/"+result.points+" marks":"Marked · "+result.awarded+"/"+result.points+" marks"}</span>
             </div>}
             {submission&&result?.explanation&&<p className="assigned-explanation">{result.explanation}</p>}
           </article>;
