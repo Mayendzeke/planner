@@ -30,6 +30,7 @@ export default function AssignedAssessments() {
   const [submission,setSubmission] = useState<Submission|null>(null);
   const [attemptsByAssignment,setAttemptsByAssignment] = useState<Record<string,StoredAttempt>>({});
   const [draftSaveError,setDraftSaveError] = useState(false);
+  const [learnerId,setLearnerId] = useState("");
 
   const refresh = useCallback(async () => {
     if(!supabase){setError("Studyspace cloud access is not configured.");setLoading(false);return;}
@@ -37,6 +38,7 @@ export default function AssignedAssessments() {
     try {
       const {data:authState,error:authError}=await supabase.auth.getUser();
       if(authError||!authState.user) throw new Error("Sign in again to load your assigned assessments.");
+      setLearnerId(authState.user.id);
       const {data:assigned,error:assignmentError}=await supabase.from("exercise_assignments")
         .select("id,exercise_set_id,due_at,available_at")
         .eq("learner_id",authState.user.id)
@@ -76,10 +78,18 @@ export default function AssignedAssessments() {
 
   useEffect(()=>{
     void refresh();
-    const onFocus=()=>void refresh();
+    const onFocus=()=>{if(document.visibilityState==="visible")void refresh();};
     window.addEventListener("focus",onFocus);
     return()=>window.removeEventListener("focus",onFocus);
   },[refresh]);
+
+  useEffect(()=>{
+    if(!supabase||!learnerId)return;
+    const channel=supabase.channel("student-assigned-assessments-"+learnerId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"exercise_attempts",filter:"learner_id=eq."+learnerId},()=>void refresh())
+      .subscribe();
+    return()=>{if(supabase)void supabase.removeChannel(channel);};
+  },[learnerId,refresh]);
 
   const active=assignments.find(item=>item.id===activeId);
   const setAnswer=(id:string,value:unknown)=>setAnswers(current=>({...current,[id]:value}));
