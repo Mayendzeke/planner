@@ -18,7 +18,7 @@ type ClassroomSession = {
   meeting_url: string | null;
 };
 type ChatMessage = { id: string; text: string; sender: "You" | "Teacher"; time: string };
-type Homework = { id: string; title: string; details: string; due: string; done: boolean };
+type Homework = { id: string; title: string; details: string; due: string; done: boolean; response: string; totalPoints: number; aiScore: number | null; teacherScore: number | null; aiFeedback: string; teacherFeedback: string; markingStatus: string; markedAt: string | null };
 type LessonGuide = { summary: string; keyPoints: string[]; workedExample: string; exitQuestion: string };
 type PracticeQuestion = { prompt: string; options: string[]; answer: string; explanation: string; topic?: string; difficulty?: string };
 const LEGACY_KEY = "studyspace-current-session-v1";
@@ -74,6 +74,7 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [homework, setHomework] = useState<Homework[]>([]);
+  const [homeworkResponseDrafts, setHomeworkResponseDrafts] = useState<Record<string, string>>({});
   const [homeworkBusy, setHomeworkBusy] = useState("");
   const [boardNotice, setBoardNotice] = useState("");
   const [ink, setInk] = useState("#27324a");
@@ -192,9 +193,9 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
         supabase!.from("class_sessions").select("id,title,subject_name,objectives,starts_at,status,duration_minutes,meeting_url").eq("id", activeSessionId).single(),
         supabase!.from("session_messages").select("id,sender_id,message,created_at").eq("session_id", activeSessionId).order("created_at"),
         supabase!.from("session_lesson_notes").select("summary,key_points,worked_example,exit_question").eq("session_id", activeSessionId).maybeSingle(),
-        supabase!.from("session_homework").select("id,title,instructions,due_at").eq("session_id", activeSessionId).order("created_at"),
+        supabase!.from("session_homework").select("id,title,instructions,due_at,total_points,marking_rubric").eq("session_id", activeSessionId).order("created_at"),
         supabase!.from("session_whiteboards").select("board_state").eq("session_id", activeSessionId).maybeSingle(),
-        supabase!.from("session_homework_submissions").select("homework_id,completed_at").eq("learner_id", userId),
+        supabase!.from("session_homework_submissions").select("homework_id,completed_at,response,ai_score,total_points,ai_feedback,ai_marking_status,teacher_score,teacher_feedback,marked_at").eq("learner_id", userId),
       ]);
       if (!alive) return;
       if (sessionError || !session) {
@@ -218,11 +219,19 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
        let readAt = Date.now();
        try { const stored = localStorage.getItem(readKey); if (stored) readAt = Date.parse(stored); } catch { /* First visit starts with a clean unread count. */ }
        setUnreadChatCount((messagesResult.data ?? []).filter(item => item.sender_id !== userId && Date.parse(item.created_at) > readAt).length);
-      const completed = new Set((submissionsResult.data ?? []).filter(item => item.completed_at).map(item => item.homework_id));
-      setHomework((homeworkResult.data ?? []).map(item => ({
-        id: item.id, title: item.title, details: item.instructions || "",
-        due: item.due_at || "", done: completed.has(item.id),
-      })));
+      const submissionMap = new Map((submissionsResult.data ?? []).map(item => [item.homework_id, item]));
+      setHomework((homeworkResult.data ?? []).map(item => {
+        const submission = submissionMap.get(item.id);
+        return {
+          id: item.id, title: item.title, details: item.instructions || "",
+          due: item.due_at || "", done: Boolean(submission?.completed_at),
+          response: submission?.response || "", totalPoints: Number(item.total_points || 10),
+          aiScore: submission?.ai_score == null ? null : Number(submission.ai_score),
+          teacherScore: submission?.teacher_score == null ? null : Number(submission.teacher_score),
+          aiFeedback: submission?.ai_feedback || "", teacherFeedback: submission?.teacher_feedback || "",
+          markingStatus: submission?.ai_marking_status || "pending", markedAt: submission?.marked_at || null,
+        };
+      }));
       const imageData = (boardResult.data?.board_state as { imageData?: string } | null)?.imageData;
       if (imageData && canvasRef.current) {
         const image = new Image();
@@ -255,6 +264,23 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
             setActiveSession(current => current ? { ...current, ...row } : row);
             setSessions(current => current.map(item => item.id === row.id ? { ...item, ...row } : item));
           }
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "session_homework_submissions", filter: "learner_id=eq." + userId }, payload => {
+          const row = payload.new as {
+            homework_id: string; completed_at: string | null; response: string | null;
+            ai_score: number | null; total_points: number; ai_feedback: string;
+            ai_marking_status: string; teacher_score: number | null; teacher_feedback: string;
+            marked_at: string | null;
+          };
+          if (!alive || !row.homework_id) return;
+          setHomework(current => current.map(item => item.id === row.homework_id ? {
+            ...item, done: Boolean(row.completed_at), response: row.response || "",
+            aiScore: row.ai_score == null ? null : Number(row.ai_score),
+            totalPoints: Number(row.total_points || item.totalPoints),
+            aiFeedback: row.ai_feedback || "", markingStatus: row.ai_marking_status || "pending",
+            teacherScore: row.teacher_score == null ? null : Number(row.teacher_score),
+            teacherFeedback: row.teacher_feedback || "", markedAt: row.marked_at || null,
+          } : item));
         })
         .on("postgres_changes", { event: "*", schema: "public", table: "session_whiteboards", filter: "session_id=eq." + activeSessionId }, payload => {
           const data = (payload.new as { board_state?: { imageData?: string } }).board_state?.imageData;
@@ -407,22 +433,28 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
     }
   }
 
-  async function toggleHomework(item: Homework, done: boolean) {
+  async function submitHomework(item: Homework) {
     if (!userId || !supabase || homeworkBusy) return;
+    const response = (homeworkResponseDrafts[item.id] ?? item.response).trim();
+    if (!response) { setSessionError("Write your answer before submitting this homework."); return; }
     setHomeworkBusy(item.id);
-    setHomework(current => current.map(row => row.id === item.id ? { ...row, done } : row));
+    setSessionError("");
     try {
-      const { error } = await supabase.from("session_homework_submissions").upsert({
-        homework_id: item.id, learner_id: userId, completed_at: done ? new Date().toISOString() : null,
-      }, { onConflict: "homework_id,learner_id" });
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke("mark-class-homework", {
+        body: { homeworkId: item.id, response },
+      });
+      if (error) throw new Error(error.message || "The homework could not be submitted.");
+      if (!data?.success) throw new Error(data?.error || "The homework could not be submitted.");
+      setHomework(current => current.map(row => row.id === item.id ? {
+        ...row, done: true, response, aiScore: data.score == null ? null : Number(data.score),
+        totalPoints: Number(data.totalPoints || row.totalPoints), aiFeedback: String(data.feedback || data.message || ""),
+        markingStatus: String(data.markingStatus || "teacher_review"),
+      } : row));
+      setHomeworkResponseDrafts(current => ({ ...current, [item.id]: response }));
       setSessionError("");
-    } catch {
-      setHomework(current => current.map(row => row.id === item.id ? { ...row, done: item.done } : row));
-      setSessionError("Homework progress could not be saved. Your previous completion status has been restored. Try again when connected.");
-    } finally {
-      setHomeworkBusy("");
-    }
+    } catch (reason) {
+      setSessionError(reason instanceof Error ? reason.message : "Your homework could not be submitted. Try again when connected.");
+    } finally { setHomeworkBusy(""); }
   }
 
   const tabs: { name: Tab; icon: typeof PenLine; hint: string }[] = [
@@ -532,13 +564,18 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
 
       {tab === "Homework" && (
         <div className="glass-panel session-workspace">
-          <div className="session-section-heading"><div><h3>Teacher-assigned homework</h3><p>Complete each task and tick it off. Your teacher can see your completion status.</p></div><ClipboardList size={20} /></div>
+          <div className="session-section-heading"><div><h3>Teacher-assigned homework</h3><p>Write and submit your answers here. MIΛ marks clear responses automatically; uncertain answers go to your teacher.</p></div><ClipboardList size={20} /></div>
           <div className="session-homework-list">{homework.length ? homework.map(item => (
             <article key={item.id} className={item.done ? "homework-done" : ""}>
-              <label><input type="checkbox" checked={item.done} disabled={homeworkBusy === item.id || !activeSessionId} onChange={event => void toggleHomework(item, event.target.checked)} />
-                <span><strong>{item.title}</strong><small>{item.due ? "Due " + new Date(item.due).toLocaleDateString() : "No due date"}</small>{item.details && <p>{item.details}</p>}</span>
-              </label>
-              {item.done && <span className="homework-complete-label"><CheckCircle2 size={14} /> Completed</span>}
+              <div className="session-homework-task-heading"><span><strong>{item.title}</strong><small>{item.due ? "Due " + new Date(item.due).toLocaleDateString() : "No due date"} · " + item.totalPoints + " marks</small></span>
+                {item.done && <span className="homework-complete-label"><CheckCircle2 size={14}/> Submitted</span>}
+              </div>
+              {item.details && <p>{item.details}</p>}
+              <textarea rows={4} maxLength={12000} value={homeworkResponseDrafts[item.id] ?? item.response} onChange={event=>setHomeworkResponseDrafts(current=>({...current,[item.id]:event.target.value}))} placeholder="Write your answer, working or explanation…" disabled={homeworkBusy===item.id}/>
+              <div className="session-homework-submit-row"><span>{item.markingStatus==="ai_marked"?"MIΛ marked":item.markingStatus==="teacher_review"||item.markingStatus==="marking_failed"?"Teacher review pending":item.done?"Submitted":"Not submitted"}</span><button type="button" className="primary-button" onClick={()=>void submitHomework(item)} disabled={homeworkBusy===item.id||!(homeworkResponseDrafts[item.id]??item.response).trim()}>{homeworkBusy===item.id?"Submitting…":item.done?"Resubmit":"Submit for marking"}</button></div>
+              {item.aiScore!==null&&<div className="session-homework-result"><strong>MIΛ result: {item.aiScore} / {item.totalPoints}</strong><p>{item.aiFeedback}</p></div>}
+              {item.aiScore===null&&item.done&&item.aiFeedback&&<div className="session-homework-result pending"><strong>{item.markingStatus==="teacher_review"?"Your teacher will review this answer":"Submission received"}</strong><p>{item.aiFeedback}</p></div>}
+              {item.teacherScore!==null&&<div className="session-homework-result teacher"><strong>Teacher's final mark: {item.teacherScore} / {item.totalPoints}</strong><p>{item.teacherFeedback}</p></div>}
             </article>
           )) : <div className="session-chat-empty"><ClipboardList size={25} /><strong>{activeSession ? "No homework assigned yet" : "No homework to show"}</strong><span>When your teacher assigns follow-up work, it will appear here.</span></div>}</div>
         </div>

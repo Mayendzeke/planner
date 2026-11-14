@@ -83,6 +83,30 @@ function safeFileName(value: string): string {
   return result || "studyspace-file";
 }
 
+async function uploadPersonalCloudFile(path: string, file: Blob, mimeType: string): Promise<void> {
+  if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const { error: reservationError } = await supabase.rpc("reserve_studyspace_personal_storage", {
+    p_object_path: path,
+    p_file_size: file.size,
+  });
+  if (reservationError) throw new Error(reservationError.message.includes("Storage limit reached")
+    ? reservationError.message
+    : "Your storage allowance could not be checked: " + reservationError.message);
+  const { error: uploadError } = await supabase.storage.from("studyspace-resources").upload(path, file, {
+    contentType: mimeType || "application/octet-stream",
+    upsert: true,
+  });
+  if (uploadError) {
+    await supabase.rpc("release_studyspace_personal_storage_reservation", { p_object_path: path });
+    throw new Error("Could not upload personal file: " + uploadError.message);
+  }
+}
+async function completePersonalCloudFile(path: string): Promise<void> {
+  if (!supabase) throw new Error("Studyspace cloud services are not configured.");
+  const { error } = await supabase.rpc("complete_studyspace_personal_storage_upload", { p_object_path: path });
+  if (error) throw new Error("The file was saved, but its storage reservation could not be finalised: " + error.message);
+}
+
 async function fetchRows(table: string, userId: string): Promise<CloudRow[]> {
   if (!supabase) throw new Error("Studyspace cloud services are not configured.");
   const { data, error } = await supabase.from(table).select("*").eq("learner_id", userId);
@@ -264,11 +288,8 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
       handled.add(String(remote.id));
       if (timestamp(local.localUpdatedAt) > timestamp(remote.updated_at)) {
         const path = remote.storage_path || userId + "/personal/" + local.cloudId + "/" + safeFileName(local.name);
-        const { error: uploadError } = await supabase.storage.from("studyspace-resources").upload(path, local.file, {
-          contentType: local.mimeType || "application/octet-stream",
-          upsert: true,
-        });
-        if (uploadError) throw new Error("Could not update personal file " + local.name + ": " + uploadError.message);
+        await uploadPersonalCloudFile(path, local.file, local.mimeType);
+
         const { data, error } = await supabase.from("learner_personal_resources").upsert({
           id: local.cloudId,
           learner_id: userId,
@@ -283,7 +304,12 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
           created_at: local.createdAt,
           updated_at: local.localUpdatedAt,
         }, { onConflict: "id" }).select("*").single();
-        if (error) throw new Error("Could not save personal file details: " + error.message);
+        if (error) {
+          await supabase.storage.from("studyspace-resources").remove([path]);
+          await supabase.rpc("release_studyspace_personal_storage_reservation", { p_object_path: path });
+          throw new Error("Could not save personal file details: " + error.message);
+        }
+        await completePersonalCloudFile(path);
         const stamp = String(data.updated_at || data.created_at);
         await pause(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
         uploaded += 1;
@@ -295,11 +321,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
 
     const cloudId = local.cloudId || crypto.randomUUID();
     const path = userId + "/personal/" + cloudId + "/" + safeFileName(local.name);
-    const { error: uploadError } = await supabase.storage.from("studyspace-resources").upload(path, local.file, {
-      contentType: local.mimeType || "application/octet-stream",
-      upsert: true,
-    });
-    if (uploadError) throw new Error("Could not upload personal file " + local.name + ": " + uploadError.message);
+    await uploadPersonalCloudFile(path, local.file, local.mimeType);
     const { data, error } = await supabase.from("learner_personal_resources").upsert({
       id: cloudId,
       learner_id: userId,
@@ -314,7 +336,12 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
       created_at: local.createdAt,
       updated_at: local.localUpdatedAt || new Date().toISOString(),
     }, { onConflict: "id" }).select("*").single();
-    if (error) throw new Error("Could not save personal file details: " + error.message);
+    if (error) {
+      await supabase.storage.from("studyspace-resources").remove([path]);
+      await supabase.rpc("release_studyspace_personal_storage_reservation", { p_object_path: path });
+      throw new Error("Could not save personal file details: " + error.message);
+    }
+    await completePersonalCloudFile(path);
     const stamp = String(data.updated_at || data.created_at);
     await pause(() => table.update(local.id, {
       cloudId,
@@ -712,6 +739,7 @@ async function performStudentWorkspaceSync(
     if (error) throw new Error("Could not sync your study goals: " + error.message);
   }
   const syncedAt = new Date().toISOString();
+  window.dispatchEvent(new Event("studyspace-storage-updated"));
   localStorage.setItem(baselineKey, JSON.stringify({
     weeklyHours: resolvedWeeklyHours,
     reminderSettings,

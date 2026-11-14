@@ -11,17 +11,23 @@ const db = read('src/data/db.ts');
 const sync = read('src/lib/cloudSync.ts');
 const solo = read('src/components/SoloStudyCoach.tsx');
 
-test('student navigation prioritises Messages and keeps Settings reachable', () => {
+test('student navigation is ordered around the learner study workflow', () => {
   const ordered = [
     'name: "Overview"',
-    'name: "Today\'s Session"',
+    `name: "Today's Session"`,
+    'name: "Learning Studio"',
     'name: "MIΛ"',
-    'name: "Messages"',
     'name: "Subjects"',
-    'name: "Planner"',
-    'name: "Timetable"',
     'name: "Study & Exams"',
     'name: "Study Materials & Resources"',
+    'name: "Planner"',
+    'name: "Timetable"',
+    'name: "Academic Calendar"',
+    'name: "Progress"',
+    'name: "Messages"',
+    'name: "Testimonials"',
+    'name: "Help & feedback"',
+    'name: "Subscription"',
   ];
   let previous = -1;
   for (const label of ordered) {
@@ -124,4 +130,39 @@ test('MIΛ accepts prompt-only handoffs and PowerPoint previews can open a slide
   assert.ok(mia.includes('if (initialPrompt) setText(initialPrompt);'));
   assert.ok(library.includes('Ask MIΛ about these slides'));
   assert.ok(library.includes('Do not skip slide visuals.'));
+});
+
+
+test('student written assessment marking displays MIΛ results and receives final teacher marks', () => {
+  const assessments = read('src/components/AssignedAssessments.tsx');
+  const progress = read('src/components/StudentProgressPage.tsx');
+  assert.ok(assessments.includes('markingStatus'));
+  assert.ok(assessments.includes('aiMarked'));
+  assert.ok(assessments.includes('teacher_review'));
+  assert.ok(assessments.includes('MIΛ marked'));
+  assert.ok(assessments.includes('student-assigned-assessments-'));
+  assert.ok(progress.includes('get_student_assessment_progress'));
+  assert.ok(progress.includes('table:"progress_events"'));
+});
+
+test('live-class homework is submitted as written work and displays automatic or final teacher marks', () => {
+  const session = read('src/components/TodaySession.tsx');
+  assert.ok(session.includes('mark-class-homework'));
+  assert.ok(session.includes('submitHomework'));
+  assert.ok(session.includes('aiScore'));
+  assert.ok(session.includes('teacherScore'));
+  assert.ok(session.includes("Teacher's final mark"));
+  assert.ok(session.includes('session_homework_submissions'));
+  assert.ok(session.includes('table: "session_homework_submissions"'));
+});
+
+test('student personal cloud storage is visible and cloud uploads reserve quota before syncing', () => {
+  assert.ok(library.includes('get_studyspace_storage_status'));
+  assert.ok(library.includes('library-storage-card'));
+  assert.ok(library.includes('available_bytes'));
+  assert.ok(library.includes('Teacher-assigned materials use the shared school library'));
+  assert.ok(sync.includes('reserve_studyspace_personal_storage'));
+  assert.ok(sync.includes('complete_studyspace_personal_storage_upload'));
+  assert.ok(sync.includes('release_studyspace_personal_storage_reservation'));
+  assert.ok(sync.includes('studyspace-storage-updated'));
 });

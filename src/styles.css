@@ -2387,3 +2387,33 @@ select option, select optgroup {
 .learning-studio-number-scale{display:grid;grid-template-columns:repeat(21,minmax(0,1fr));gap:1px}
 .learning-studio-number-scale span{padding-top:8px;border-top:1px solid var(--border);color:var(--subtle);font-size:8px;text-align:center}
 .learning-studio-number-scale span.is-selected{border-top:3px solid var(--mint);color:var(--mint);font-weight:800}
+
+/* Student cloud storage and submitted classroom homework */
+.library-storage-card{display:grid;gap:13px;padding:20px 22px;border:1px solid var(--border);border-radius:17px;background:linear-gradient(110deg,color-mix(in srgb,var(--mint) 8%,var(--panel)),var(--panel))}
+.library-storage-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.library-storage-heading h3{margin:4px 0 0;color:var(--text);font:750 17px Manrope,sans-serif}
+.library-storage-heading p{max-width:680px;margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.6}
+.library-storage-total{display:grid;gap:2px;min-width:84px;text-align:right}
+.library-storage-total strong{color:var(--text);font:800 21px Manrope,sans-serif}
+.library-storage-total span{color:var(--subtle);font-size:8px;font-weight:800;letter-spacing:1.2px}
+.library-storage-track,.learner-storage-track{height:9px;overflow:hidden;border-radius:999px;background:var(--bg2);border:1px solid var(--border)}
+.library-storage-track span,.learner-storage-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--mint),var(--blue));transition:width .25s ease}
+.library-storage-meta,.learner-storage-stats{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted);font-size:10px}
+.library-storage-meta strong,.learner-storage-stats strong{color:var(--text)}
+.library-storage-error{margin:0;color:var(--muted);font-size:10px}
+.library-storage-pending{color:var(--subtle);font-size:9px}
+.session-homework-task-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.session-homework-task-heading>span{display:grid;gap:5px}
+.session-homework-task-heading small{color:var(--muted);font-size:9px}
+.session-homework-list article textarea{width:100%;margin:12px 0 8px;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--text);font:inherit;font-size:12px;line-height:1.6;resize:vertical}
+.session-homework-list article textarea:focus{outline:2px solid var(--blue);outline-offset:2px}
+.session-homework-submit-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:7px}
+.session-homework-submit-row>span{color:var(--muted);font-size:9px}
+.session-homework-result{margin-top:12px;padding:12px;border:1px solid color-mix(in srgb,var(--mint) 38%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--mint) 7%,var(--panel))}
+.session-homework-result strong{color:var(--text);font-size:11px}
+.session-homework-result p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.6}
+.session-homework-result.pending{border-color:color-mix(in srgb,var(--blue) 40%,var(--border));background:color-mix(in srgb,var(--blue) 7%,var(--panel))}
+.session-homework-result.teacher{border-color:color-mix(in srgb,var(--mint) 45%,var(--border))}
+.assigned-result.ai-marked{color:var(--mint);border-color:color-mix(in srgb,var(--mint) 45%,var(--border))}
+.assigned-submission-result small{display:block;margin-top:6px;color:var(--muted);font-size:9px;line-height:1.5}
+@media(max-width:620px){.library-storage-heading{flex-direction:column}.library-storage-total{text-align:left}.library-storage-meta,.learner-storage-stats{align-items:flex-start;flex-direction:column;gap:5px}.session-homework-submit-row{align-items:flex-start;flex-direction:column}}

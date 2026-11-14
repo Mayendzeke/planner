@@ -48,19 +48,19 @@ const colors = ["#7c9cff", "#6bd7bd", "#c4a4ff", "#f2bd70", "#f28ca6", "#77c8ed"
 const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "Overview", icon: LayoutDashboard },
   { name: "Today's Session", icon: Sparkles },
+  { name: "Learning Studio", icon: Target },
   { name: "MIΛ", icon: Brain },
-  { name: "Learning Studio", icon: Sparkles },
-  { name: "Messages", icon: MessageCircle },
   { name: "Subjects", icon: BookOpen },
-  { name: "Planner", icon: CalendarDays },
-  { name: "Timetable", icon: CalendarDays },
   { name: "Study & Exams", icon: GraduationCap },
   { name: "Study Materials & Resources", icon: BookOpen },
-  { name: "Progress", icon: TrendingUp },
+  { name: "Planner", icon: CalendarDays },
+  { name: "Timetable", icon: CalendarDays },
   { name: "Academic Calendar", icon: CalendarDays },
-  { name: "Subscription", icon: CreditCard },
+  { name: "Progress", icon: TrendingUp },
+  { name: "Messages", icon: MessageCircle },
   { name: "Testimonials", icon: MessageCircle },
-  { name: "Help & feedback", icon: LifeBuoy }
+  { name: "Help & feedback", icon: LifeBuoy },
+  { name: "Subscription", icon: CreditCard }
 ];
 function learnerMeetsApprovedAge(dateOfBirth?: string | null): boolean {
   if (!dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return false;

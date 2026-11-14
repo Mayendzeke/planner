@@ -97,7 +97,31 @@ export default function StudentProgressPage(){
     }catch(reason){setError(reason instanceof Error?reason.message:"Academic progress could not be refreshed.");}
     finally{setLoading(false);}
   },[]);
-  useEffect(()=>{void refresh();},[refresh]);
+  useEffect(()=>{
+    void refresh();
+    if(!supabase)return;
+    let alive=true;
+    let channel:ReturnType<NonNullable<typeof supabase>["channel"]>|null=null;
+    const setup=async()=>{
+      const {data:{user}}=await supabase!.auth.getUser();
+      if(!alive||!user)return;
+      channel=supabase!.channel("student-progress-live-"+user.id)
+        .on("postgres_changes",{event:"*",schema:"public",table:"progress_events",filter:"learner_id=eq."+user.id},()=>{
+          if(alive)void refresh();
+        })
+        .subscribe();
+    };
+    void setup();
+    const onFocus=()=>{if(document.visibilityState==="visible")void refresh();};
+    const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void refresh();},60000);
+    window.addEventListener("focus",onFocus);
+    return()=>{
+      alive=false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus",onFocus);
+      if(channel)void supabase!.removeChannel(channel);
+    };
+  },[refresh]);
 
   const claimReferral=async()=>{
     if(!supabase||claimingReferral)return;
