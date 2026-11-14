@@ -17,7 +17,7 @@ type Assignment = {
   set: { id: string; title: string; subject_name: string; instructions: string; duration_minutes: number; grade: string; curriculum: string };
   questions: Question[];
 };
-type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; aiMarked: number; markingStatus: string; markingNotice: string; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string;markingMethod?:string;confidence?:number;status?:string}> };
+type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; aiMarked: number; markingStatus: string; markingNotice: string; teacherFeedback?: string; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string;markingMethod?:string;confidence?:number;status?:string}> };
 type StoredAttempt = { score:number; total_points:number; submitted_at:string; marked_at:string|null; teacher_feedback:string; marking_status:string; teacher_review_required:boolean; ai_marked_at:string|null; marking_details:Record<string,unknown> };
 
 export default function AssignedAssessments() {
@@ -90,6 +90,18 @@ export default function AssignedAssessments() {
       .subscribe();
     return()=>{if(supabase)void supabase.removeChannel(channel);};
   },[learnerId,refresh]);
+
+  useEffect(()=>{
+    if(!activeId||!submission)return;
+    const attempt=attemptsByAssignment[activeId];
+    if(!attempt||attempt.marking_status!=="teacher_marked"||submission.manualReview===0)return;
+    const total=Number(attempt.total_points)||0;
+    const score=Number(attempt.score)||0;
+    setSubmission(current=>current?{
+      ...current,score,totalPoints:total,percentage:total>0?Math.round(score/total*10000)/100:0,
+      manualReview:0,markingStatus:"teacher_marked",teacherFeedback:attempt.teacher_feedback||"",
+    }:current);
+  },[activeId,attemptsByAssignment,submission]);
 
   const active=assignments.find(item=>item.id===activeId);
   const setAnswer=(id:string,value:unknown)=>setAnswers(current=>({...current,[id]:value}));
@@ -186,7 +198,7 @@ export default function AssignedAssessments() {
             {submission&&result?.explanation&&<p className="assigned-explanation">{result.explanation}</p>}
           </article>;
         })}
-        {submission?<div className="assigned-submission-result"><Trophy size={24}/><div><strong>{submission.score} / {submission.totalPoints} marks · {submission.percentage}%</strong><span>{submission.manualReview?submission.manualReview+" written response(s) need a teacher's final mark.":submission.aiMarked?"MIΛ marked "+submission.aiMarked+" written response(s). Your result is saved to your academic record.":"Your objective answers have been marked and saved to your academic record."}</span>{submission.markingNotice&&<small>{submission.markingNotice}</small>}</div><button type="button" className="secondary-button" onClick={back}>Close</button></div>:
+        {submission?<div className="assigned-submission-result"><Trophy size={24}/><div><strong>{submission.score} / {submission.totalPoints} marks {submission.manualReview?"· provisional":"· "+submission.percentage+"%"}</strong><span>{submission.manualReview?submission.manualReview+" written response(s) are awaiting a final teacher mark. Your percentage will update after review.":submission.markingStatus==="teacher_marked"?"Your teacher has finalised the mark. This result is saved to your academic record.":submission.aiMarked?"MIΛ marked "+submission.aiMarked+" written response(s). Your final result is saved to your academic record.":"Your objective answers have been marked and saved to your academic record."}</span>{submission.teacherFeedback&&<small>Teacher feedback: {submission.teacherFeedback}</small>}{submission.markingNotice&&<small>{submission.markingNotice}</small>}</div><button type="button" className="secondary-button" onClick={back}>Close</button></div>:
           <div className="assigned-submit-row"><span>Your answers are marked securely by Studyspace.</span><button type="button" className="primary-button" onClick={()=>void submit()} disabled={busy}>{busy?"Submitting…":"Submit assessment"} <Send size={15}/></button></div>}
       </div>:
       assignments.length?<div className="assigned-assessment-list">{assignments.map(item=><article className="assigned-assessment-card" key={item.id}>
