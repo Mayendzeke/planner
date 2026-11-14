@@ -76,3 +76,19 @@ test('independent study retains its session controls and gains the refreshed vis
   assert.ok(styles.includes('.solo-study-hero'));
   assert.ok(styles.includes('.solo-study-roadmap'));
 });
+
+test('PowerPoint files use a native slide viewer with images, thumbnails and navigation', () => {
+  const powerpoint = read('src/components/PowerPointDocumentViewer.tsx');
+  assert.ok(library.includes('lazy(() => import("./PowerPointDocumentViewer"))'));
+  assert.ok(library.includes('extension === ".pptx" || extension === ".ppt"'));
+  assert.ok(library.includes('kind: "powerpoint"'));
+  assert.ok(library.includes('preview.kind==="powerpoint"'));
+  assert.ok(powerpoint.includes('ReactPptxViewer'));
+  assert.ok(powerpoint.includes('source={file}'));
+  assert.ok(powerpoint.includes('showThumbnails'));
+  assert.ok(powerpoint.includes('showToolbar'));
+  assert.ok(powerpoint.includes('showDiagnostics'));
+  assert.ok(powerpoint.includes('@extend-ai/react-pptx/styles.css'));
+  assert.ok(powerpoint.includes('ViewerErrorBoundary'));
+  assert.ok(powerpoint.includes('Embedded pictures'));
+});

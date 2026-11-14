@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type DragEvent } from "react";
+import { lazy, Suspense, useEffect, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   AlertCircle, BookOpen, Brain, Download, Eye, FileSpreadsheet, FileText, FolderOpen,
   Image as ImageIcon, Plus, Presentation, Search, ShieldCheck, Trash2, Upload, X,
@@ -16,8 +16,9 @@ type TeacherResource = {
   id: string; title: string; description: string; subject_name: string; topic?: string;
   resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string;
 };
-type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" };
+type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" } | { kind: "powerpoint" };
 const resourceTypes: ResourceType[] = ["Study notes", "Revision notes", "Worksheet", "Past paper", "Reference", "Other"];
+const PowerPointDocumentViewer = lazy(() => import("./PowerPointDocumentViewer"));
 
 function extensionOf(name: string) { return name.toLowerCase().slice(name.lastIndexOf(".")); }
 function formatSize(bytes: number) {
@@ -127,6 +128,8 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       } else if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
         imageUrl = URL.createObjectURL(viewing.file);
         if (active) { setPreviewImageUrl(imageUrl); setPreview({ kind: "image" }); }
+      } else if (extension === ".pptx" || extension === ".ppt") {
+        if (active) setPreview({ kind: "powerpoint" });
       } else {
         const result = await readStudyMaterialPreview(viewing.file, viewing.name);
         if (active) setPreview(result);
@@ -375,7 +378,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       {(filterSource==="All"||filterSource==="Personal")&&<section className="glass-panel library-list">
         <div className="library-section-heading"><div><h3>My personal materials</h3><p>{visiblePersonalFiles.length} of {files.length} personal file(s) shown · available offline after sync</p></div><FileText size={19}/></div>
         {visiblePersonalFiles.length?<div className="library-files">{visiblePersonalFiles.map(file=><article className="library-file" key={file.id}>
-          <span className="library-file-icon">{[".jpg",".jpeg",".png",".webp"].includes(extensionOf(file.name))?<ImageIcon size={18}/>:extensionOf(file.name)===".pptx"?<Presentation size={18}/>:extensionOf(file.name)===".xlsx"||extensionOf(file.name)===".xls"?<FileSpreadsheet size={18}/>:<FileText size={18}/>}</span>
+          <span className="library-file-icon">{[".jpg",".jpeg",".png",".webp"].includes(extensionOf(file.name))?<ImageIcon size={18}/>:[".pptx",".ppt"].includes(extensionOf(file.name))?<Presentation size={18}/>:extensionOf(file.name)===".xlsx"||extensionOf(file.name)===".xls"?<FileSpreadsheet size={18}/>:<FileText size={18}/>}</span>
           <div className="library-file-copy"><strong>{file.name}</strong><span>{subjectName(file,subjects)} · {file.resourceType||"Study notes"} · {fileType(file.name)} · {formatSize(file.size)}</span>{file.topic&&<span>{file.topic}</span>}</div>
           <div className="library-file-actions">
             <button type="button" className="icon-button" aria-label={"Download "+file.name} title="Download original file" onClick={()=>downloadResource(file)}><Download size={15}/></button>
@@ -395,6 +398,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
             {preview.kind==="loading"&&<div className="library-empty"><strong>Preparing preview…</strong></div>}
             {preview.kind==="pdf"&&<PdfViewer file={viewing.file} fileName={viewing.name}/>}
             {preview.kind==="image"&&previewImageUrl&&<img src={previewImageUrl} alt={viewing.name} style={{display:"block",maxWidth:"100%",maxHeight:"100%",margin:"0 auto",objectFit:"contain"}}/>}
+            {preview.kind==="powerpoint"&&<Suspense fallback={<div className="library-viewer-unsupported"><strong>Preparing your presentation…</strong><p>The slides are being opened securely in this browser.</p></div>}><PowerPointDocumentViewer key={viewing.name} file={viewing.file}/></Suspense>}
             {preview.kind==="text"&&<pre className="library-preview-text">{preview.text||"No readable text was found in this file."}</pre>}
             {preview.kind==="slides"&&<><div className="library-preview-note"><Presentation size={14}/><span>Slide text preview. The original presentation remains available to download; embedded graphics and exact slide layout are not shown in this preview.</span></div><div className="library-preview-slides">{preview.slides.map(slide=><article className="library-preview-slide" key={slide.number}><div className="library-preview-slide-head"><span>SLIDE {String(slide.number).padStart(2,"0")}</span><span>POWERPOINT</span></div><h4>{slide.title}</h4>{slide.body&&<p>{slide.body}</p>}</article>)}</div></>}
             {preview.kind==="table"&&<><div className="library-preview-note"><FileSpreadsheet size={14}/><span>Spreadsheet preview · showing the first worksheet and up to 100 rows. Download the original for full formulas, formatting and workbook features.</span></div><div className="library-preview-table-wrap"><table className="library-preview-table"><tbody>{preview.rows.map((row,index)=><tr key={index}>{row.map((cell,cellIndex)=><td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div></>}
