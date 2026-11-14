@@ -242,8 +242,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   }
 
   useEffect(() => {
-    if (!initialAttachment) return;
-    setAttachment(initialAttachment);
+    if (!initialAttachment && !initialPrompt) return;
+    if (initialAttachment) setAttachment(initialAttachment);
     if (initialPrompt) setText(initialPrompt);
     setError("");
     onAttachmentConsumed?.();
