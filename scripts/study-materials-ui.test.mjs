@@ -11,10 +11,10 @@ const db = read('src/data/db.ts');
 const sync = read('src/lib/cloudSync.ts');
 const solo = read('src/components/SoloStudyCoach.tsx');
 
-test('student navigation prioritises Messages and keeps Settings reachable', () => {
+test('student navigation is ordered around the learner study workflow', () => {
   const ordered = [
     'name: "Overview"',
-    'name: "Today\\'s Session"',
+    `name: "Today's Session"`,
     'name: "Learning Studio"',
     'name: "MIΛ"',
     'name: "Subjects"',
