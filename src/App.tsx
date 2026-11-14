@@ -30,6 +30,7 @@ import MathsLab from "./components/MathsLab";
 import AssignedAssessments from "./components/AssignedAssessments";
 import SchoolHomeworkHelp from "./components/SchoolHomeworkHelp";
 import TodaySession from "./components/TodaySession";
+import ConnectionStatus from "./components/ConnectionStatus";
 import StudentFeedback from "./components/StudentFeedback";
 import MiaChat from "./components/MiaChat";
 
@@ -972,6 +973,7 @@ export default function App() {
   if (!ready || !splashElapsed) return <SplashScreen theme={theme} />;
 
   return <div className="app-shell" data-theme={theme}>
+    <ConnectionStatus />
     <StudentAssignmentNotifications userId={cloudUserId} />
     <StudyspaceNotificationListener />
     <StudyspaceDailyNudges />
