@@ -95,7 +95,7 @@ export async function generateWithFallback(messages: ProviderMessage[], options:
       const text = await callModel(model, messages, config);
       return {
         text, provider: "Cloudflare Workers AI", model, fallbackUsed: index > 0,
-        providerNotice: index > 0 ? "Gemma 4 was unavailable for this request. Qwen 3.8 completed it as the secondary Cloudflare AI model." : null,
+        providerNotice: index > 0 ? "MIΛ’s primary learning model was temporarily unavailable. An automatic backup completed this response." : null,
       };
     } catch (error) {
       failures.push(error instanceof Error ? error.message : model + " failed.");
