@@ -1,34 +1,49 @@
-export default function SplashScreen({ theme = "dark" }: { theme?: "dark" | "light" }) {
-  return <main className="splash-screen" data-theme={theme} role="status" aria-live="polite" aria-busy="true" aria-label="Studyspace is loading">
-    <div className="splash-glow splash-glow-a" />
-    <div className="splash-glow splash-glow-b" />
-    <div className="splash-content">
-      <div className="splash-logo-wrap">
-        <svg className="splash-liquid-logo" viewBox="0 0 120 100" role="img" aria-label="Studyspace graduation cap logo">
-          <defs>
-            <clipPath id="cap-fill-clip">
-              <path d="M8 34 60 10l52 24-52 25L8 34Zm16 10v24c20 14 52 14 72 0V44L60 66 24 44Zm88-10v30" />
-            </clipPath>
-            <linearGradient id="studyspace-liquid" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#9cebd8" />
-              <stop offset="55%" stopColor="#70b9ff" />
-              <stop offset="100%" stopColor="#a993ff" />
-            </linearGradient>
-          </defs>
-          <g clipPath="url(#cap-fill-clip)">
-            <rect className="splash-liquid" x="0" y="100" width="120" height="100" fill="url(#studyspace-liquid)" />
-            <path className="splash-wave" d="M0 56 Q15 48 30 56 T60 56 T90 56 T120 56 V100 H0Z" fill="rgba(255,255,255,.25)" />
-          </g>
-          <path d="M8 34 60 10l52 24-52 25L8 34Zm16 10v24c20 14 52 14 72 0V44L60 66 24 44Zm88-10v30" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M108 35v27" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          <circle cx="108" cy="66" r="4" fill="#9cebd8" className="splash-tassel" />
-        </svg>
-        <span className="splash-orbit splash-orbit-one" />
-        <span className="splash-orbit splash-orbit-two" />
+type Props = { theme?: "dark" | "light"; displayName?: string };
+
+export default function SplashScreen({ theme = "dark", displayName = "" }: Props) {
+  const name = displayName.trim();
+  return (
+    <main className="studyspace-splash" data-theme={theme} role="status" aria-live="polite" aria-busy="true" aria-label="Study Space is loading">
+      <div className="studyspace-splash-glow studyspace-splash-glow-one" />
+      <div className="studyspace-splash-glow studyspace-splash-glow-two" />
+      <div className="studyspace-splash-content">
+        <div className="studyspace-splash-logo-stage">
+          <svg className="studyspace-splash-logo" viewBox="0 0 512 512" role="img" aria-label="Study Space graduation cap logo">
+            <defs>
+              <linearGradient id="studyspace-brand-gradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#927df5" />
+                <stop offset="100%" stopColor="#5d45c8" />
+              </linearGradient>
+            </defs>
+            <rect className="studyspace-logo-colour" x="8" y="8" width="496" height="496" rx="112" fill="url(#studyspace-brand-gradient)" />
+            <g className="studyspace-logo-sketch" fill="none" stroke="currentColor" strokeWidth="23" strokeLinecap="round" strokeLinejoin="round">
+              <rect className="studyspace-logo-frame" x="8" y="8" width="496" height="496" rx="112" />
+              <path className="studyspace-logo-cap-sketch" d="M112 215 256 143 400 215 256 288 112 215Z" />
+              <path className="studyspace-logo-cap-sketch" d="M164 246v76c0 17 41 42 92 42s92-25 92-42v-76" />
+              <path className="studyspace-logo-cap-sketch" d="M400 215v112" />
+            </g>
+            <g className="studyspace-logo-finish" fill="none" stroke="#fff" strokeWidth="23" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M112 215 256 143 400 215 256 288 112 215Z" />
+              <path d="M164 246v76c0 17 41 42 92 42s92-25 92-42v-76" />
+              <path d="M400 215v112" />
+            </g>
+            <g className="studyspace-splash-pencil" aria-hidden="true">
+              <path d="M0 0 12-12 34 10 22 22Z" fill="#f5d58a" stroke="#6e5a37" strokeWidth="2" />
+              <path d="m0 0-5 17 17-5" fill="#f1d8ad" stroke="#6e5a37" strokeWidth="2" />
+              <path d="m-5 17 7-2-5-5Z" fill="#4b4651" />
+              <path d="m12-12 5-5 22 22-5 5Z" fill="#c4c9d3" stroke="#6e5a37" strokeWidth="2" />
+            </g>
+          </svg>
+          <span className="studyspace-splash-halo" />
+        </div>
+        <div className="studyspace-splash-wordmark">Study Space<span>.</span></div>
+        <div className="studyspace-splash-divider" />
+        <p className="studyspace-splash-welcome">{name ? `Welcome, ${name}` : "Your learning companion"}</p>
+        <p className="studyspace-splash-tagline">A focused space for learning, teaching and progress.</p>
+        <div className="studyspace-splash-progress" aria-hidden="true"><span /></div>
+        <span className="studyspace-splash-status">PREPARING YOUR LEARNING SPACE</span>
+        <span className="studyspace-splash-footnote">ESWATINI · LEARN · GROW · ACHIEVE</span>
       </div>
-      <div className="splash-wordmark">studyspace<span>.</span></div>
-      <p className="splash-tagline">A focused space for lessons, study plans, notes and academic progress.</p>
-      <div className="splash-loading-track"><span /></div>
-    </div>
-  </main>;
+    </main>
+  );
 }
