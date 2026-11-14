@@ -102,7 +102,7 @@ test('PowerPoint files use a native slide viewer with images, thumbnails and nav
   assert.ok(library.includes('fullscreenPreview'));
   assert.ok(styles.includes('.library-viewer-backdrop.is-fullscreen'));
   assert.ok(styles.includes('.library-viewer.is-fullscreen'));
-  assert.ok(powerpoint.includes('Embedded pictures'));
+  assert.ok(powerpoint.includes('Some PowerPoint animations may appear as still content'));
 });
 
 
