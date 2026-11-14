@@ -265,6 +265,23 @@ export default function TodaySession({ subjects }: { subjects: Subject[] }) {
             setSessions(current => current.map(item => item.id === row.id ? { ...item, ...row } : item));
           }
         })
+        .on("postgres_changes", { event: "*", schema: "public", table: "session_homework_submissions", filter: "learner_id=eq." + userId }, payload => {
+          const row = payload.new as {
+            homework_id: string; completed_at: string | null; response: string | null;
+            ai_score: number | null; total_points: number; ai_feedback: string;
+            ai_marking_status: string; teacher_score: number | null; teacher_feedback: string;
+            marked_at: string | null;
+          };
+          if (!alive || !row.homework_id) return;
+          setHomework(current => current.map(item => item.id === row.homework_id ? {
+            ...item, done: Boolean(row.completed_at), response: row.response || "",
+            aiScore: row.ai_score == null ? null : Number(row.ai_score),
+            totalPoints: Number(row.total_points || item.totalPoints),
+            aiFeedback: row.ai_feedback || "", markingStatus: row.ai_marking_status || "pending",
+            teacherScore: row.teacher_score == null ? null : Number(row.teacher_score),
+            teacherFeedback: row.teacher_feedback || "", markedAt: row.marked_at || null,
+          } : item));
+        })
         .on("postgres_changes", { event: "*", schema: "public", table: "session_whiteboards", filter: "session_id=eq." + activeSessionId }, payload => {
           const data = (payload.new as { board_state?: { imageData?: string } }).board_state?.imageData;
           if (!alive || !data || !canvasRef.current || drawing.current) return;
