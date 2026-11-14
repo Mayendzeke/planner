@@ -73,6 +73,8 @@ export default function LearningStudio({
   const [subjectId, setSubjectId] = useState<number | "">(subjects[0]?.id ?? "");
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
+  const [answerDraft, setAnswerDraft] = useState("");
+  const [numberLineValue, setNumberLineValue] = useState(0);
   const [records, setRecords] = useState<ReviewRecord[]>(readRecords);
   const [tab, setTab] = useState<"study" | "visual" | "revision" | "mastery">("study");
   const [storageWarning, setStorageWarning] = useState("");
@@ -228,6 +230,11 @@ export default function LearningStudio({
             <button type="button" className="secondary-button" onClick={() => ask("Help me understand this topic visually. Describe a labelled concept map or diagram, explain how each part relates, and give a simple way to draw or interpret it. For mathematics, show the steps and relationships; for geography or science, explain the relevant process or spatial relationships.")}><Compass size={15}/> Visual explanation</button>
             <button type="button" className="secondary-button" onClick={() => ask("Build a revision plan for this topic using retrieval practice and spaced repetition. Start with a short diagnostic check, then set realistic review checkpoints and practice tasks.")}><CalendarClock size={15}/> Build revision plan</button>
           </div>
+          <div className="learning-studio-answer-check">
+            <label htmlFor="learning-studio-answer">Check my answer with MIΛ</label>
+            <textarea id="learning-studio-answer" value={answerDraft} onChange={event => setAnswerDraft(event.target.value)} rows={3} maxLength={3000} placeholder="Write your answer or show the steps you used. MIΛ will review your reasoning and point out what to improve."/>
+            <button type="button" className="secondary-button" disabled={!answerDraft.trim()} onClick={() => ask("Check my answer below. First identify what I have understood correctly, then check the reasoning and calculations carefully. Point out the first incorrect or incomplete step, give me a hint, and ask me to correct it before revealing a complete worked solution.\n\nMy answer:\n" + answerDraft.trim())}><CheckCircle2 size={15}/> Check my answer</button>
+          </div>
           <div className="learning-studio-personal-notes">
             <label htmlFor="learning-studio-notes">My explanation and study notes</label>
             <textarea id="learning-studio-notes" value={notes} onChange={event => setNotes(event.target.value)} rows={4} maxLength={5000} placeholder="Write the main idea in your own words, add a worked example, or note what you still find difficult."/>
@@ -272,7 +279,14 @@ export default function LearningStudio({
             <g><rect x="495" y="220" width="220" height="82" rx="16" className="learning-map-node"/><text x="605" y="254" textAnchor="middle" className="learning-map-title">Recall</text><text x="605" y="275" textAnchor="middle" className="learning-map-subtitle">Review at the right time</text></g>
           </svg>
         </div>
-        <div className="learning-studio-visual-actions"><button type="button" className="primary-button" onClick={() => ask("Create a labelled text diagram or concept map for this topic. Include the relationships, process flow or mathematical steps. Explain each label and give me one question that checks if I can read the diagram.")}><Compass size={15}/> Ask MIΛ to build my diagram</button><span>Maps are generated for the chosen subject and topic, not fixed stock illustrations.</span></div>
+        <div className="learning-studio-number-line">
+          <div><span className="eyebrow">INTERACTIVE MATHEMATICS</span><h4>Explore an integer number line</h4><p>Move the marker to a value, then ask MIΛ to explain how it relates to your topic.</p></div>
+          <output htmlFor="learning-studio-number-line">{numberLineValue}</output>
+          <input id="learning-studio-number-line" aria-label="Choose an integer from negative ten to ten" type="range" min={-10} max={10} step={1} value={numberLineValue} onChange={event => setNumberLineValue(Number(event.target.value))}/>
+          <div className="learning-studio-number-scale" aria-hidden="true">{Array.from({length:21},(_,index)=>{const value=index-10;return <span key={value} className={value===numberLineValue?"is-selected":""}>{value}</span>;})}</div>
+          <button type="button" className="secondary-button" onClick={() => ask("Explain the integer " + numberLineValue + " on a number line. Show how positive and negative direction works, compare it to zero, then give me one short question about ordering or adding integers.")}>Explain {numberLineValue} on the number line</button>
+        </div>
+        <div className="learning-studio-visual-actions"><button type="button" className="primary-button" onClick={() => ask("Create a labelled text diagram or concept map for this topic. Include the relationships, process flow or mathematical steps. Explain each label and give me one question that checks if I can read the diagram.")}><Compass size={15}/> Ask MIΛ to build my diagram</button><span>Use the topic-specific diagram prompt for biology, geography, business, science or mathematics.</span></div>
       </section>}
 
       {tab === "revision" && <section className="glass-panel learning-studio-card">
