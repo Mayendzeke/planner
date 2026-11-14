@@ -60,7 +60,7 @@ export default function MathsLab() {
         <div className="maths-lab-card">
           <span className="eyebrow">FRACTION BUILDER</span><h2>What part of the whole is shaded?</h2>
           <p>Change the number of equal parts, then choose how many parts to shade.</p>
-          <div className="fraction-tiles" role="img" aria-label={numerator + " of " + denominator + " equal parts are shaded"}>
+          <div className="fraction-tiles" style={{gridTemplateColumns:"repeat("+denominator+",minmax(0,1fr))"}} role="img" aria-label={numerator + " of " + denominator + " equal parts are shaded"}>
             {Array.from({ length: denominator }, (_, index) => <span key={index} className={index < numerator ? "filled" : ""}/>)}
           </div>
           <div className="maths-lab-control"><label htmlFor="fraction-denominator">Equal parts <strong>{denominator}</strong></label><input id="fraction-denominator" type="range" min="2" max="12" value={denominator} onChange={event => { const next = Number(event.target.value); setDenominator(next); setNumerator(current => Math.min(current, next)); }}/></div>
