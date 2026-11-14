@@ -93,9 +93,15 @@ test('PowerPoint files use a native slide viewer with images, thumbnails and nav
   assert.ok(powerpoint.includes('source={file}'));
   assert.ok(powerpoint.includes('showThumbnails'));
   assert.ok(powerpoint.includes('showToolbar'));
-  assert.ok(powerpoint.includes('showDiagnostics'));
+  assert.ok(!powerpoint.includes('showDiagnostics'), 'student previews must not expose developer diagnostics');
   assert.ok(powerpoint.includes('@extend-ai/react-pptx/styles.css'));
   assert.ok(powerpoint.includes('ViewerErrorBoundary'));
+  assert.ok(powerpoint.includes('Browse slides with the thumbnail rail'));
+  assert.ok(library.includes('Full screen'));
+  assert.ok(library.includes('Exit full screen'));
+  assert.ok(library.includes('fullscreenPreview'));
+  assert.ok(styles.includes('.library-viewer-backdrop.is-fullscreen'));
+  assert.ok(styles.includes('.library-viewer.is-fullscreen'));
   assert.ok(powerpoint.includes('Embedded pictures'));
 });
 
