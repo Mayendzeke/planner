@@ -101,7 +101,7 @@ export default function StudentProgressPage(){
     void refresh();
     if(!supabase)return;
     let alive=true;
-    let channel:ReturnType<typeof supabase.channel>|null=null;
+    let channel:ReturnType<NonNullable<typeof supabase>["channel"]>|null=null;
     const setup=async()=>{
       const {data:{user}}=await supabase!.auth.getUser();
       if(!alive||!user)return;
