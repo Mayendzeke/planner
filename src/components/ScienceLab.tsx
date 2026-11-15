@@ -75,9 +75,10 @@ function balanceEquation(equation: string): string | null {
     for(let n=1;n<=max&&!solution;n++){coefficients[position]=n;search(position+1);}
   };
   search(0);
-  if (!solution) return null;
-  const divisor = solution.reduce((a,b)=>{const gcd=(x:number,y:number):number=>y?gcd(y,x%y):x;return gcd(a,b);});
-  return [...left.map((v,i)=>({v,c:solution![i]})),...right.map((v,i)=>({v,c:solution![i+left.length]}))]
+  const finalSolution = solution as number[] | null;
+  if (!finalSolution) return null;
+  const divisor = finalSolution.reduce((a,b)=>{const gcd=(x:number,y:number):number=>y?gcd(y,x%y):x;return gcd(a,b);});
+  return [...left.map((v,i)=>({v,c:finalSolution[i]})),...right.map((v,i)=>({v,c:finalSolution[i+left.length]}))]
     .map(item=>(item.c/divisor===1?"":item.c/divisor+" ")+item.v).join(" + ")
     .replace(/ \+ /g," + ");
 }
@@ -172,7 +173,7 @@ export default function ScienceLab() {
     if(!/^[A-Z][A-Z]$/.test(a)||!/^[A-Z][A-Z]$/.test(b)||a[0].toLowerCase()!==a[1].toLowerCase()&&a[0]===a[1]) return null;
     const gametesA=[a[0],a[1]],gametesB=[b[0],b[1]];
     return gametesA.flatMap(one=>gametesB.map(two=>{
-      const pair=[one,two].sort((x,y)=>x===x.toUpperCase()?-1:1).join("");
+      const pair=one===one.toUpperCase()?one+two:two+one;
       return pair;
     }));
   },[genetics]);
