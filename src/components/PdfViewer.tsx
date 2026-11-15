@@ -60,7 +60,7 @@ export default function PdfViewer({
   const [learnerId, setLearnerId] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  const drawingTool = tool === "pen" || tool === "highlight";
+  const drawingTool = tool === "pen" || tool === "highlight" || tool === "signature";
   const currentPageMarks = useMemo(() => marks.filter(mark => mark.page === page), [marks, page]);
 
   useEffect(() => {
@@ -109,8 +109,21 @@ export default function PdfViewer({
   useEffect(() => {
     let active = true;
     let channel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = null;
+    setLearnerId("");
+    setWorkspaceReady(false);
     const restore = async () => {
-      const localKey = "studyspace:document-work:" + resourceKey;
+      let userId = "";
+      if (supabase) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          userId = data.session?.user.id || "";
+        } catch {
+          userId = "";
+        }
+      }
+      if (!active) return;
+      if (userId) setLearnerId(userId);
+      const localKey = "studyspace:document-work:" + (userId || "guest") + ":" + resourceKey;
       let local: any = null;
       try { local = JSON.parse(localStorage.getItem(localKey) || "null"); } catch { local = null; }
       if (local && active) {
@@ -118,15 +131,14 @@ export default function PdfViewer({
         setFormValues(local.form_values && typeof local.form_values === "object" ? local.form_values : {});
         setSubmitted(Boolean(local.submitted));
       }
-      if (!supabase) { if (active) { setSaveState("offline"); setWorkspaceReady(true); } return; }
+      if (!supabase || !userId) {
+        if (active) { setSaveState("offline"); setWorkspaceReady(true); }
+        return;
+      }
       try {
-        const { data: auth } = await supabase.auth.getUser();
-        if (!auth.user) throw new Error("No signed-in student");
-        if (!active) return;
-        setLearnerId(auth.user.id);
         const { data, error: readError } = await supabase.from("student_document_work")
           .select("annotations,form_values,submitted,updated_at")
-          .eq("learner_id", auth.user.id).eq("resource_key", resourceKey).maybeSingle();
+          .eq("learner_id", userId).eq("resource_key", resourceKey).maybeSingle();
         if (readError) throw readError;
         if (data && active) {
           const remoteTime = Date.parse(data.updated_at || "");
@@ -140,14 +152,19 @@ export default function PdfViewer({
         if (!active) return;
         setSaveState("saved");
         setWorkspaceReady(true);
-        channel = supabase.channel("document-work-" + auth.user.id + "-" + resourceKey)
+        channel = supabase.channel("document-work-" + userId + "-" + resourceKey)
           .on("postgres_changes", {
-            event: "UPDATE", schema: "public", table: "student_document_work",
-            filter: "learner_id=eq." + auth.user.id,
+            event: "*", schema: "public", table: "student_document_work",
+            filter: "learner_id=eq." + userId,
           }, payload => {
-            const next = payload.new as any;
+            const next = (payload.new || payload.old) as any;
             if (next?.resource_key !== resourceKey || !active) return;
-            if (Date.parse(next.updated_at || "") > Date.now() - 4000) return;
+            if (payload.eventType === "DELETE") {
+              setMarks([]);
+              setFormValues({});
+              setSubmitted(false);
+              return;
+            }
             setMarks(Array.isArray(next.annotations) ? next.annotations : []);
             setFormValues(next.form_values || {});
             setSubmitted(Boolean(next.submitted));
@@ -207,7 +224,7 @@ export default function PdfViewer({
     context.clearRect(0, 0, width, height);
     const renderMark = (mark: PdfMark) => {
       const points = mark.points || [];
-      if (mark.tool === "text" || mark.tool === "signature") {
+      if (mark.tool === "text" || (mark.tool === "signature" && mark.text)) {
         context.globalAlpha = 1;
         context.fillStyle = mark.color || "#20212b";
         context.font = mark.tool === "signature" ? "italic 25px cursive" : "16px sans-serif";
@@ -227,7 +244,7 @@ export default function PdfViewer({
       context.globalAlpha = 1;
     };
     currentPageMarks.forEach(renderMark);
-    if (draftPoints.length > 1) renderMark({ id: "draft", page, tool: tool === "highlight" ? "highlight" : "pen", points: draftPoints, color: penColor });
+    if (draftPoints.length > 1) renderMark({ id: "draft", page, tool: tool === "highlight" ? "highlight" : tool === "signature" ? "signature" : "pen", points: draftPoints, color: penColor });
   }, [currentPageMarks, draftPoints, page, tool, penColor, rendering]);
 
   useEffect(() => {
@@ -252,12 +269,6 @@ export default function PdfViewer({
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [documentProxy, searchTerm]);
 
-  useEffect(() => {
-    if (!workspaceReady || loading || !learnerId) return;
-    const timer = window.setTimeout(() => void persistWorkspace(false), 650);
-    return () => window.clearTimeout(timer);
-  }, [marks, formValues, workspaceReady, loading, learnerId]);
-
   const persistWorkspace = useCallback(async (submit: boolean) => {
     const updatedAt = new Date().toISOString();
     const payload = {
@@ -272,7 +283,7 @@ export default function PdfViewer({
       updated_at: updatedAt,
     };
     try {
-      localStorage.setItem("studyspace:document-work:" + resourceKey, JSON.stringify(payload));
+      localStorage.setItem("studyspace:document-work:" + (learnerId || "guest") + ":" + resourceKey, JSON.stringify(payload));
     } catch {
       setNotice("Your device could not save a local backup of this work.");
     }
@@ -292,6 +303,18 @@ export default function PdfViewer({
     if (submit) setNotice("Your annotated paper has been submitted to your teacher in StudySpace Monitor.");
     return true;
   }, [learnerId,resourceKey,fileName,pageCount,marks,formValues,submitted]);
+
+  useEffect(() => {
+    if (!workspaceReady || loading) return;
+    const timer = window.setTimeout(() => void persistWorkspace(false), 650);
+    return () => window.clearTimeout(timer);
+  }, [marks, formValues, workspaceReady, loading, persistWorkspace]);
+
+  useEffect(() => {
+    const retry = () => { if (workspaceReady) void persistWorkspace(false); };
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [workspaceReady, persistWorkspace]);
 
   function changePage(next: number) { setPage(Math.max(1, Math.min(pageCount, next))); }
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -316,8 +339,8 @@ export default function PdfViewer({
     drawingRef.current = false;
     if (draftPoints.length > 1) {
       setMarks(current => [...current, {
-        id: crypto.randomUUID(), page, tool: tool === "highlight" ? "highlight" : "pen",
-        points: draftPoints, color: penColor, width: tool === "highlight" ? 18 : 3,
+        id: crypto.randomUUID(), page, tool: tool === "highlight" ? "highlight" : tool === "signature" ? "signature" : "pen",
+        points: draftPoints, color: penColor, width: tool === "highlight" ? 18 : tool === "signature" ? 2.6 : 3,
       }]);
     }
     setDraftPoints([]);
@@ -342,7 +365,7 @@ export default function PdfViewer({
         const target = pages[mark.page - 1];
         if (!target) continue;
         const { width, height } = target.getSize();
-        if (mark.tool === "text" || mark.tool === "signature") {
+        if ((mark.tool === "text" || mark.tool === "signature") && mark.text) {
           const point = mark.points?.[0] || { x: .1, y: .1 };
           target.drawText(mark.text || "", {
             x: point.x * width,
@@ -431,7 +454,7 @@ export default function PdfViewer({
         <button type="button" className={tool==="pen"?"active":""} onClick={()=>setTool("pen")}><Pen size={14}/><span>Draw</span></button>
         <button type="button" className={tool==="highlight"?"active":""} onClick={()=>setTool("highlight")}><Highlighter size={14}/><span>Highlight</span></button>
         <button type="button" className={tool==="text"?"active":""} onClick={()=>setTool("text")}><Type size={14}/><span>Text</span></button>
-        <button type="button" className={tool==="signature"?"active":""} onClick={()=>setTool("signature")}><FileSignature size={14}/><span>Sign</span></button>
+        <button type="button" className={tool==="signature"?"active":""} onClick={()=>setTool("signature")} title="Draw your signature using your finger or stylus"><FileSignature size={14}/><span>Sign</span></button>
         <button type="button" className={tool==="fill"?"active":""} onClick={()=>{setTool("fill");setShowFillPanel(value=>!value);}}><Check size={14}/><span>Fill</span>{formFields.length>0&&<small>{formFields.length}</small>}</button>
         <label className="pdf-reader-color" title="Pen colour"><span>Ink</span><input type="color" value={penColor} onChange={event=>setPenColor(event.target.value)}/></label>
         <button type="button" disabled={!marks.length} onClick={()=>setMarks(current=>current.slice(0,-1))}><Undo2 size={14}/><span>Undo</span></button>
