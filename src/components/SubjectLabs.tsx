@@ -43,10 +43,10 @@ const aliases: Record<LabKey, RegExp> = {
 };
 
 const scienceAliases: Record<ScienceArea, RegExp> = {
-  physics: /\\b(physics|physical science|mechanics|forces and motion|electric circuits|electricity|electronics|waves|wave properties|optics)\\b/i,
-  chemistry: /\\b(chemistry|chemical science|organic chemistry|inorganic chemistry|analytical chemistry|acids and bases|chemical bonding|stoichiometry)\\b/i,
-  biology: /\\b(biology|biological sciences|life sciences|anatomy|physiology|cell biology|cell structure|photosynthesis|genetics)\\b/i,
-  environment: /\\b(environmental science|ecology|ecosystems|biodiversity|conservation|climate change|pollution|sustainability)\\b/i,
+  physics: /\b(physics|physical science|mechanics|forces and motion|electric circuits|electricity|electronics|waves|wave properties|optics)\b/i,
+  chemistry: /\b(chemistry|chemical science|organic chemistry|inorganic chemistry|analytical chemistry|acids and bases|chemical bonding|stoichiometry)\b/i,
+  biology: /\b(biology|biological sciences|life sciences|anatomy|physiology|cell biology|cell structure|photosynthesis|genetics)\b/i,
+  environment: /\b(environmental science|ecology|ecosystems|biodiversity|conservation|climate change|pollution|sustainability)\b/i,
 };
 const generalScience = /^(science|general science|combined science|integrated science|physical science)$/i;
 
@@ -328,6 +328,64 @@ function BiologyTools() {
     {tab === "microscope" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Magnification calculator</h3><p>Total magnification = eyepiece × objective lens.</p><RangeField label="Eyepiece" value={magnification} min={5} max={20} unit="×" onChange={setMagnification}/><RangeField label="Objective lens" value={objective} min={4} max={100} step={4} unit="×" onChange={setObjective}/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Total magnification" value={(magnification*objective)+"×"}/><p>Higher magnification increases apparent size but does not automatically improve resolution.</p></aside></div>}
     {tab === "ecosystem" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Energy pyramid</h3><p>Use the 10% model to estimate energy passed to the next trophic level.</p><RangeField label="Starting producer energy" value={trophic} min={100} max={10000} step={100} unit=" kJ" onChange={setTrophic}/><div className="subject-lab-pyramid"><span style={{width:"100%"}}>Producers · {trophic} kJ</span><span style={{width:"60%"}}>Primary consumers · {(trophic*.1).toFixed(0)} kJ</span><span style={{width:"35%"}}>Secondary · {(trophic*.01).toFixed(1)} kJ</span><span style={{width:"20%"}}>Tertiary · {(trophic*.001).toFixed(2)} kJ</span></div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Energy reaching tertiary level" value={(trophic*.001).toFixed(2)+" kJ"}/><p>Energy is lost between trophic levels through respiration, movement, heat and waste.</p></aside></div>}
   </>;
+}
+
+function EnvironmentalTools() {
+  const [tab, setTab] = useState<"ecosystem" | "water" | "carbon">("ecosystem");
+  const [species, setSpecies] = useState(32);
+  const [habitat, setHabitat] = useState(75);
+  const [pressure, setPressure] = useState(25);
+  const [waterPh, setWaterPh] = useState(7);
+  const [oxygen, setOxygen] = useState(8);
+  const [turbidity, setTurbidity] = useState(15);
+  const [emissions, setEmissions] = useState(8);
+  const [trees, setTrees] = useState(150);
+  const biodiversityIndex = Math.max(0, Math.min(100, species * habitat / 100 * (1 - pressure / 100)));
+  const estimatedAbsorption = trees * 0.02;
+  const netCarbon = emissions - estimatedAbsorption;
+  return <section className="subject-lab-workspace">
+    <LabHeading eyebrow="ECOSYSTEMS & ENVIRONMENT" title="Environmental Science Explorer" description="Explore biodiversity, water-quality indicators and a simplified carbon-balance model. These are classroom simulations, not field measurements or environmental compliance tests."/>
+    <ToolTabs value={tab} onChange={setTab} options={[{value:"ecosystem",label:"Ecosystems"},{value:"water",label:"Water quality"},{value:"carbon",label:"Carbon balance"}]}/>
+    {tab === "ecosystem" && <div className="subject-lab-grid">
+      <section className="subject-lab-panel"><h3>Habitat and biodiversity model</h3><p>Explore how habitat condition and disturbance influence an illustrative biodiversity index.</p>
+        <RangeField label="Species count in the sample" value={species} min={5} max={100} onChange={setSpecies}/>
+        <RangeField label="Habitat condition" value={habitat} min={0} max={100} unit="%" onChange={setHabitat}/>
+        <RangeField label="Human disturbance pressure" value={pressure} min={0} max={100} unit="%" onChange={setPressure}/>
+        <div className="subject-lab-pyramid"><span style={{width:"100%"}}>Habitat · {habitat}%</span><span style={{width:(100-pressure)+"%"}}>Remaining condition after pressure · {100-pressure}%</span></div>
+      </section>
+      <aside className="subject-lab-panel subject-lab-results">
+        <Result label="Illustrative biodiversity index" value={biodiversityIndex.toFixed(1)+"/100"}/>
+        <Result label="Habitat status" value={habitat>=70?"Higher condition":habitat>=40?"Moderate condition":"Degraded condition"}/>
+        <Result label="Disturbance" value={pressure>=70?"High":pressure>=35?"Moderate":"Low"}/>
+        <p className="subject-lab-note">The index is a teaching model only. Real biodiversity surveys use species identification, sampling design and site-specific evidence.</p>
+      </aside>
+    </div>}
+    {tab === "water" && <div className="subject-lab-grid">
+      <section className="subject-lab-panel"><h3>Water-quality indicator model</h3><p>Adjust the sample indicators and compare them with broad classroom categories. This cannot establish whether water is safe to drink.</p>
+        <RangeField label="pH" value={waterPh} min={0} max={14} step={0.1} onChange={setWaterPh}/>
+        <RangeField label="Dissolved oxygen" value={oxygen} min={0} max={14} step={0.1} unit=" mg/L" onChange={setOxygen}/>
+        <RangeField label="Turbidity" value={turbidity} min={0} max={100} unit=" relative units" onChange={setTurbidity}/>
+      </section>
+      <aside className="subject-lab-panel subject-lab-results">
+        <Result label="pH category" value={waterPh<6.5?"Acidic":waterPh>8.5?"Alkaline":"Near-neutral"}/>
+        <Result label="Oxygen indicator" value={oxygen>=6?"Higher":oxygen>=4?"Moderate":"Low"}/>
+        <Result label="Clarity indicator" value={turbidity<=5?"Low turbidity":turbidity<=25?"Moderate turbidity":"Higher turbidity"}/>
+        <p className="subject-lab-note">Actual water assessment requires calibrated instruments, sampling procedures and appropriate laboratory analysis.</p>
+      </aside>
+    </div>}
+    {tab === "carbon" && <div className="subject-lab-grid">
+      <section className="subject-lab-panel"><h3>Simple carbon-balance model</h3><p>Compare an example annual emissions figure with a hypothetical tree-uptake estimate. The uptake factor is illustrative, not a universal measurement.</p>
+        <RangeField label="Annual emissions" value={emissions} min={1} max={30} unit=" tonnes CO₂e" onChange={setEmissions}/>
+        <RangeField label="Trees in the scenario" value={trees} min={0} max={1000} step={10} onChange={setTrees}/>
+      </section>
+      <aside className="subject-lab-panel subject-lab-results">
+        <Result label="Illustrative tree uptake" value={estimatedAbsorption.toFixed(1)+" tonnes/year"}/>
+        <Result label="Net model balance" value={netCarbon>=0?netCarbon.toFixed(1)+" tonnes/year":Math.abs(netCarbon).toFixed(1)+" tonnes surplus uptake"}/>
+        <Result label="Model outcome" value={netCarbon>0?"Net emissions":netCarbon<0?"Uptake exceeds emissions":"Balanced in this model"}/>
+        <p className="subject-lab-note">This model excludes soil, land-use changes, tree age, species, survival and many other factors. Do not use it for carbon accounting.</p>
+      </aside>
+    </div>}
+  </section>;
 }
 
 function GeographyLab() {
