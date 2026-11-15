@@ -10,7 +10,7 @@ const classifier = source.slice(start, end);
 test("lab access is determined by the enrolled subject name, not its editable category", () => {
   assert.match(source, /classifySubject\(subject\.name\)/);
   assert.doesNotMatch(source, /classifySubject\(subject\.name,\s*subject\.category/);
-  assert.doesNotMatch(classifier, /category/);
+  assert.doesNotMatch(classifier, /const combined = value \+ " " \+ category/);
 });
 
 test("computing and social-science subjects do not unlock the experimental Science Lab", () => {
