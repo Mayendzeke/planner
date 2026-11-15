@@ -388,7 +388,8 @@ function EngineeringLab() {
 }
 function LanguageLab() {
   const [tab,setTab]=useState<"grammar"|"vocabulary"|"reading">("grammar");
-  const [grammarAnswer,setGrammarAnswer]=useState("");\n  const [readingAnswer,setReadingAnswer]=useState("");
+  const [grammarAnswer,setGrammarAnswer]=useState("");
+  const [readingAnswer,setReadingAnswer]=useState("");
   const [word,setWord]=useState("persevere");
   const [definition,setDefinition]=useState("continue despite difficulty");
   const [revealed,setRevealed]=useState(false);
