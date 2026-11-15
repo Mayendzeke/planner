@@ -105,15 +105,16 @@ function useAssignedModules(studentId?: string | null) {
   const [sources, setSources] = useState<AssignedLabSource[]>([]);
   const [loading, setLoading] = useState(Boolean(studentId && supabase));
   useEffect(() => {
-    if (!supabase || !studentId) { setLoading(false); setSources([]); return; }
+    const client = supabase;
+    if (!client || !studentId) { setLoading(false); setSources([]); return; }
     let active = true;
     const load = async () => {
       setLoading(true);
       setSources([]);
       try {
         const [{ data: resourceAssignments, error: resourceAssignmentError }, { data: exerciseAssignments, error: exerciseAssignmentError }] = await Promise.all([
-          supabase.from("resource_assignments").select("resource_id").eq("learner_id", studentId),
-          supabase.from("exercise_assignments").select("exercise_set_id,available_at").eq("learner_id", studentId),
+          client.from("resource_assignments").select("resource_id").eq("learner_id", studentId),
+          client.from("exercise_assignments").select("exercise_set_id,available_at").eq("learner_id", studentId),
         ]);
         if (resourceAssignmentError) throw resourceAssignmentError;
         if (exerciseAssignmentError) throw exerciseAssignmentError;
@@ -124,18 +125,18 @@ function useAssignedModules(studentId?: string | null) {
           .map(row => row.exercise_set_id).filter(Boolean))];
 
         const resourcesResult = resourceIds.length
-          ? await supabase.from("learning_resources").select("subject_name,topic").in("id", resourceIds)
+          ? await client.from("learning_resources").select("subject_name,topic").in("id", resourceIds)
           : { data: [], error: null };
         if (resourcesResult.error) throw resourcesResult.error;
 
         const exercisesResult = releasedExerciseIds.length
-          ? await supabase.from("exercise_sets").select("id,subject_name,is_published").in("id", releasedExerciseIds).eq("is_published", true)
+          ? await client.from("exercise_sets").select("id,subject_name,is_published").in("id", releasedExerciseIds).eq("is_published", true)
           : { data: [], error: null };
         if (exercisesResult.error) throw exercisesResult.error;
 
         const publishedSetIds = (exercisesResult.data ?? []).map(row => row.id).filter(Boolean);
         const questionsResult = publishedSetIds.length
-          ? await supabase.from("exercise_questions").select("exercise_set_id,topic,content").in("exercise_set_id", publishedSetIds)
+          ? await client.from("exercise_questions").select("exercise_set_id,topic,content").in("exercise_set_id", publishedSetIds)
           : { data: [], error: null };
         if (questionsResult.error) throw questionsResult.error;
 
@@ -189,7 +190,7 @@ function buildLabAccess(subjects: Subject[], assignedSources: AssignedLabSource[
     const topicMatches = source.topics.map(topic => ({ topic, match: classifyAssignedModule(topic) }))
       .filter(item => item.match.keys.some(key => parent.keys.includes(key)));
     const topicScienceAreas = [...new Set(topicMatches
-      .filter(item => parent.keys.includes("science"))
+      .filter(() => parent.keys.includes("science"))
       .flatMap(item => item.match.scienceAreas)
       .filter(area => !parent.scienceAreas.length || parent.scienceAreas.includes(area)))];
     const scienceAreas = topicScienceAreas.length ? topicScienceAreas : parent.scienceAreas;
