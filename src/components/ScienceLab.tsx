@@ -141,13 +141,13 @@ export default function ScienceLab() {
   useEffect(()=>{
     setTool(toolSets[area][0].label);
   },[area]);
-  const restoredAreas = useRef(new Set<ScienceArea>());
+  const [restoredArea,setRestoredArea]=useState<ScienceArea|null>(null);
   useEffect(()=>{
-    if(!active.loaded || restoredAreas.current.has(area)) return;
-    restoredAreas.current.add(area);
+    if(!active.loaded || restoredArea===area) return;
     const saved=active.workRows.find(row=>row.activity_key==="science-workspace");
-    if(!saved?.live_state) return;
-    const state=saved.live_state as Record<string,any>;
+    if(saved?.live_state) {
+      const state=saved.live_state as Record<string,any>;
+      if(typeof state.tool==="string" && toolSets[area].some(item=>item.label===state.tool)) setTool(state.tool as Tool);
     if(area==="physics"&&state.physicsData) setPhysicsData(current=>({...current,...state.physicsData}));
     if(area==="chemistry"&&state.chemistryData) {
       setSelectedElement(n(state.chemistryData.selectedElement,8)); setFormula(String(state.chemistryData.formula||"H2O"));
@@ -157,8 +157,10 @@ export default function ScienceLab() {
       setCellType(state.biologyData.cellType==="animal"?"animal":"plant"); setOrganelle(String(state.biologyData.organelle||"Nucleus"));
       setGenetics(current=>({...current,...state.biologyData.genetics})); setDna(String(state.biologyData.dna||"ATGCGTACGTTAGC"));
       setEco(current=>({...current,...state.biologyData.eco}));
+      }
     }
-  },[area,active.loaded,active.workRows]);
+    setRestoredArea(area);
+  },[area,active.loaded,active.workRows,restoredArea]);
 
   const element=periodicElements.find(item=>item.number===selectedElement)!;
   const molecularMass=molarMass(formula);
@@ -182,10 +184,10 @@ export default function ScienceLab() {
   const snapshot = useMemo(() => area==="physics" ? {physicsData,tool} : area==="chemistry" ? {chemistryData:{selectedElement,formula,solutionData,equation},tool} : {biologyData:{cellType,organelle,genetics,dna,eco},tool}, [area,physicsData,tool,selectedElement,formula,solutionData,equation,cellType,organelle,genetics,dna,eco]);
   const keyResult = useMemo(() => area==="physics" ? {speed:physicsData.time?physicsData.distance/physicsData.time:0,force:physicsData.mass*physicsData.acceleration} : area==="chemistry" ? {molarMass:molecularMass,pH} : {gcPercent,populationAfter:growth}, [area,physicsData,molecularMass,pH,gcPercent,growth]);
   useEffect(()=>{
-    if(!active.loaded||!active.control.enabled) return;
+    if(!active.loaded||restoredArea!==area||!active.control.enabled) return;
     const timer=window.setTimeout(()=>void active.saveWork("science-workspace",info.title,snapshot,{currentTool:tool,area,keyResult}),700);
     return ()=>window.clearTimeout(timer);
-  },[active.loaded,active.control.enabled,active.saveWork,info.title,snapshot,tool,area,keyResult]);
+  },[active.loaded,active.control.enabled,active.saveWork,info.title,snapshot,tool,area,keyResult,restoredArea]);
 
   const savedWork=active.workRows.find(row=>row.activity_key==="science-workspace");
   const status=active.syncState==="synced"?"Synced to your StudySpace account":active.syncState==="offline"?"Saved on this device · will sync when online":"Connecting to your lab workspace";
@@ -221,7 +223,7 @@ export default function ScienceLab() {
 
       {area==="physics"&&tool==="Optics"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">THIN LENS MODEL</span><h3>Image distance and magnification</h3><p>Use the thin-lens equation. Object distance must be greater than zero and focal length cannot be zero.</p><div className="science-fields"><NumberField label="Focal length" value={physicsData.focalLength} onChange={v=>changePhysics("focalLength",Math.max(.01,v))} unit="cm"/><NumberField label="Object distance" value={physicsData.objectDistance} onChange={v=>changePhysics("objectDistance",Math.max(.01,v))} unit="cm"/></div><div className="science-equation">1/f = 1/u + 1/v</div></section><aside className="science-results"><Result label="Image distance" value={(1/(1/physicsData.focalLength-1/physicsData.objectDistance)||0).toFixed(2)+" cm"} detail="Negative values indicate a virtual image"/><Result label="Magnification" value={(-(1/(1/physicsData.focalLength-1/physicsData.objectDistance)||0)/physicsData.objectDistance).toFixed(2)+" ×"} detail="m = −v/u"/><Result label="Image type" value={physicsData.objectDistance>physicsData.focalLength?"Real (for a converging lens)":"Virtual / boundary case"} detail="Assumes a thin converging lens"/></aside></div>}
 
-      {area==="chemistry"&&tool==="Element explorer"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">PERIODIC TABLE EXPLORER</span><h3>Choose an element to inspect</h3><p>Explore all 118 recognised elements, their atomic data, categories, phases and electron configurations.</p><div className="science-periodic-grid">{periodicElements.map(item=><button key={item.number} style={{gridColumnStart:item.group,gridRowStart:item.period}} className={selectedElement===item.number?"active":""} onClick={()=>setSelectedElement(item.number)}><small>{item.number}</small><strong>{item.symbol}</strong><span>{item.name}</span></button>)}</div></section><aside className="science-results"><div className="science-element-focus"><span>{element.number}</span><strong>{element.symbol}</strong><b>{element.name}</b><small>Relative atomic mass {element.mass}</small><small>{element.category} · {element.phase}</small><small>Group {element.group} · Period {element.period}</small><small>{element.electronConfiguration||"Electron configuration not listed"}</small></div><Result label="Protons" value={String(element.number)} detail="Atomic number"/><Result label="Electrons (neutral atom)" value={String(water[0])} detail="Equal to protons"/><Result label="Neutrons (approx.)" value={String(Math.max(0,Math.round(element.mass)-element.number))} detail="Rounded mass number − atomic number"/></aside></div>}
+      {area==="chemistry"&&tool==="Element explorer"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">PERIODIC TABLE EXPLORER</span><h3>Choose an element to inspect</h3><p>Explore all 118 recognised elements, their atomic data, categories, phases and electron configurations.</p><div className="science-periodic-grid">{periodicElements.map(item=><button key={item.number} style={{gridColumnStart:item.group,gridRowStart:item.period}} className={selectedElement===item.number?"active":""} onClick={()=>setSelectedElement(item.number)}><small>{item.number}</small><strong>{item.symbol}</strong><span>{item.name}</span></button>)}</div></section><aside className="science-results"><div className="science-element-focus"><span>{element.number}</span><strong>{element.symbol}</strong><b>{element.name}</b><small>Relative atomic mass {element.mass}</small><small>{element.category} · {element.phase}</small><small>Group {element.group} · Period {element.period}</small><small>{element.electronConfiguration||"Electron configuration not listed"}</small></div><Result label="Protons" value={String(element.number)} detail="Atomic number"/><Result label="Electrons (neutral atom)" value={String(element.number)} detail="Equal to protons"/><Result label="Neutrons (approx.)" value={String(Math.max(0,Math.round(element.mass)-element.number))} detail="Rounded mass number − atomic number"/></aside></div>}
 
       {area==="chemistry"&&tool==="Molar mass"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">FORMULA MASS CALCULATOR</span><h3>Calculate molar mass</h3><p>Enter a chemical formula such as H₂O, CO₂, Ca(OH)₂ or C₆H₁₂O₆. Parentheses and subscripts are supported for elements in the built-in mass table.</p><label className="science-text-field">Chemical formula<input value={formula} onChange={event=>setFormula(event.target.value)} placeholder="e.g. Ca(OH)2"/></label><div className="science-equation">M = Σ (number of atoms × relative atomic mass)</div></section><aside className="science-results"><Result label="Molar mass" value={molecularMass===null?"Check formula":molecularMass.toFixed(3)+" g/mol"} detail={molecularMass===null?"Use valid element symbols and subscripts":"Calculated from relative atomic masses"}/><Result label="Formula" value={formula||"—"} detail="Chemical composition"/></aside></div>}
 
