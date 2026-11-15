@@ -478,7 +478,6 @@ export default function LabLearningHub({
   const startRetake = async (attempt: LabAttempt, mode: RetakeMode) => {
     const material = materials.find(item => item.id === attempt.material_id);
     if (!material) {
-      if (mode === "incorrect_only") { setError("The original material is unavailable, so missed questions cannot be opened."); return; }
       const snapshotMaterial: LabMaterial = {
         id: attempt.material_id || crypto.randomUUID(),
         learner_id: studentId || "",
@@ -576,7 +575,7 @@ export default function LabLearningHub({
         <article><span><Flame size={17}/></span><strong>{best}%</strong><small>personal best</small></article>
         <article><span><Library size={17}/></span><strong>{materials.filter(item=>item.is_favourite).length}</strong><small>favourites</small></article>
       </div>
-      {materials.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">PICK UP WHERE YOU LEFT OFF</span><h3>Recently saved</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("library")}>View library <ChevronRight size={15}/></button></div><div className="lab-hub-material-grid">{materials.slice(0,3).map(item => <MaterialCard key={item.id} item={item} onOpen={() => { setSelectedMaterial(item); setFlashcardIndex(0); setFlashcardFlipped(false); setTab("library"); }} onPractice={() => void startAttempt(item)} />)}</div></section>}
+      {materials.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">PICK UP WHERE YOU LEFT OFF</span><h3>Recently saved</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("library")}>View library <ChevronRight size={15}/></button></div><div className="lab-hub-material-grid">{materials.slice(0,3).map(item => <MaterialCard key={item.id} item={item} onOpen={() => { setSelectedMaterial(item); setFlashcardIndex(0); setFlashcardFlipped(false); setTab("library"); }} onPractice={() => void startAttempt(item)} onTimed={() => void startAttempt(item,"timed")} onExam={() => void startAttempt(item,"exam")} />)}</div></section>}
       {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">KEEP IMPROVING</span><h3>Continue your practice</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("practice")}>Practice history <ChevronRight size={15}/></button></div><div className="lab-hub-history-list">{attempts.slice(0,3).map(item => <AttemptRow key={item.id} attempt={item} onReview={() => { setActiveAttempt(item); setQuestionIndex(0); setStartedAt(item.status === "in_progress" ? (Date.parse(item.created_at) || Date.now()) : null); setTab("practice"); }} />)}</div></section>}
     </>}
 
@@ -612,7 +611,7 @@ export default function LabLearningHub({
       /> : <>
         <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR PERSONAL STUDY COLLECTION</span><h3>My Lab Library</h3><p>Materials you create here are private to your account.</p></div><button type="button" className="lab-hub-primary small" onClick={()=>setTab("create")}><Plus size={15}/> Create</button></div>
         <div className="lab-hub-library-tools"><label className="lab-hub-search"><Search size={16}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search topic or material"/></label><label className="lab-hub-filter"><Filter size={15}/><select value={filterType} onChange={event=>setFilterType(event.target.value)}><option value="all">All types</option>{materialTypes.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
-        {filteredMaterials.length ? <div className="lab-hub-material-grid">{filteredMaterials.map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);}} onPractice={()=>void startAttempt(item)} onFavourite={()=>void toggleFavourite(item)}/>)}</div> : <EmptyState icon={<Library size={22}/>} title="Your library is waiting" text="Create your first revision pack, flashcard set, worked example collection or practice quiz." action="Create material" onClick={()=>setTab("create")}/>}
+        {filteredMaterials.length ? <div className="lab-hub-material-grid">{filteredMaterials.map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")} onExam={()=>void startAttempt(item,"exam")} onFavourite={()=>void toggleFavourite(item)}/>)}</div> : <EmptyState icon={<Library size={22}/>} title="Your library is waiting" text="Create your first revision pack, flashcard set, worked example collection or practice quiz." action="Create material" onClick={()=>setTab("create")}/>}
       </>}
     </section>}
 
@@ -660,7 +659,7 @@ function buildWeakTopics(attempts: LabAttempt[]) {
   return [...byTopic.values()].sort((a,b)=>a.latest-b.latest).slice(0,8);
 }
 
-function MaterialCard({ item, onOpen, onPractice, onTimed, onFavourite }: {
+function MaterialCard({ item, onOpen, onPractice, onTimed, onExam, onFavourite }: {
   item: LabMaterial; onOpen:()=>void; onPractice:()=>void; onTimed?:()=>void; onExam?:()=>void; onFavourite?:()=>void;
 }) {
   return <article className="lab-hub-material-card">
@@ -670,7 +669,7 @@ function MaterialCard({ item, onOpen, onPractice, onTimed, onFavourite }: {
   </article>;
 }
 
-function MaterialDetail({ item, flashcardIndex, flashcardFlipped, setFlashcardIndex, setFlashcardFlipped, onBack, onPractice, onTimed, onFavourite, onDownload, onDelete }: {
+function MaterialDetail({ item, flashcardIndex, flashcardFlipped, setFlashcardIndex, setFlashcardFlipped, onBack, onPractice, onTimed, onExam, onFavourite, onDownload, onDelete }: {
   item:LabMaterial; flashcardIndex:number; flashcardFlipped:boolean; setFlashcardIndex:(value:number)=>void; setFlashcardFlipped:(value:boolean)=>void;
   onBack:()=>void; onPractice:()=>void; onTimed:()=>void; onExam:()=>void; onFavourite:()=>void; onDownload:()=>void; onDelete:()=>void;
 }) {

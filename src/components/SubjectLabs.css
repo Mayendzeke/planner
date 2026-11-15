@@ -49,3 +49,9 @@
 .subject-lab-balance{height:82px;display:flex;gap:4px;border:1px solid var(--line,rgba(140,150,180,.15));border-radius:12px;padding:8px}.subject-lab-balance i{display:block;border-radius:7px;background:rgba(124,156,255,.5)}.subject-lab-balance i+i{background:rgba(107,215,189,.5)}
 @media(max-width:760px){.subject-labs-grid,.subject-lab-grid{grid-template-columns:1fr}.subject-labs-header{align-items:flex-start}.subject-labs-count{min-width:75px}.subject-labs-card{padding:.85rem}.subject-labs-card-copy small{font-size:.73rem}.subject-lab-panel{padding:.9rem}.subject-lab-tabs{flex-wrap:nowrap;overflow-x:auto}.subject-lab-tabs button{white-space:nowrap;flex:none}}
 @media(prefers-reduced-motion:reduce){.subject-labs-card{transition:none}.subject-labs-card:hover{transform:none}}
+
+/* Shared learning workspace placement in every subject Lab */
+.lab-subject-tools{display:grid;gap:12px;margin:24px 0 10px;padding-top:18px;border-top:1px solid var(--border,rgba(140,150,180,.16))}
+.lab-subject-tools-heading{display:grid;gap:6px;margin-bottom:3px}
+.lab-subject-tools-heading h3{font:800 17px Manrope,sans-serif;margin:0;letter-spacing:-.4px}
+.lab-subject-tools-heading p{font-size:10px;color:var(--muted);line-height:1.55;margin:0}
