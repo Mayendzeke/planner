@@ -13,8 +13,8 @@ test("lab access is determined by the enrolled subject name, not its editable ca
   assert.doesNotMatch(classifier, /const combined = value \+ " " \+ category/);
 });
 
-test("computing and social-science subjects do not unlock the experimental Science Lab", () => {
-  for (const excluded of ["computer science", "data science", "information science", "library science", "social science", "political science"]) {
+test("Science Lab requires a recognised discipline or explicit general Science course", () => {\n  assert.match(classifier, /const hasExperimentalScience = areas.length > 0 \|\| isGeneralScience/);\n  assert.match(classifier, /key === "science" && !hasExperimentalScience/);\n});\n\ntest("computing, agriculture-labelled and social-science subjects do not unlock the experimental Science Lab", () => {
+  for (const excluded of ["computer science", "data science", "information science", "library science", "social science", "political science", "agricultural science"]) {
     assert.ok(classifier.toLowerCase().includes(excluded), "explicitly exclude " + excluded);
   }
 });
