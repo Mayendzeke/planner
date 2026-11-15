@@ -358,7 +358,7 @@ export default function App() {
           const parsed = JSON.parse(raw) as Partial<StudentProfile>;
           if (parsed && typeof parsed.fullName === "string" && typeof parsed.preferredName === "string"
             && Array.isArray(parsed.subjects) && Array.isArray(parsed.preferredDays)) {
-            cached = parsed as StudentProfile;
+            cached = { ...(parsed as StudentProfile), level: "Secondary High" };
           }
         }
       } catch {
@@ -382,14 +382,12 @@ export default function App() {
         const fullName = String(cloud.full_name || "");
         const preferredName = String(cloud.preferred_name || "");
         const cloudSubjects = (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean);
-        const requiredCourseMissing = ["College", "University"].includes(String(cloud.education_level || "")) && !String(cloud.course || "").trim();
         const academicSetupComplete = Boolean(
-          String(cloud.education_level || "").trim()
+          String(cloud.education_level || "").trim() === "Secondary High"
           && String(cloud.grade || "").trim()
           && String(cloud.curriculum || "").trim()
           && String(cloud.academic_year || "").trim()
           && cloudSubjects.length > 0
-          && !requiredCourseMissing
         );
         if (!cloud.profile_setup_dismissed_at && !academicSetupComplete) {
           if (alive) {
@@ -414,7 +412,7 @@ export default function App() {
           country: String(cloud.country || ""),
           institution: String(cloud.institution || ""),
           course: String(cloud.course || ""),
-          level: String(cloud.education_level || "Secondary school"),
+          level: "Secondary High",
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
           academicYear: String(cloud.academic_year || new Date().getFullYear()),
@@ -437,7 +435,7 @@ export default function App() {
       } catch (reason) {
         if (!alive) return;
         if (cached) {
-          setProfile(cached);
+          setProfile({ ...cached, level: "Secondary High" });
           setProfileOwnerId(cloudUserId);
           setError(reason instanceof Error
             ? "Using your saved offline profile. Cloud refresh failed: " + reason.message
@@ -623,6 +621,7 @@ export default function App() {
       const safeName = nextProfile.fullName.trim() || accountName || "Student";
       const profileToSave: StudentProfile = {
         ...nextProfile,
+        level: "Secondary High",
         fullName: safeName,
         preferredName: nextProfile.preferredName.trim() || safeName
       };
@@ -632,7 +631,7 @@ export default function App() {
             p_preferred_name: profileToSave.preferredName,
             p_country: profileToSave.country,
             p_institution: profileToSave.institution,
-            p_education_level: profileToSave.level,
+            p_education_level: "Secondary High",
             p_grade: profileToSave.grade,
             p_curriculum: profileToSave.curriculum,
             p_academic_year: profileToSave.academicYear,
