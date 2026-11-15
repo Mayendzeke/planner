@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, GraduationCap, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
+import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isTertiaryLevel } from "../lib/educationPathways";
 
 export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string; timetable_kind?: "school" | "personal" };
 
@@ -9,6 +10,8 @@ export type StudentProfile = {
   country: string;
   institution: string;
   course: string;
+  institutionType: string;
+  qualificationLevel: string;
   level: string;
   grade: string;
   curriculum: string;
@@ -26,13 +29,11 @@ export type StudentProfile = {
 };
 
 const emptyProfile: StudentProfile = {
-  fullName: "", preferredName: "", country: "", institution: "", course: "", level: "Secondary High",
+  fullName: "", preferredName: "", country: "", institution: "", course: "", institutionType: "School", qualificationLevel: "", level: "Secondary High",
   grade: "", curriculum: "", academicYear: String(new Date().getFullYear()), termCount: "3",
   goals: "Improve my marks", targetMark: "75", weeklyHours: "6", preferredDays: ["Saturday", "Sunday"], subjects: []
 };
 
-const levels = ["Secondary High"];
-const curricula = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const subjectCatalog: Record<string, string[]> = {
   primary: ["English", "Siswati", "Mathematics", "Science", "Social Studies", "Environmental Studies", "Agriculture", "ICT / Computer Studies", "Religious Education", "Creative Arts", "Physical Education", "French", "Portuguese"],
@@ -40,10 +41,11 @@ const subjectCatalog: Record<string, string[]> = {
   college: ["Accounting", "Business Management", "Marketing", "Economics", "Finance", "Human Resource Management", "Hospitality Management", "Tourism Management", "Computer Science", "Information Technology", "Software Development", "Education", "Law", "Nursing", "Engineering", "Agriculture", "Communications", "Project Management", "Research Methods"],
   university: ["Accounting", "Business Administration", "Marketing", "Economics", "Finance", "Human Resource Management", "Hospitality Management", "Tourism Management", "Computer Science", "Information Technology", "Software Engineering", "Education", "Law", "Nursing", "Medicine", "Engineering", "Agriculture", "Communications", "Psychology", "Research Methods"]
 };
-function catalogFor(level: string, curriculum: string) {
-  if (level === "Primary school") return subjectCatalog.primary;
-  if (level === "College") return subjectCatalog.college;
-  if (level === "University") return subjectCatalog.university;
+function catalogFor(level: string, curriculum: string, institutionType: string) {
+  if (level === "Primary") return subjectCatalog.primary;
+  if (level === "Tertiary" && institutionType === "College") return subjectCatalog.college;
+  if (level === "Tertiary" && institutionType === "University") return subjectCatalog.university;
+  if (level === "Tertiary") return [...subjectCatalog.college, "Electrical Installation", "Mechanical Engineering", "Construction", "Automotive Technology", "Information Systems"];
   const core = subjectCatalog.secondary;
   if (curriculum === "IB") return [...core, "Theory of Knowledge", "Extended Essay", "Creativity, Activity and Service"];
   if (curriculum === "CAPS") return [...core, "Life Orientation", "isiZulu", "isiXhosa"];
@@ -55,6 +57,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
   const [step, setStep] = useState(0);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profile, setProfile] = useState<StudentProfile>(emptyProfile);
+  const [otherGradeSelected, setOtherGradeSelected] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [subjectSearch, setSubjectSearch] = useState("");
@@ -92,7 +95,8 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     setProfile(current => ({ ...current, [key]: value }));
   }
 
-  const availableSubjects = useMemo(() => catalogFor(profile.level, profile.curriculum), [profile.level, profile.curriculum]);
+  const availableSubjects = useMemo(() => catalogFor(profile.level, profile.curriculum, profile.institutionType), [profile.level, profile.curriculum, profile.institutionType]);
+  const gradeOptions = gradeOptionsFor(profile.level);
   const filteredSubjects = availableSubjects.filter(name => name.toLocaleLowerCase().includes(subjectSearch.trim().toLocaleLowerCase()));
 
   function toggleSubject(name: string) {
@@ -139,7 +143,8 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     if (savingProfile) return;
     setError("");
     if (step === 0 && !profile.fullName.trim()) { setError("Please enter the student's name."); return; }
-    if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim() || !profile.curriculum.trim())) { setError("Please enter your grade or year, academic year and curriculum."); return; }
+    if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim() || (!isTertiaryLevel(profile.level) && !profile.curriculum.trim()))) { setError("Choose your education stage, grade or year, academic year and curriculum."); return; }
+    if (step === 1 && isTertiaryLevel(profile.level) && (!profile.institutionType || !profile.qualificationLevel || !profile.course.trim())) { setError("Choose your institution type and qualification, then enter your course or programme."); return; }
     if (step === 2) {
       if (!profile.subjects.length) { setError("Select at least one subject or course to continue."); return; }
       setStep(3);
@@ -178,6 +183,8 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
         await onComplete({
           ...profile,
           subjects: [...new Set(profile.subjects)],
+          institutionType: isTertiaryLevel(profile.level) ? profile.institutionType : "School",
+          qualificationLevel: isTertiaryLevel(profile.level) ? profile.qualificationLevel : "",
           timetableEntries: [
             ...timetableEntries.map(entry => ({ ...entry, timetable_kind: "school" as const })),
             ...generatedStudyEntries
@@ -220,13 +227,28 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
       </div>}
 
       {step === 1 && <div className="onboarding-fields">
-        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level">{levels.map(item => <option key={item}>{item}</option>)}</select></label>
+        <label className="field-label">Education stage<select value={profile.level} onChange={e => {
+          const level = e.target.value;
+          setProfile(current => ({ ...current, level, grade: "", subjects: [], course: "", institutionType: level === "Tertiary" ? "" : "School", qualificationLevel: "", curriculum: "" }));
+          setOtherGradeSelected(false);
+          setSubjectSearch("");
+        }}><option value="">Choose education stage</option>{EDUCATION_PATHWAYS.map(stage => <option key={stage.value} value={stage.value}>{stage.label} · {stage.description}</option>)}</select></label>
         <div className="onboarding-two-col">
-          <label className="field-label">Form / grade<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder="e.g. Form 3, Form 5 or Lower Sixth" maxLength={60}/></label>
-          <label className="field-label">Academic year<input value={profile.academicYear} onChange={e => update("academicYear", e.target.value)} placeholder="2026" maxLength={20}/></label>
+          <label className="field-label">{profile.level === "Tertiary" ? "Year / semester" : profile.level === "Primary" ? "Primary grade" : profile.level === "Matric" ? "Advanced studies year" : "Form"}<select value={profile.grade && gradeOptions.includes(profile.grade) ? profile.grade : otherGradeSelected ? OTHER_GRADE_VALUE : ""} onChange={e => {
+            const value = e.target.value;
+            setOtherGradeSelected(value === OTHER_GRADE_VALUE);
+            update("grade", value === OTHER_GRADE_VALUE ? "" : value);
+          }} disabled={!profile.level}><option value="">Choose grade or year</option>{gradeOptions.map(item => <option key={item} value={item}>{item}</option>)}<option value={OTHER_GRADE_VALUE}>Other / international equivalent</option></select></label>
+          <label className="field-label">Academic year<input value={profile.academicYear} onChange={e => update("academicYear", e.target.value)} placeholder="e.g. 2026" maxLength={20}/></label>
         </div>
-        <label className="field-label">Curriculum<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum</option>{curricula.map(item => <option key={item}>{item}</option>)}</select></label>
-        <label className="field-label">Number of school terms<select value={profile.termCount} onChange={e => update("termCount", e.target.value)}><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="1">One continuous academic year</option><option value="custom">Other / Not sure</option></select></label>
+        {otherGradeSelected && <label className="field-label">Enter your grade / year<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder="Enter the equivalent used by your institution" maxLength={60}/></label>}
+        {isTertiaryLevel(profile.level) && <>
+          <label className="field-label">Institution type<select value={profile.institutionType} onChange={e => update("institutionType", e.target.value)}><option value="">Choose institution type</option>{INSTITUTION_TYPES.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label className="field-label">Qualification level<select value={profile.qualificationLevel} onChange={e => update("qualificationLevel", e.target.value)}><option value="">Choose qualification</option>{QUALIFICATION_LEVELS.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label className="field-label">Course / programme<input value={profile.course} onChange={e => update("course", e.target.value)} placeholder="e.g. Diploma in IT, BBA, MSc Education" maxLength={160}/></label>
+        </>}
+        <label className="field-label">Curriculum / awarding framework{isTertiaryLevel(profile.level) && <span className="field-optional"> OPTIONAL</span>}<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum / framework</option>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select></label>
+        <label className="field-label">{isTertiaryLevel(profile.level) ? "Academic periods" : "Number of school terms"}<select value={profile.termCount} onChange={e => update("termCount", e.target.value)}><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="1">One continuous academic year</option><option value="custom">Other / Not sure</option></select></label>
       </div>}
 
       {step === 2 && <div className="onboarding-fields">
