@@ -9,6 +9,7 @@ import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type Study
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
 import { syncStudentWorkspace } from "./lib/cloudSync";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
+import { isTertiaryStage, isValidEducationStage, normaliseEducationProfile } from "./lib/educationPathways";
 import StudentProfileEditor from "./components/StudentProfileEditor";
 import StudentProfileEngagementCard from "./components/StudentProfileEngagementCard";
 import StudentAccountSecurity from "./components/StudentAccountSecurity";
@@ -358,7 +359,7 @@ export default function App() {
           const parsed = JSON.parse(raw) as Partial<StudentProfile>;
           if (parsed && typeof parsed.fullName === "string" && typeof parsed.preferredName === "string"
             && Array.isArray(parsed.subjects) && Array.isArray(parsed.preferredDays)) {
-            cached = { ...(parsed as StudentProfile), level: "Secondary High" };
+            cached = normaliseEducationProfile(parsed as StudentProfile);
           }
         }
       } catch {
@@ -370,7 +371,7 @@ export default function App() {
         // Always refresh from the cloud when online. A local cache must not
         // silently overwrite profile changes made on another signed-in device.
         const [profileResult, goalResult, subjectsResult] = await Promise.all([
-          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,grade,curriculum,academic_year,avatar_path,date_of_birth,sex,profile_setup_dismissed_at").eq("id", cloudUserId).single(),
+          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,institution_type,qualification_level,grade,curriculum,academic_year,avatar_path,date_of_birth,sex,profile_setup_dismissed_at").eq("id", cloudUserId).single(),
           supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
           supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
         ]);
@@ -383,9 +384,11 @@ export default function App() {
         const preferredName = String(cloud.preferred_name || "");
         const cloudSubjects = (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean);
         const academicSetupComplete = Boolean(
-          String(cloud.education_level || "").trim() === "Secondary High"
+          isValidEducationStage(String(cloud.education_level || "").trim())
           && String(cloud.grade || "").trim()
-          && String(cloud.curriculum || "").trim()
+          && (String(cloud.education_level || "") === "Tertiary"
+            ? String(cloud.institution_type || "").trim() && String(cloud.qualification_level || "").trim() && String(cloud.course || "").trim()
+            : String(cloud.curriculum || "").trim())
           && String(cloud.academic_year || "").trim()
           && cloudSubjects.length > 0
         );
@@ -412,7 +415,9 @@ export default function App() {
           country: String(cloud.country || ""),
           institution: String(cloud.institution || ""),
           course: String(cloud.course || ""),
-          level: "Secondary High",
+          level: String(cloud.education_level || "Secondary High"),
+          institutionType: String(cloud.institution_type || (cloud.education_level === "Tertiary" ? "" : "School")),
+          qualificationLevel: String(cloud.qualification_level || ""),
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
           academicYear: String(cloud.academic_year || new Date().getFullYear()),
@@ -435,7 +440,7 @@ export default function App() {
       } catch (reason) {
         if (!alive) return;
         if (cached) {
-          setProfile({ ...cached, level: "Secondary High" });
+          setProfile(normaliseEducationProfile(cached));
           setProfileOwnerId(cloudUserId);
           setError(reason instanceof Error
             ? "Using your saved offline profile. Cloud refresh failed: " + reason.message
@@ -621,21 +626,25 @@ export default function App() {
       const safeName = nextProfile.fullName.trim() || accountName || "Student";
       const profileToSave: StudentProfile = {
         ...nextProfile,
-        level: "Secondary High",
+        level: nextProfile.level,
+        institutionType: nextProfile.institutionType || (isTertiaryStage(nextProfile.level) ? "" : "School"),
+        qualificationLevel: nextProfile.qualificationLevel || "",
         fullName: safeName,
         preferredName: nextProfile.preferredName.trim() || safeName
       };
       {
-          const { error: profileError } = await supabase.rpc("update_studyspace_learner_profile", {
+          const { error: profileError } = await supabase.rpc("update_studyspace_learner_academic_profile", {
             p_full_name: profileToSave.fullName,
             p_preferred_name: profileToSave.preferredName,
             p_country: profileToSave.country,
             p_institution: profileToSave.institution,
-            p_education_level: "Secondary High",
+            p_education_level: profileToSave.level,
             p_grade: profileToSave.grade,
             p_curriculum: profileToSave.curriculum,
             p_academic_year: profileToSave.academicYear,
-            p_course: profileToSave.course || ""
+            p_course: profileToSave.course || "",
+            p_institution_type: profileToSave.institutionType,
+            p_qualification_level: profileToSave.qualificationLevel
           });
           if (profileError) throw new Error("Your cloud profile could not be saved: " + profileError.message);
           if (profileToSave.subjects.length) {
@@ -728,7 +737,7 @@ export default function App() {
     Boolean(profile?.curriculum?.trim()),
     Boolean(profile?.academicYear?.trim()),
     subjects.length > 0,
-    ...((profile?.level === "College" || profile?.level === "University") ? [Boolean(profile?.course?.trim())] : [])
+    ...(isTertiaryStage(profile?.level || "") ? [Boolean(profile?.institutionType?.trim()), Boolean(profile?.qualificationLevel?.trim()), Boolean(profile?.course?.trim())] : [])
   ];
   const profileCompletion = Math.round(profileRequirements.filter(Boolean).length / profileRequirements.length * 100);
   const visibleTasks = tasks.filter(t => {
@@ -846,7 +855,7 @@ export default function App() {
         rollbackStorage();
         throw reason;
       }
-      if (raw.profile && restoreProfileKey) setProfile({ ...(raw.profile as StudentProfile), course: String(raw.profile.course || "") });
+      if (raw.profile && restoreProfileKey) setProfile(normaliseEducationProfile({ ...(raw.profile as StudentProfile), course: String(raw.profile.course || "") }));
       setGoal(raw.version >= 5 ? raw.goal : 8);
       setImportMessage("Backup restored successfully."); await refresh(); setSyncRequested(value => value + 1);
     } catch (err) { setImportMessage(err instanceof Error ? err.message : "Could not read this backup."); }
