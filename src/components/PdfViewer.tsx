@@ -75,8 +75,12 @@ export default function PdfViewer({
     setFormValues({});
     setFormFields([]);
     setSubmitted(false);
+    let sourceBuffer: ArrayBuffer | null = null;
     file.arrayBuffer()
-      .then(buffer => pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise)
+      .then(buffer => {
+        sourceBuffer = buffer;
+        return pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+      })
       .then(async pdf => {
         loaded = pdf;
         if (cancelled) { void pdf.destroy(); return; }
@@ -84,7 +88,8 @@ export default function PdfViewer({
         setPageCount(pdf.numPages);
         setLoading(false);
         try {
-          const editable = await PDFDocument.load(buffer.slice(0));
+          if (!sourceBuffer) throw new Error("PDF source bytes are unavailable.");
+          const editable = await PDFDocument.load(sourceBuffer.slice(0));
           const fields = editable.getForm().getFields();
           const defs = fields.map(field => {
             const kind = String((field as any).constructor?.name || "Field");
@@ -480,8 +485,8 @@ export default function PdfViewer({
         {!error&&<div className="pdf-page-shell">
           <canvas ref={canvasRef} aria-label={"PDF page "+page}/>
           <canvas ref={overlayRef} className={"pdf-annotation-layer "+(drawingTool?"is-drawing":"")} aria-label="PDF annotation layer"
-            style={{pointerEvents:drawingTool?"auto":tool==="text"||tool==="signature"?"auto":"none"}}
-            onPointerDown={event=>{if(tool==="text"||tool==="signature"){addTextMark(tool,event);return;}onPointerDown(event);}}
+            style={{pointerEvents:drawingTool?"auto":tool==="text"?"auto":"none"}}
+            onPointerDown={event=>{if(tool==="text"){addTextMark("text",event);return;}onPointerDown(event);}}
             onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}/>
         </div>}
         {rendering&&!loading&&<span className="pdf-render-status">Rendering page…</span>}
