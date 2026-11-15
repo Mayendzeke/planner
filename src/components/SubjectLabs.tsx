@@ -43,9 +43,9 @@ const aliases: Record<LabKey, RegExp> = {
 };
 
 const scienceAliases: Record<ScienceArea, RegExp> = {
-  physics: /\b(physics|physical science|mechanics|electricity|electronics|waves|optics)\b/i,
-  chemistry: /\b(chemistry|chemical science|organic chemistry|inorganic chemistry|analytical chemistry)\b/i,
-  biology: /\b(biology|biological sciences|life sciences|anatomy|physiology|cell biology|ecology|genetics)\b/i,
+  physics: /\b(physics|physical science|mechanics|forces and motion|electric circuits|electricity|electronics|waves|wave properties|optics)\b/i,
+  chemistry: /\b(chemistry|chemical science|organic chemistry|inorganic chemistry|analytical chemistry|acids and bases|chemical bonding|stoichiometry)\b/i,
+  biology: /\b(biology|biological sciences|life sciences|anatomy|physiology|cell biology|cell structure|photosynthesis|environmental science|ecology|genetics)\b/i,
 };
 const generalScience = /^(science|general science|combined science|integrated science|physical science)$/i;
 
@@ -55,7 +55,7 @@ function normalise(value: string) {
 function moduleCandidates(value: string) {
   const clean = value.trim();
   const withoutModuleNumber = clean.replace(/^\s*(module|unit|course)\s*(\d+|[a-z])\s*[:—–-]\s*/i, "");
-  const parts = [withoutModuleNumber, ...withoutModuleNumber.split(/\s*[:|—–]\s*/)];
+  const parts = [withoutModuleNumber, ...withoutModuleNumber.split(/\s*[:|—–-]\s*/)];
   return [...new Set(parts.map(normalise).filter(Boolean))];
 }
 function classifySubject(value: string, category = ""): { keys: LabKey[]; scienceAreas: ScienceArea[] } {
