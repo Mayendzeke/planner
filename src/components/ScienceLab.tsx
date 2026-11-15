@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, Atom, BookOpen, CheckCircle2, ClipboardCheck, Dna, FlaskConical,
   Leaf, Microscope, Waves, Zap, ShieldAlert, Calculator, RotateCcw,
@@ -155,8 +155,10 @@ export default function ScienceLab() {
   useEffect(()=>{
     setTool(toolSets[area][0].label);
   },[area]);
+  const restoredAreas = useRef(new Set<ScienceArea>());
   useEffect(()=>{
-    if(!active.loaded) return;
+    if(!active.loaded || restoredAreas.current.has(area)) return;
+    restoredAreas.current.add(area);
     const saved=active.workRows.find(row=>row.activity_key==="science-workspace");
     if(!saved?.live_state) return;
     const state=saved.live_state as Record<string,any>;
@@ -193,16 +195,13 @@ export default function ScienceLab() {
   const complement=sequence.replace(/[ATGC]/g,base=>({A:"T",T:"A",G:"C",C:"G"}[base]||base));
   const growth=eco.population*Math.pow(1+eco.rate/100,eco.years);
 
-  const snapshot = area==="physics" ? {physicsData,tool} : area==="chemistry" ? {chemistryData:{selectedElement,formula,solutionData,equation},tool} : {biologyData:{cellType,organelle,genetics,dna,eco},tool};
+  const snapshot = useMemo(() => area==="physics" ? {physicsData,tool} : area==="chemistry" ? {chemistryData:{selectedElement,formula,solutionData,equation},tool} : {biologyData:{cellType,organelle,genetics,dna,eco},tool}, [area,physicsData,tool,selectedElement,formula,solutionData,equation,cellType,organelle,genetics,dna,eco]);
+  const keyResult = useMemo(() => area==="physics" ? {speed:physicsData.time?physicsData.distance/physicsData.time:0,force:physicsData.mass*physicsData.acceleration} : area==="chemistry" ? {molarMass:molecularMass,pH} : {gcPercent,populationAfter:growth}, [area,physicsData,molecularMass,pH,gcPercent,growth]);
   useEffect(()=>{
     if(!active.loaded||!active.control.enabled) return;
-    const timer=window.setTimeout(()=>void active.saveWork("science-workspace",info.title,snapshot,{
-      currentTool:tool,
-      area,
-      keyResult: area==="physics"?{speed:physicsData.time?physicsData.distance/physicsData.time:0,force:physicsData.mass*physicsData.acceleration}:area==="chemistry"?{molarMass:molecularMass,pH}: {gcPercent,populationAfter:growth},
-    }),700);
+    const timer=window.setTimeout(()=>void active.saveWork("science-workspace",info.title,snapshot,{currentTool:tool,area,keyResult}),700);
     return ()=>window.clearTimeout(timer);
-  },[active.loaded,active.control.enabled,active.saveWork,info.title,snapshot,tool,area,physicsData,molecularMass,pH,gcPercent,growth]);
+  },[active.loaded,active.control.enabled,active.saveWork,info.title,snapshot,tool,area,keyResult]);
 
   const savedWork=active.workRows.find(row=>row.activity_key==="science-workspace");
   const status=active.syncState==="synced"?"Synced to your StudySpace account":active.syncState==="offline"?"Saved on this device · will sync when online":"Connecting to your lab workspace";
