@@ -220,7 +220,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
       </div>}
 
       {step === 1 && <div className="onboarding-fields">
-        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level"><option>Secondary High</option></select></label>
+        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level">{levels.map(item => <option key={item}>{item}</option>)}</select></label>
         <div className="onboarding-two-col">
           <label className="field-label">Form / grade<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder="e.g. Form 3, Form 5 or Lower Sixth" maxLength={60}/></label>
           <label className="field-label">Academic year<input value={profile.academicYear} onChange={e => update("academicYear", e.target.value)} placeholder="2026" maxLength={20}/></label>
