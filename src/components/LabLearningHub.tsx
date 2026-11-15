@@ -576,7 +576,7 @@ export default function LabLearningHub({
         <article><span><Flame size={17}/></span><strong>{best}%</strong><small>personal best</small></article>
         <article><span><Library size={17}/></span><strong>{materials.filter(item=>item.is_favourite).length}</strong><small>favourites</small></article>
       </div>
-      {materials.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">PICK UP WHERE YOU LEFT OFF</span><h3>Recently saved</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("library")}>View library <ChevronRight size={15}/></button></div><div className="lab-hub-material-grid">{materials.slice(0,3).map(item => <MaterialCard key={item.id} item={item} onOpen={() => { setSelectedMaterial(item); setFlashcardIndex(0); setFlashcardFlipped(false); setTab("library"); }} onPractice={() => void startAttempt(item)} />)}</div></section>}
+      {materials.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">PICK UP WHERE YOU LEFT OFF</span><h3>Recently saved</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("library")}>View library <ChevronRight size={15}/></button></div><div className="lab-hub-material-grid">{materials.slice(0,3).map(item => <MaterialCard key={item.id} item={item} onOpen={() => { setSelectedMaterial(item); setFlashcardIndex(0); setFlashcardFlipped(false); setTab("library"); }} onPractice={() => void startAttempt(item)} onTimed={() => void startAttempt(item,"timed")} onExam={() => void startAttempt(item,"exam")} />)}</div></section>}
       {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">KEEP IMPROVING</span><h3>Continue your practice</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("practice")}>Practice history <ChevronRight size={15}/></button></div><div className="lab-hub-history-list">{attempts.slice(0,3).map(item => <AttemptRow key={item.id} attempt={item} onReview={() => { setActiveAttempt(item); setQuestionIndex(0); setStartedAt(item.status === "in_progress" ? (Date.parse(item.created_at) || Date.now()) : null); setTab("practice"); }} />)}</div></section>}
     </>}
 
@@ -605,13 +605,14 @@ export default function LabLearningHub({
         onBack={()=>setSelectedMaterial(null)}
         onPractice={()=>void startAttempt(selectedMaterial)}
         onTimed={()=>void startAttempt(selectedMaterial,"timed")}
+        onExam={()=>void startAttempt(selectedMaterial,"exam")}
         onFavourite={()=>void toggleFavourite(selectedMaterial)}
         onDownload={()=>downloadMaterial(selectedMaterial)}
         onDelete={()=>void deleteMaterial(selectedMaterial)}
       /> : <>
         <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR PERSONAL STUDY COLLECTION</span><h3>My Lab Library</h3><p>Materials you create here are private to your account.</p></div><button type="button" className="lab-hub-primary small" onClick={()=>setTab("create")}><Plus size={15}/> Create</button></div>
         <div className="lab-hub-library-tools"><label className="lab-hub-search"><Search size={16}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search topic or material"/></label><label className="lab-hub-filter"><Filter size={15}/><select value={filterType} onChange={event=>setFilterType(event.target.value)}><option value="all">All types</option>{materialTypes.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
-        {filteredMaterials.length ? <div className="lab-hub-material-grid">{filteredMaterials.map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);}} onPractice={()=>void startAttempt(item)} onFavourite={()=>void toggleFavourite(item)}/>)}</div> : <EmptyState icon={<Library size={22}/>} title="Your library is waiting" text="Create your first revision pack, flashcard set, worked example collection or practice quiz." action="Create material" onClick={()=>setTab("create")}/>}
+        {filteredMaterials.length ? <div className="lab-hub-material-grid">{filteredMaterials.map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")} onExam={()=>void startAttempt(item,"exam")} onFavourite={()=>void toggleFavourite(item)}/>)}</div> : <EmptyState icon={<Library size={22}/>} title="Your library is waiting" text="Create your first revision pack, flashcard set, worked example collection or practice quiz." action="Create material" onClick={()=>setTab("create")}/>}
       </>}
     </section>}
 
@@ -632,7 +633,7 @@ export default function LabLearningHub({
         onReviewMaterial={()=>{const item=materials.find(value=>value.id===activeAttempt.material_id);if(item){setSelectedMaterial(item);setTab("library");}}}
       /> : <>
         <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">RETRIEVAL PRACTICE & EXAM MODE</span><h3>Choose what to practise</h3><p>Every attempt is saved separately. Retake the full set or focus on missed questions.</p></div></div>
-        {materials.filter(item=>(item.content.questions?.length ?? 0)>0).length ? <div className="lab-hub-material-grid">{materials.filter(item=>(item.content.questions?.length ?? 0)>0).map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setTab("library");}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")}/>)}</div> : <EmptyState icon={<Target size={22}/>} title="No practice sets yet" text="Generate a practice quiz, question bank or revision pack to start practising." action="Create practice set" onClick={()=>{setTab("create");setForm(current=>({...current,materialType:"practice_quiz"}));}}/>}
+        {materials.filter(item=>(item.content.questions?.length ?? 0)>0).length ? <div className="lab-hub-material-grid">{materials.filter(item=>(item.content.questions?.length ?? 0)>0).map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setTab("library");}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")} onExam={()=>void startAttempt(item,"exam")}/>)}</div> : <EmptyState icon={<Target size={22}/>} title="No practice sets yet" text="Generate a practice quiz, question bank or revision pack to start practising." action="Create practice set" onClick={()=>{setTab("create");setForm(current=>({...current,materialType:"practice_quiz"}));}}/>}
         {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR ATTEMPT HISTORY</span><h3>Past attempts</h3></div></div><div className="lab-hub-history-list">{attempts.map(item=><AttemptRow key={item.id} attempt={item} onReview={()=>{setActiveAttempt(item);setQuestionIndex(0);setStartedAt(item.status==="in_progress"?(Date.parse(item.created_at)||Date.now()):null);}}/>)}</div></section>}
       </>}
     </section>}
@@ -659,26 +660,26 @@ function buildWeakTopics(attempts: LabAttempt[]) {
   return [...byTopic.values()].sort((a,b)=>a.latest-b.latest).slice(0,8);
 }
 
-function MaterialCard({ item, onOpen, onPractice, onTimed, onFavourite }: {
-  item: LabMaterial; onOpen:()=>void; onPractice:()=>void; onTimed?:()=>void; onFavourite?:()=>void;
+function MaterialCard({ item, onOpen, onPractice, onTimed, onExam, onFavourite }: {
+  item: LabMaterial; onOpen:()=>void; onPractice:()=>void; onTimed?:()=>void; onExam?:()=>void; onFavourite?:()=>void;
 }) {
   return <article className="lab-hub-material-card">
     <div className="lab-hub-material-icon"><BookOpen size={19}/></div>
     <div className="lab-hub-material-copy"><span>{displayType(item.material_type)} · {item.difficulty}</span><strong>{item.title}</strong><small>{item.subject_name} · {item.topic}</small><small>{item.question_count} practice questions {item.syncStatus==="local"?"· saved on this device":"· saved to your library"}</small></div>
-    <div className="lab-hub-material-actions"><button type="button" onClick={onOpen}>Open <ChevronRight size={14}/></button><button type="button" onClick={onPractice}><Play size={14}/> Practise</button>{onTimed&&<button type="button" onClick={onTimed}><Timer size={14}/> Timed</button>}{onFavourite&&<button type="button" onClick={onFavourite} aria-label={item.is_favourite?"Remove favourite":"Add favourite"}><Heart size={15} fill={item.is_favourite?"currentColor":"none"}/></button>}</div>
+    <div className="lab-hub-material-actions"><button type="button" onClick={onOpen}>Open <ChevronRight size={14}/></button><button type="button" onClick={onPractice}><Play size={14}/> Practise</button>{onTimed&&<button type="button" onClick={onTimed}><Timer size={14}/> Timed</button>}{onExam&&<button type="button" onClick={onExam}><Clock3 size={14}/> Exam mode</button>}{onFavourite&&<button type="button" onClick={onFavourite} aria-label={item.is_favourite?"Remove favourite":"Add favourite"}><Heart size={15} fill={item.is_favourite?"currentColor":"none"}/></button>}</div>
   </article>;
 }
 
-function MaterialDetail({ item, flashcardIndex, flashcardFlipped, setFlashcardIndex, setFlashcardFlipped, onBack, onPractice, onTimed, onFavourite, onDownload, onDelete }: {
+function MaterialDetail({ item, flashcardIndex, flashcardFlipped, setFlashcardIndex, setFlashcardFlipped, onBack, onPractice, onTimed, onExam, onFavourite, onDownload, onDelete }: {
   item:LabMaterial; flashcardIndex:number; flashcardFlipped:boolean; setFlashcardIndex:(value:number)=>void; setFlashcardFlipped:(value:boolean)=>void;
-  onBack:()=>void; onPractice:()=>void; onTimed:()=>void; onFavourite:()=>void; onDownload:()=>void; onDelete:()=>void;
+  onBack:()=>void; onPractice:()=>void; onTimed:()=>void; onExam:()=>void; onFavourite:()=>void; onDownload:()=>void; onDelete:()=>void;
 }) {
   const content = item.content ?? emptyContent(item.title);
   const cards = content.flashcards ?? [];
   return <div className="lab-hub-detail">
     <button type="button" className="lab-hub-back" onClick={onBack}><ArrowLeft size={15}/> Back to My Library</button>
     <div className="lab-hub-detail-heading"><span>{displayType(item.material_type)} · {item.subject_name}</span><h3>{item.title}</h3><p>{item.topic} · {item.difficulty} difficulty</p><p>{content.summary || item.summary}</p></div>
-    <div className="lab-hub-detail-actions"><button type="button" className="lab-hub-primary" onClick={onPractice}><Play size={15}/> Practise these questions</button><button type="button" onClick={onTimed}><Timer size={15}/> Timed practice</button><button type="button" onClick={onFavourite}><Heart size={15} fill={item.is_favourite?"currentColor":"none"}/>{item.is_favourite?"Saved favourite":"Add favourite"}</button><button type="button" onClick={onDownload}><Download size={15}/> Download notes</button><button type="button" className="danger" onClick={onDelete}><X size={15}/> Delete</button></div>
+    <div className="lab-hub-detail-actions"><button type="button" className="lab-hub-primary" onClick={onPractice}><Play size={15}/> Practise these questions</button><button type="button" onClick={onTimed}><Timer size={15}/> Timed practice</button><button type="button" onClick={onExam}><Clock3 size={15}/> Exam simulation</button><button type="button" onClick={onFavourite}><Heart size={15} fill={item.is_favourite?"currentColor":"none"}/>{item.is_favourite?"Saved favourite":"Add favourite"}</button><button type="button" onClick={onDownload}><Download size={15}/> Download notes</button><button type="button" className="danger" onClick={onDelete}><X size={15}/> Delete</button></div>
     {(content.sections??[]).map((section,index)=><article className="lab-hub-content-section" key={index}><h4>{section.heading}</h4><p>{section.body}</p>{!!section.bullets?.length&&<ul>{section.bullets.map((bullet,i)=><li key={i}>{bullet}</li>)}</ul>}</article>)}
     {!!content.keyTerms?.length&&<section className="lab-hub-content-section"><h4>Key terms</h4><div className="lab-hub-keyterms">{content.keyTerms.map((term,index)=><article key={index}><strong>{term.term}</strong><span>{term.definition}</span></article>)}</div></section>}
     {!!content.workedExamples?.length&&<section className="lab-hub-content-section"><h4>Worked examples</h4>{content.workedExamples.map((example,index)=><article className="lab-hub-example" key={index}><strong>{example.question}</strong><ol>{example.steps.map((step,i)=><li key={i}>{step}</li>)}</ol><p><b>Answer:</b> {example.answer}</p>{example.commonMistake&&<small>Watch out: {example.commonMistake}</small>}</article>)}</section>}
