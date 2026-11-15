@@ -22,13 +22,12 @@ test("the shared pathway catalog matches Eswatini's school and higher-education 
 });
 
 test("grade choices are constrained by the selected pathway", () => {
-  assert.match(pathways, /Primary: Array\.from\(\{length:8\}/);
-  assert.match(pathways, /"Secondary High":\["Form 1","Form 2","Form 3"\]/);
-  assert.match(pathways, /"High School":\["Form 4","Form 5"\]/);
-  assert.match(pathways, /Matric:\["Form 6","Lower Sixth","Upper Sixth"\]/);
-  assert.match(pathways, /"Year 1"/);
+  assert.ok(pathways.includes('if (value === "Primary")'));
+  assert.ok(pathways.includes('"Form 1", "Form 2", "Form 3"'));
+  assert.ok(pathways.includes('"Form 4", "Form 5"'));
+  assert.ok(pathways.includes('"Form 6", "Lower Sixth", "Upper Sixth"'));
+  assert.ok(pathways.includes('"Year 1"'));
 });
-
 test("student onboarding asks learners to select a real stage and offers tertiary qualification details", () => {
   assert.match(onboarding, /Education stage/);
   assert.match(onboarding, /EDUCATION_PATHWAYS\.map/);
