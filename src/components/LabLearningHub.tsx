@@ -115,7 +115,6 @@ const materialTypes: { value: MaterialType; label: string; description: string }
 const emptyContent = (title: string): LabContent => ({ title, summary: "", sections: [], questions: [], flashcards: [], workedExamples: [], keyTerms: [], studyPlan: [] });
 const localKey = (id: string) => "studyspace:labs:ecosystem:" + id;
 const norm = (value: unknown) => String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const asText = (value: unknown) => typeof value === "string" ? value : "";
 function readLocal<T>(key: string, fallback: T): T {
   try { const parsed = JSON.parse(localStorage.getItem(key) || "null"); return parsed ?? fallback; } catch { return fallback; }
 }
@@ -533,9 +532,7 @@ export default function LabLearningHub({
   const submittedAttempts = attempts.filter(item => item.status === "submitted");
   const average = submittedAttempts.length ? Math.round(submittedAttempts.reduce((sum,item) => sum + Number(item.percentage || 0),0) / submittedAttempts.length) : 0;
   const best = submittedAttempts.length ? Math.max(...submittedAttempts.map(item => Number(item.percentage || 0))) : 0;
-  const currentQuestion = activeAttempt?.material_snapshot.questions[questionIndex];
   const resultItems = ((activeAttempt?.result as { items?: QuestionResult[] } | undefined)?.items ?? []);
-  const scoreText = activeAttempt?.score === null || activeAttempt?.score === undefined ? "" : Number(activeAttempt.score) + " / " + Number(activeAttempt.max_score);
 
   const tabItems = [
     { value:"home", label:"Overview", icon:Sparkles },
@@ -681,7 +678,7 @@ function MaterialDetail({ item, flashcardIndex, flashcardFlipped, setFlashcardIn
     <button type="button" className="lab-hub-back" onClick={onBack}><ArrowLeft size={15}/> Back to My Library</button>
     <div className="lab-hub-detail-heading"><span>{displayType(item.material_type)} · {item.subject_name}</span><h3>{item.title}</h3><p>{item.topic} · {item.difficulty} difficulty</p><p>{content.summary || item.summary}</p></div>
     <div className="lab-hub-detail-actions"><button type="button" className="lab-hub-primary" onClick={onPractice}><Play size={15}/> Practise these questions</button><button type="button" onClick={onTimed}><Timer size={15}/> Timed practice</button><button type="button" onClick={onFavourite}><Heart size={15} fill={item.is_favourite?"currentColor":"none"}/>{item.is_favourite?"Saved favourite":"Add favourite"}</button><button type="button" onClick={onDownload}><Download size={15}/> Download notes</button><button type="button" className="danger" onClick={onDelete}><X size={15}/> Delete</button></div>
-    {(content.sections??[]).map((section,index)=><article className="lab-hub-content-section" key={index}><h4>{section.heading}</h4><p>{section.body}</p>{section.bullets?.length>0&&<ul>{section.bullets.map((bullet,i)=><li key={i}>{bullet}</li>)}</ul>}</article>)}
+    {(content.sections??[]).map((section,index)=><article className="lab-hub-content-section" key={index}><h4>{section.heading}</h4><p>{section.body}</p>{!!section.bullets?.length&&<ul>{section.bullets.map((bullet,i)=><li key={i}>{bullet}</li>)}</ul>}</article>)}
     {!!content.keyTerms?.length&&<section className="lab-hub-content-section"><h4>Key terms</h4><div className="lab-hub-keyterms">{content.keyTerms.map((term,index)=><article key={index}><strong>{term.term}</strong><span>{term.definition}</span></article>)}</div></section>}
     {!!content.workedExamples?.length&&<section className="lab-hub-content-section"><h4>Worked examples</h4>{content.workedExamples.map((example,index)=><article className="lab-hub-example" key={index}><strong>{example.question}</strong><ol>{example.steps.map((step,i)=><li key={i}>{step}</li>)}</ol><p><b>Answer:</b> {example.answer}</p>{example.commonMistake&&<small>Watch out: {example.commonMistake}</small>}</article>)}</section>}
     {!!cards.length&&<section className="lab-hub-content-section"><h4>Active recall flashcards</h4><div className={"lab-hub-flashcard "+(flashcardFlipped?"is-flipped":"")} role="button" tabIndex={0} onClick={()=>setFlashcardFlipped(!flashcardFlipped)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();setFlashcardFlipped(!flashcardFlipped);}}}><span>{flashcardFlipped?"ANSWER":"QUESTION"}</span><strong>{flashcardFlipped?cards[flashcardIndex]?.back:cards[flashcardIndex]?.front}</strong><small>{cards[flashcardIndex]?.visualCue || "Tap to flip and recall"}</small></div><div className="lab-hub-flash-controls"><button type="button" onClick={()=>{setFlashcardIndex(Math.max(0,flashcardIndex-1));setFlashcardFlipped(false);}} disabled={flashcardIndex===0}><ChevronLeft size={15}/> Previous</button><span>{flashcardIndex+1} / {cards.length}</span><button type="button" onClick={()=>{setFlashcardIndex(Math.min(cards.length-1,flashcardIndex+1));setFlashcardFlipped(false);}} disabled={flashcardIndex===cards.length-1}>Next <ChevronRight size={15}/></button></div></section>}
