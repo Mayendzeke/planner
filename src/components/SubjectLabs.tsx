@@ -63,15 +63,15 @@ function classifySubject(value: string): { keys: LabKey[]; scienceAreas: Science
   const keys: LabKey[] = [];
   const name = normalise(value);
   const areas = (Object.keys(scienceAliases) as ScienceArea[]).filter(area => scienceAliases[area].test(value));
-  // Subject category is a user-editable label, not proof that the subject needs a lab.
-  // Match the subject name only; this prevents an unrelated subject tagged "Science"
-  // from unlocking Science Lab. Non-laboratory disciplines such as Computer Science
-  // are also excluded from the experimental science workspace.
-  const isNonLaboratoryScienceTitle = /\b(computer science|data science|information science|library science|social science|political science)\b/i.test(value) && areas.length === 0;
+  const isGeneralScience = generalScience.test(name);
+  // Only named experimental disciplines or an explicit general/combined Science
+  // course may unlock Science Lab. A subject category or the word "science" alone
+  // is not enough (for example, Computer Science or Agricultural Science).
+  const hasExperimentalScience = areas.length > 0 || isGeneralScience;
   for (const key of Object.keys(aliases) as LabKey[]) {
-    if (aliases[key].test(value) && !(key === "science" && isNonLaboratoryScienceTitle)) keys.push(key);
+    if (aliases[key].test(value) && !(key === "science" && !hasExperimentalScience)) keys.push(key);
   }
-  if (keys.includes("science") && generalScience.test(name)) areas.push("physics", "chemistry", "biology", "environment");
+  if (keys.includes("science") && isGeneralScience) areas.push("physics", "chemistry", "biology", "environment");
   return { keys: [...new Set(keys)], scienceAreas: [...new Set(areas)] };
 }
 function classifyAssignedModule(value: string): { keys: LabKey[]; scienceAreas: ScienceArea[] } {
