@@ -160,7 +160,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       } else if ([".jpg", ".jpeg", ".png", ".webp"].includes(extension)) {
         imageUrl = URL.createObjectURL(viewing.file);
         if (active) { setPreviewImageUrl(imageUrl); setPreview({ kind: "image" }); }
-      } else if (extension === ".pptx") {
+      } else if (extension === ".pptx" || extension === ".ppt") {
         if (active) setPreview({ kind: "powerpoint" });
       } else if (extension === ".docx") {
         if (active) setPreview({ kind: "word" });
