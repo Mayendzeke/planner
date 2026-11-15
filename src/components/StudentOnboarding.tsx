@@ -29,7 +29,7 @@ export type StudentProfile = {
 };
 
 const emptyProfile: StudentProfile = {
-  fullName: "", preferredName: "", country: "", institution: "", course: "", institutionType: "School", qualificationLevel: "", level: "Secondary High",
+  fullName: "", preferredName: "", country: "", institution: "", course: "", institutionType: "", qualificationLevel: "", level: "",
   grade: "", curriculum: "", academicYear: String(new Date().getFullYear()), termCount: "3",
   goals: "Improve my marks", targetMark: "75", weeklyHours: "6", preferredDays: ["Saturday", "Sunday"], subjects: []
 };
@@ -143,7 +143,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     if (savingProfile) return;
     setError("");
     if (step === 0 && !profile.fullName.trim()) { setError("Please enter the student's name."); return; }
-    if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim() || (!isTertiaryLevel(profile.level) && !profile.curriculum.trim()))) { setError("Choose your education stage, grade or year, academic year and curriculum."); return; }
+    if (step === 1 && (!profile.level || !profile.grade.trim() || !profile.academicYear.trim() || (!isTertiaryLevel(profile.level) && !profile.curriculum.trim()))) { setError("Choose your education stage, grade or year, academic year and curriculum."); return; }
     if (step === 1 && isTertiaryLevel(profile.level) && (!profile.institutionType || !profile.qualificationLevel || !profile.course.trim())) { setError("Choose your institution type and qualification, then enter your course or programme."); return; }
     if (step === 2) {
       if (!profile.subjects.length) { setError("Select at least one subject or course to continue."); return; }
