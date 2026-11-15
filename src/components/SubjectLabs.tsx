@@ -320,7 +320,7 @@ function BusinessLab() {
   </section>;
 }
 function AccountingLab() {
-  type JournalEntry = { id: number; description: string; debit: number; credit: number };
+  type JournalEntry = { id: number; description: string; debitAccount: string; creditAccount: string; debit: number; credit: number };
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [description, setDescription] = useState("Owner invests cash");
   const [amount, setAmount] = useState(1000);
@@ -335,13 +335,13 @@ function AccountingLab() {
   const add = () => {
     if (amount <= 0 || !Number.isFinite(amount)) return;
     const pair = templates[kind];
-    setEntries(current => [...current, { id: Date.now(), description: description.trim() || pair.debit + " / " + pair.credit, debit: amount, credit: amount }]);
+    setEntries(current => [...current, { id: current.length + 1, description: description.trim() || pair.debit + " / " + pair.credit, debitAccount: pair.debit, creditAccount: pair.credit, debit: amount, credit: amount }]);
   };
   const debitTotal = entries.reduce((sum, item) => sum + item.debit, 0);
   const creditTotal = entries.reduce((sum, item) => sum + item.credit, 0);
   return <section className="subject-lab-workspace"><LabHeading eyebrow="DOUBLE-ENTRY PRACTICE" title="Accounting Lab" description="Build balanced journal entries, inspect debit and credit totals, and practise the logic behind a trial balance."/>
     <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Journal entry builder</h3><label className="subject-lab-input">Transaction type<select value={kind} onChange={event=>setKind(event.target.value)}><option value="capital">Owner capital introduced</option><option value="sales">Cash sale</option><option value="purchase">Inventory purchased for cash</option><option value="expense">Expense paid in cash</option><option value="debtor">Credit sale</option></select></label><label className="subject-lab-input">Narration<input value={description} onChange={event=>setDescription(event.target.value)} maxLength={100}/></label><label className="subject-lab-input">Amount (E)<input type="number" min="1" max="10000000" value={amount} onChange={event=>setAmount(Number(event.target.value))}/></label><button type="button" className="primary-button" onClick={add}>Add balanced entry</button><p className="subject-lab-note">Each example posts equal debit and credit values. Choose the transaction type first, then review the account pair in the ledger.</p><p><strong>{templates[kind].debit}</strong> Dr · <strong>{templates[kind].credit}</strong> Cr</p></section><aside className="subject-lab-panel subject-lab-results"><Result label="Total debits" value={"E"+debitTotal.toLocaleString()}/><Result label="Total credits" value={"E"+creditTotal.toLocaleString()}/><Result label="Trial balance" value={debitTotal===creditTotal?"Balanced":"Difference: E"+Math.abs(debitTotal-creditTotal).toFixed(2)}/><button type="button" className="secondary-button" onClick={()=>setEntries([])} disabled={!entries.length}>Clear practice entries</button></aside></div>
-    <section className="subject-lab-panel subject-lab-table-panel"><h3>General journal</h3>{entries.length?<div className="subject-lab-table-wrap"><table><thead><tr><th>Transaction</th><th>Debit (E)</th><th>Credit (E)</th></tr></thead><tbody>{entries.map(entry=><tr key={entry.id}><td>{entry.description}</td><td>{entry.debit.toLocaleString()}</td><td>{entry.credit.toLocaleString()}</td></tr>)}</tbody></table></div>:<p className="subject-lab-note">Add a transaction to begin your practice journal.</p>}</section>
+    <section className="subject-lab-panel subject-lab-table-panel"><h3>General journal</h3>{entries.length?<div className="subject-lab-table-wrap"><table><thead><tr><th>Transaction</th><th>Debit account</th><th>Debit (E)</th><th>Credit account</th><th>Credit (E)</th></tr></thead><tbody>{entries.map(entry=><tr key={entry.id}><td>{entry.description}</td><td>{entry.debitAccount}</td><td>{entry.debit.toLocaleString()}</td><td>{entry.creditAccount}</td><td>{entry.credit.toLocaleString()}</td></tr>)}</tbody></table></div>:<p className="subject-lab-note">Add a transaction to begin your practice journal.</p>}</section>
   </section>;
 }
 function ComputingLab() {
@@ -355,11 +355,30 @@ function ComputingLab() {
   const logic = gate==="AND"?left&&right:gate==="OR"?left||right:gate==="XOR"?left!==right:!(left&&right);
   const parsed = numbers.split(",").map(value=>Number(value.trim()));
   const valid = parsed.length>0 && parsed.length<=20 && parsed.every(Number.isFinite);
-  const sorted = valid ? [...parsed].sort((a,b)=>a-b) : [];
+  const sortTrace = valid ? (() => {
+    const values = [...parsed];
+    let comparisons = 0;
+    let swaps = 0;
+    const passes: string[] = [];
+    for (let pass = 0; pass < values.length - 1; pass++) {
+      let changed = false;
+      for (let index = 0; index < values.length - pass - 1; index++) {
+        comparisons++;
+        if (values[index] > values[index + 1]) {
+          [values[index], values[index + 1]] = [values[index + 1], values[index]];
+          swaps++;
+          changed = true;
+        }
+      }
+      passes.push(values.join(", "));
+      if (!changed) break;
+    }
+    return { values, comparisons, swaps, passes };
+  })() : null;
   return <section className="subject-lab-workspace"><LabHeading eyebrow="DIGITAL SYSTEMS & ALGORITHMS" title="ICT & Computer Science Lab" description="Convert number systems, test digital logic and compare an input sequence with its sorted output."/><ToolTabs value={tab} onChange={setTab} options={[{value:"binary",label:"Binary converter"},{value:"logic",label:"Logic gates"},{value:"sort",label:"Sorting"}]}/>
     {tab==="binary"&&<div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Decimal to binary</h3><p>Explore how an unsigned 8-bit number is represented in base two.</p><RangeField label="Decimal value" value={decimal} min={0} max={255} onChange={setDecimal}/><div className="subject-lab-binary">{binary.split("").map((bit,index)=><i key={index}>{bit}</i>)}</div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Decimal" value={String(decimal)}/><Result label="Binary" value={binary}/><Result label="Hexadecimal" value={"0x"+decimal.toString(16).toUpperCase().padStart(2,"0")}/></aside></div>}
     {tab==="logic"&&<div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Logic gate simulator</h3><p>Change the inputs and gate to see the output.</p><ToolTabs value={gate} onChange={setGate} options={["AND","OR","XOR","NAND"].map(value=>({value,label:value}))}/><div className="subject-lab-toggle-row"><button type="button" className={left?"active":""} onClick={()=>setLeft(!left)}>Input A: {left?"1 (true)":"0 (false)"}</button><button type="button" className={right?"active":""} onClick={()=>setRight(!right)}>Input B: {right?"1 (true)":"0 (false)"}</button></div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Gate" value={gate}/><Result label="Output" value={logic?"1 (true)":"0 (false)"}/></aside></div>}
-    {tab==="sort"&&<div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Sorting algorithm explorer</h3><p>Enter up to 20 comma-separated numbers to compare the original sequence with its sorted result.</p><label className="subject-lab-input">Input sequence<input value={numbers} onChange={event=>setNumbers(event.target.value)} placeholder="8, 3, 6, 1, 5"/></label>{!valid&&<p className="subject-lab-warning">Enter no more than 20 valid numbers, separated by commas.</p>}</section><aside className="subject-lab-panel subject-lab-results"><Result label="Original" value={valid?parsed.join(", "):"—"}/><Result label="Ascending order" value={valid?sorted.join(", "):"—"}/><Result label="Items" value={valid?String(parsed.length):"—"}/></aside></div>}
+    {tab==="sort"&&<div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Sorting algorithm explorer</h3><p>Enter up to 20 comma-separated numbers to compare the original sequence with its sorted result.</p><label className="subject-lab-input">Input sequence<input value={numbers} onChange={event=>setNumbers(event.target.value)} placeholder="8, 3, 6, 1, 5"/></label>{!valid&&<p className="subject-lab-warning">Enter no more than 20 valid numbers, separated by commas.</p>}</section><aside className="subject-lab-panel subject-lab-results"><Result label="Original" value={valid?parsed.join(", "):"—"}/><Result label="Ascending order" value={valid?sortTrace!.values.join(", "):"—"}/><Result label="Items" value={valid?String(parsed.length):"—"}/><Result label="Comparisons" value={valid?String(sortTrace!.comparisons):"—"}/><Result label="Swaps" value={valid?String(sortTrace!.swaps):"—"}/></aside></div>}
   </section>;
 }
 function AgricultureLab() {
