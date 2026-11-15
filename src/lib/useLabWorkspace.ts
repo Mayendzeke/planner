@@ -132,6 +132,8 @@ export function useLabWorkspace(area: LabArea) {
     status: LabWorkRow["status"] = "in_progress",
   ) => {
     const updatedAt = new Date().toISOString();
+    const existing = workRows.find(item => item.activity_key === activityKey);
+    const effectiveStatus = status === "in_progress" && existing?.status === "submitted" ? "submitted" : status;
     const row: LabWorkRow = {
       learner_id: learnerId,
       lab_area: area,
@@ -139,7 +141,7 @@ export function useLabWorkspace(area: LabArea) {
       title,
       live_state: liveState,
       result,
-      status,
+      status: effectiveStatus,
       last_accessed_at: updatedAt,
       updated_at: updatedAt,
     };
@@ -163,7 +165,7 @@ export function useLabWorkspace(area: LabArea) {
     }
     setSyncState("synced");
     return true;
-  }, [area, learnerId]);
+  }, [area, learnerId, workRows]);
 
   const submitWork = useCallback(async (activityKey: string) => {
     const existing = workRows.find(item => item.activity_key === activityKey);
