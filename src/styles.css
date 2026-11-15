@@ -2862,3 +2862,24 @@ select option, select optgroup {
   .studyspace-sheet-toolbar input{width:100%}
   .studyspace-docx-pages{padding:8px 4px}
 }
+
+
+/* Complete periodic table and learner-to-teacher lab submissions */
+.science-periodic-grid{grid-template-columns:repeat(18,minmax(38px,1fr));grid-template-rows:repeat(10,43px);min-width:760px;overflow:auto;align-items:stretch}
+.science-periodic-grid button{min-width:0;min-height:0;padding:4px 3px}
+.science-periodic-grid small{font-size:7px}
+.science-periodic-grid strong{font-size:13px}
+.science-periodic-grid span{font-size:6px}
+.science-element-focus{overflow-wrap:anywhere}
+.science-element-focus small{line-height:1.45}
+.science-teacher-feedback{padding:11px;border:1px solid color-mix(in srgb,var(--mint) 30%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--mint) 7%,var(--panel-strong))}
+.science-teacher-feedback strong{font-size:10px;color:var(--mint)}
+.science-teacher-feedback p{margin:5px 0 0;font-size:10px;line-height:1.55;color:var(--text)}
+.science-submit,.maths-lab-submit{display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 11px;border:1px solid var(--purple);border-radius:9px;background:var(--purple);color:#fff;font-size:9px;font-weight:800}
+.science-submit:disabled,.maths-lab-submit:disabled{opacity:.45;cursor:not-allowed}
+.maths-lab-page.is-lab-disabled .maths-lab-workspace,.maths-lab-page.is-lab-disabled .maths-lab-assignment-panel{opacity:.42;pointer-events:none;filter:grayscale(.4)}
+.maths-lab-tools button:disabled{opacity:.42;cursor:not-allowed}
+.maths-disabled{padding:12px;text-align:left}
+.maths-disabled strong{font-size:11px;color:var(--text)}
+.maths-disabled p{margin:4px 0 0;font-size:9px;color:var(--muted)}
+@media(max-width:520px){.science-periodic-grid{grid-template-columns:repeat(18,minmax(36px,1fr));min-width:720px}}
