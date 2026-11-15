@@ -2,10 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { BookOpen, ImagePlus, Pencil, Save, UserRound, X } from "lucide-react";
 import type { StudentProfile } from "./StudentOnboarding";
 import { supabase } from "../lib/supabase";
+import { CURRICULA, EDUCATION_STAGES, SCHOOL_INSTITUTION_TYPE, STAGE_DESCRIPTIONS, TERTIARY_INSTITUTION_TYPES, TERTIARY_QUALIFICATIONS, gradeOptionsFor, isTertiaryStage, isValidEducationStage } from "../lib/educationPathways";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const LEVELS = ["Secondary High"];
-const CURRICULA = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
 function calculatedAge(dateOfBirth?: string): number | null {
   if (!dateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth)) return null;
   const [year, month, day] = dateOfBirth.split("-").map(Number);
@@ -26,7 +25,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   avatarUrl?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<StudentProfile>({ ...profile, level: "Secondary High" });
+  const [draft, setDraft] = useState<StudentProfile>({ ...profile, institutionType: profile.institutionType || (profile.level === "Tertiary" ? "" : SCHOOL_INSTITUTION_TYPE), qualificationLevel: profile.qualificationLevel || "" });
   const [customSubject, setCustomSubject] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -92,6 +91,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
     if (!supabase || saving) return;
     if (!draft.fullName.trim()) { setError("Full name is required."); return; }
     if (!draft.preferredDays.length) { setError("Choose at least one preferred study day."); return; }
+    if (!isValidEducationStage(draft.level) || !draft.grade.trim()) { setError("Choose your education stage and grade, form or year of study."); return; }
+    if (isTertiaryStage(draft.level) && (!draft.institutionType || !draft.qualificationLevel || !draft.course.trim())) { setError("Complete your institution type, qualification and course or programme."); return; }
     const targetMark = Number(draft.targetMark);
     const weeklyHours = Number(draft.weeklyHours);
     if (!Number.isFinite(targetMark) || targetMark < 0 || targetMark > 100) { setError("Target mark must be between 0 and 100."); return; }
@@ -103,16 +104,18 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
       const learnerId = sessionState.session?.user.id;
       if (sessionError || !learnerId) throw new Error("Your secure session has expired. Sign in again.");
 
-      const { error: profileError } = await supabase.rpc("update_studyspace_learner_profile", {
+      const { error: profileError } = await supabase.rpc("update_studyspace_learner_academic_profile", {
         p_full_name: draft.fullName.trim(),
         p_preferred_name: draft.preferredName.trim(),
         p_country: draft.country.trim(),
         p_institution: draft.institution.trim(),
-        p_education_level: "Secondary High",
+        p_education_level: draft.level,
         p_grade: draft.grade.trim(),
         p_curriculum: draft.curriculum,
         p_academic_year: draft.academicYear.trim(),
         p_course: draft.course.trim(),
+        p_institution_type: draft.institutionType,
+        p_qualification_level: draft.qualificationLevel,
       });
       if (profileError) throw new Error("Your profile could not be updated: " + profileError.message);
 
@@ -178,7 +181,9 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
 
       const next: StudentProfile = {
         ...draft,
-        level: "Secondary High",
+        level: draft.level,
+        institutionType: draft.institutionType || (isTertiaryStage(draft.level) ? "" : SCHOOL_INSTITUTION_TYPE),
+        qualificationLevel: isTertiaryStage(draft.level) ? draft.qualificationLevel : "",
         fullName: draft.fullName.trim(),
         preferredName: draft.preferredName.trim(),
         country: draft.country.trim(),
@@ -205,7 +210,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   }
 
   function cancel() {
-    setDraft({ ...profile, level: "Secondary High" });
+    setDraft({ ...profile, institutionType: profile.institutionType || (profile.level === "Tertiary" ? "" : SCHOOL_INSTITUTION_TYPE), qualificationLevel: profile.qualificationLevel || "" });
     setCustomSubject("");
     setAvatarFile(null);
     setRemoveAvatar(false);
@@ -238,7 +243,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
     {!editing ? <>
       <div className="profile-editor-identity"><div className="profile-editor-avatar">{avatarUrl ? <img src={avatarUrl} alt="Your profile"/> : <UserRound size={28}/>}</div><div><strong>{profile.preferredName || profile.fullName}</strong><span>{profile.fullName}</span></div></div>
       <div className="privacy-list">
-        <p><strong>{profile.preferredName || profile.fullName}</strong> · {profile.level}{profile.grade ? " · " + profile.grade : ""}</p>
+        <p><strong>{profile.preferredName || profile.fullName}</strong> · {profile.level}{profile.grade ? " · " + profile.grade : ""}{profile.level === "Tertiary" ? " · " + (profile.institutionType || "Institution type not set") + " · " + (profile.qualificationLevel || "Qualification not set") + (profile.course ? " · " + profile.course : "") : ""}</p>
         <p>{profile.institution || "School / institution not added"} · {profile.curriculum || "Curriculum not set"} · Academic year {profile.academicYear || "not set"}</p>
         <p>{profile.subjects.length ? profile.subjects.join(" · ") : "No subjects added yet"}</p>
         <p>Goal: {profile.goals} · Target: {profile.targetMark}% · {profile.weeklyHours} study hours per week</p>
@@ -252,10 +257,30 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         <label className="field-label">Preferred name<input maxLength={80} value={draft.preferredName} onChange={event => update("preferredName", event.target.value)}/></label>
         <label className="field-label">Country<input readOnly value={draft.country} aria-readonly="true"/></label>
         <label className="field-label">School / institution<input maxLength={160} value={draft.institution} onChange={event => update("institution", event.target.value)}/></label>
-        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level">{LEVELS.map(level => <option key={level}>{level}</option>)}</select></label>
-        <label className="field-label">Grade / year<input maxLength={80} value={draft.grade} onChange={event => update("grade", event.target.value)}/></label>
-        <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)}/></label>
-        <label className="field-label">Curriculum<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select></label>
+        <label className="field-label">Education stage<select value={draft.level} onChange={event => {
+          const level = event.target.value;
+          update("level", level);
+          update("grade", "");
+          update("course", "");
+          update("institutionType", isTertiaryStage(level) ? "" : SCHOOL_INSTITUTION_TYPE);
+          update("qualificationLevel", "");
+          update("curriculum", "");
+        }}><option value="">Choose education stage</option>{EDUCATION_STAGES.map(level => <option key={level}>{level}</option>)}</select>
+          {draft.level && <span className="field-help">{STAGE_DESCRIPTIONS[draft.level as keyof typeof STAGE_DESCRIPTIONS]}</span>}
+        </label>
+        <label className="field-label">{draft.level === "Primary" ? "Grade" : draft.level === "Secondary High" || draft.level === "High School" || draft.level === "Matric" ? "Form / year" : "Year / semester"}
+          <select value={gradeOptionsFor(draft.level).includes(draft.grade) ? draft.grade : (draft.grade ? "Other / not listed" : "")} onChange={event => update("grade", event.target.value)} disabled={!draft.level}>
+            <option value="">Choose grade, form or year</option>
+            {gradeOptionsFor(draft.level).filter(item => item !== "Other / not listed").map(item => <option key={item}>{item}</option>)}
+            <option value="Other / not listed">Other / not listed</option>
+          </select>
+          {draft.grade === "Other / not listed" || (draft.grade && !gradeOptionsFor(draft.level).includes(draft.grade)) ? <input maxLength={80} value={draft.grade === "Other / not listed" ? "" : draft.grade} onChange={event => update("grade", event.target.value)} placeholder="Enter your grade or study year"/> : null}
+        </label>
+        {isTertiaryStage(draft.level) ? <>
+          <label className="field-label">Institution type<select value={draft.institutionType} onChange={event => update("institutionType", event.target.value)}><option value="">Choose institution type</option>{TERTIARY_INSTITUTION_TYPES.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label className="field-label">Qualification / award<select value={draft.qualificationLevel} onChange={event => update("qualificationLevel", event.target.value)}><option value="">Choose qualification</option>{TERTIARY_QUALIFICATIONS.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)} placeholder="e.g. Bachelor of Nursing"/></label>
+        </> : <label className="field-label">Curriculum / syllabus<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select></label>
         <label className="field-label">Academic year<input maxLength={30} value={draft.academicYear} onChange={event => update("academicYear", event.target.value)}/></label>
         <label className="field-label">Number of terms<select value={draft.termCount} onChange={event => update("termCount", event.target.value)}><option value="1">1 academic year</option><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="custom">Other / not sure</option></select></label>
       </div>
