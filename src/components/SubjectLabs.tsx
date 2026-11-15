@@ -59,14 +59,17 @@ function moduleCandidates(value: string) {
   const parts = [withoutModuleNumber, ...withoutModuleNumber.split(/\s*[:|—–-]\s*/)];
   return [...new Set(parts.map(normalise).filter(Boolean))];
 }
-function classifySubject(value: string, category = ""): { keys: LabKey[]; scienceAreas: ScienceArea[] } {
+function classifySubject(value: string): { keys: LabKey[]; scienceAreas: ScienceArea[] } {
   const keys: LabKey[] = [];
-  const combined = value + " " + category;
   const name = normalise(value);
   const areas = (Object.keys(scienceAliases) as ScienceArea[]).filter(area => scienceAliases[area].test(value));
+  // Subject category is a user-editable label, not proof that the subject needs a lab.
+  // Match the subject name only; this prevents an unrelated subject tagged "Science"
+  // from unlocking Science Lab. Non-laboratory disciplines such as Computer Science
+  // are also excluded from the experimental science workspace.
   const isNonLaboratoryScienceTitle = /\b(computer science|data science|information science|library science|social science|political science)\b/i.test(value) && areas.length === 0;
   for (const key of Object.keys(aliases) as LabKey[]) {
-    if (aliases[key].test(combined) && !(key === "science" && isNonLaboratoryScienceTitle)) keys.push(key);
+    if (aliases[key].test(value) && !(key === "science" && isNonLaboratoryScienceTitle)) keys.push(key);
   }
   if (keys.includes("science") && generalScience.test(name)) areas.push("physics", "chemistry", "biology", "environment");
   return { keys: [...new Set(keys)], scienceAreas: [...new Set(areas)] };
@@ -177,7 +180,7 @@ function buildLabAccess(subjects: Subject[], assignedSources: AssignedLabSource[
     access.set(key, current);
   };
   for (const subject of subjects) {
-    const match = classifySubject(subject.name, subject.category ?? "");
+    const match = classifySubject(subject.name);
     for (const key of match.keys) add(key, subject.name, false, match.scienceAreas);
   }
   for (const source of assignedSources) {
