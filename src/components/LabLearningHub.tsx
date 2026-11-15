@@ -478,7 +478,6 @@ export default function LabLearningHub({
   const startRetake = async (attempt: LabAttempt, mode: RetakeMode) => {
     const material = materials.find(item => item.id === attempt.material_id);
     if (!material) {
-      if (mode === "incorrect_only") { setError("The original material is unavailable, so missed questions cannot be opened."); return; }
       const snapshotMaterial: LabMaterial = {
         id: attempt.material_id || crypto.randomUUID(),
         learner_id: studentId || "",
