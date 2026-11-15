@@ -4,7 +4,7 @@ import type { StudentProfile } from "./StudentOnboarding";
 import { supabase } from "../lib/supabase";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const LEVELS = ["Primary school", "Secondary school", "High school / Sixth form", "College", "University", "Other"];
+const LEVELS = ["Secondary High"];
 const CURRICULA = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
 function calculatedAge(dateOfBirth?: string): number | null {
   if (!dateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth)) return null;
@@ -26,7 +26,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   avatarUrl?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<StudentProfile>(profile);
+  const [draft, setDraft] = useState<StudentProfile>({ ...profile, level: "Secondary High" });
   const [customSubject, setCustomSubject] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -108,7 +108,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         p_preferred_name: draft.preferredName.trim(),
         p_country: draft.country.trim(),
         p_institution: draft.institution.trim(),
-        p_education_level: draft.level,
+        p_education_level: "Secondary High",
         p_grade: draft.grade.trim(),
         p_curriculum: draft.curriculum,
         p_academic_year: draft.academicYear.trim(),
@@ -178,6 +178,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
 
       const next: StudentProfile = {
         ...draft,
+        level: "Secondary High",
         fullName: draft.fullName.trim(),
         preferredName: draft.preferredName.trim(),
         country: draft.country.trim(),
@@ -204,7 +205,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   }
 
   function cancel() {
-    setDraft(profile);
+    setDraft({ ...profile, level: "Secondary High" });
     setCustomSubject("");
     setAvatarFile(null);
     setRemoveAvatar(false);
@@ -242,7 +243,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         <p>{profile.subjects.length ? profile.subjects.join(" · ") : "No subjects added yet"}</p>
         <p>Goal: {profile.goals} · Target: {profile.targetMark}% · {profile.weeklyHours} study hours per week</p>
       </div>
-      <div className="setting-row"><div><strong>Update learner details</strong><span>Changes sync to your StudySpace account when online.</span></div><button type="button" className="secondary-button" onClick={() => { setDraft(profile); setEditing(true); setError(""); setNotice(""); }}><Pencil size={15}/> Edit profile</button></div>
+      <div className="setting-row"><div><strong>Update learner details</strong><span>Changes sync to your StudySpace account when online.</span></div><button type="button" className="secondary-button" onClick={() => { setDraft({ ...profile, level: "Secondary High" }); setEditing(true); setError(""); setNotice(""); }}><Pencil size={15}/> Edit profile</button></div>
     </> : <form className="onboarding-fields" onSubmit={event => void save(event)}>
       <div className="profile-editor-photo-edit"><div className="profile-editor-avatar">{avatarPreview ? <img src={avatarPreview} alt="New profile picture preview"/> : avatarUrl && !removeAvatar ? <img src={avatarUrl} alt="Current profile picture"/> : <UserRound size={28}/>}</div><div><strong>Profile picture</strong><small>Optional · PNG/JPG/WebP · up to 2 MB · Private to you and authorised administrators</small><div className="profile-editor-photo-actions"><label className="secondary-button"><ImagePlus size={14}/>{avatarFile ? "Change picture" : "Upload picture"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseAvatar(event.target.files?.[0] || null)}/></label>{(profile.avatarPath || avatarFile) && <button className="text-button" type="button" onClick={() => { setAvatarFile(null); setRemoveAvatar(true); setError(""); }}>Remove picture</button>}</div></div></div>
       <p className="profile-locked-note">Full name and country are protected account details. To correct either one, contact the StudySpace administrator. Date of birth and guardian-verification details are not editable here.</p>
@@ -251,14 +252,14 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         <label className="field-label">Preferred name<input maxLength={80} value={draft.preferredName} onChange={event => update("preferredName", event.target.value)}/></label>
         <label className="field-label">Country<input readOnly value={draft.country} aria-readonly="true"/></label>
         <label className="field-label">School / institution<input maxLength={160} value={draft.institution} onChange={event => update("institution", event.target.value)}/></label>
-        <label className="field-label">Education level<select value={draft.level} onChange={event => update("level", event.target.value)}>{LEVELS.map(level => <option key={level}>{level}</option>)}</select></label>
+        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level"><option>Secondary High</option></select></label>
         <label className="field-label">Grade / year<input maxLength={80} value={draft.grade} onChange={event => update("grade", event.target.value)}/></label>
         <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)}/></label>
         <label className="field-label">Curriculum<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select></label>
         <label className="field-label">Academic year<input maxLength={30} value={draft.academicYear} onChange={event => update("academicYear", event.target.value)}/></label>
         <label className="field-label">Number of terms<select value={draft.termCount} onChange={event => update("termCount", event.target.value)}><option value="1">1 academic year</option><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="custom">Other / not sure</option></select></label>
       </div>
-      <div className="field-label">Subjects / courses <span className="field-optional">YOUR CURRENT SELECTION</span><div className="subject-picker-selected"><div>{draft.subjects.map(name => <button type="button" key={name} onClick={() => update("subjects", draft.subjects.filter(item => item !== name))}>{name}<b>×</b></button>)}</div></div></div>
+      <div className="field-label">Subjects <span className="field-optional">YOUR CURRENT SELECTION</span><div className="subject-picker-selected"><div>{draft.subjects.map(name => <button type="button" key={name} onClick={() => update("subjects", draft.subjects.filter(item => item !== name))}>{name}<b>×</b></button>)}</div></div></div>
       <div className="subject-picker-custom"><input maxLength={80} value={customSubject} onChange={event => setCustomSubject(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addSubject(); } }} placeholder="Add a subject or course"/><button type="button" className="secondary-button" onClick={addSubject} disabled={!customSubject.trim()}>Add</button></div>
       <label className="field-label">Main academic goal<select value={draft.goals} onChange={event => update("goals", event.target.value)}><option>Improve my marks</option><option>Prepare for examinations</option><option>Stay organised and meet deadlines</option><option>Build consistent study habits</option><option>Maintain strong academic performance</option></select></label>
       <div className="onboarding-two-col">
