@@ -94,6 +94,7 @@ export default function LearningStudio({
     return () => window.clearInterval(timer);
   }, []);
   const masteredCount = records.filter(item => item.mastery === "mastered").length;
+  const hasMathematicsSubject = subjects.some(subject => /\\b(math|maths|mathematics|additional mathematics|further mathematics|statistics|numeracy|calculus|algebra)\\b/i.test(subject.name));
 
   useEffect(() => {
     if (subjects.length && (subjectId === "" || !subjects.some(item => item.id === subjectId))) {
@@ -289,13 +290,15 @@ export default function LearningStudio({
             <g><rect x="495" y="220" width="220" height="82" rx="16" className="learning-map-node"/><text x="605" y="254" textAnchor="middle" className="learning-map-title">Recall</text><text x="605" y="275" textAnchor="middle" className="learning-map-subtitle">Review at the right time</text></g>
           </svg>
         </div>
-        <div className="learning-studio-number-line">
-          <div><span className="eyebrow">INTERACTIVE MATHEMATICS</span><h4>Explore an integer number line</h4><p>Move the marker to a value, then ask MIΛ to explain how it relates to your topic.</p></div>
-          <output htmlFor="learning-studio-number-line">{numberLineValue}</output>
-          <input id="learning-studio-number-line" aria-label="Choose an integer from negative ten to ten" type="range" min={-10} max={10} step={1} value={numberLineValue} onChange={event => setNumberLineValue(Number(event.target.value))}/>
-          <div className="learning-studio-number-scale" aria-hidden="true">{Array.from({length:21},(_,index)=>{const value=index-10;return <span key={value} className={value===numberLineValue?"is-selected":""}>{value}</span>;})}</div>
-          <button type="button" className="secondary-button" onClick={() => ask("Explain the integer " + numberLineValue + " on a number line. Show how positive and negative direction works, compare it to zero, then give me one short question about ordering or adding integers.")}>Explain {numberLineValue} on the number line</button>
-        </div>
+        {hasMathematicsSubject && (
+          <div className="learning-studio-number-line">
+            <div><span className="eyebrow">INTERACTIVE MATHEMATICS</span><h4>Explore an integer number line</h4><p>Move the marker to a value, then ask MIΛ to explain how it relates to your topic.</p></div>
+            <output htmlFor="learning-studio-number-line">{numberLineValue}</output>
+            <input id="learning-studio-number-line" aria-label="Choose an integer from negative ten to ten" type="range" min={-10} max={10} step={1} value={numberLineValue} onChange={event => setNumberLineValue(Number(event.target.value))}/>
+            <div className="learning-studio-number-scale" aria-hidden="true">{Array.from({length:21},(_,index)=>{const value=index-10;return <span key={value} className={value===numberLineValue?"is-selected":""}>{value}</span>;})}</div>
+            <button type="button" className="secondary-button" onClick={() => ask("Explain the integer " + numberLineValue + " on a number line. Show how positive and negative direction works, compare it to zero, then give me one short question about ordering or adding integers.")}>Explain {numberLineValue} on the number line</button>
+          </div>
+        )}
         <div className="learning-studio-visual-actions"><button type="button" className="primary-button" onClick={() => ask("Create a labelled text diagram or concept map for this topic. Include the relationships, process flow or mathematical steps. Explain each label and give me one question that checks if I can read the diagram.")}><Compass size={15}/> Ask MIΛ to build my diagram</button><span>Use the topic-specific diagram prompt for biology, geography, business, science or mathematics.</span></div>
       </section>}
 
