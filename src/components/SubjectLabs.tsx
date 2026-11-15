@@ -63,7 +63,7 @@ function classifySubject(value: string, category = ""): { keys: LabKey[]; scienc
   const combined = value + " " + category;
   const name = normalise(value);
   const areas = (Object.keys(scienceAliases) as ScienceArea[]).filter(area => scienceAliases[area].test(value));
-  const isNonLaboratoryScienceTitle = /\\b(computer science|data science|information science|library science|social science|political science)\\b/i.test(value) && areas.length === 0;
+  const isNonLaboratoryScienceTitle = /\b(computer science|data science|information science|library science|social science|political science)\b/i.test(value) && areas.length === 0;
   for (const key of Object.keys(aliases) as LabKey[]) {
     if (aliases[key].test(combined) && !(key === "science" && isNonLaboratoryScienceTitle)) keys.push(key);
   }
