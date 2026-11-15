@@ -38,7 +38,7 @@ export default function PowerPointDocumentViewer({ file }: { file: Blob }) {
     <div className="library-powerpoint-viewer" aria-label="PowerPoint presentation viewer">
       <div className="library-preview-note">
         <span aria-hidden="true">▣</span>
-        <span>Use the slide thumbnails, navigation, search and zoom tools to explore your presentation. Choose Landscape full screen for a larger reading canvas.</span>
+        <span>Browse slides with the thumbnail rail, navigation, search and zoom tools. Some PowerPoint animations may appear as still content in a browser. Choose Landscape · Full screen for a larger reading canvas.</span>
       </div>
       {hasDegradedSlides && (
         <div className="library-powerpoint-warning" role="status">
