@@ -94,7 +94,7 @@ export default function LearningStudio({
     return () => window.clearInterval(timer);
   }, []);
   const masteredCount = records.filter(item => item.mastery === "mastered").length;
-  const hasMathematicsSubject = subjects.some(subject => /\\b(math|maths|mathematics|additional mathematics|further mathematics|statistics|numeracy|calculus|algebra)\\b/i.test(subject.name));
+  const hasMathematicsSubject = subjects.some(subject => /\b(math|maths|mathematics|additional mathematics|further mathematics|statistics|numeracy|calculus|algebra)\b/i.test(subject.name));
 
   useEffect(() => {
     if (subjects.length && (subjectId === "" || !subjects.some(item => item.id === subjectId))) {
