@@ -10,17 +10,17 @@ import MathsLab from "./MathsLab";
 import "./SubjectLabs.css";
 
 type LabKey = "maths" | "science" | "geography" | "business" | "accounting" | "computing" | "agriculture" | "engineering" | "languages" | "hospitality" | "design";
-type ScienceArea = "physics" | "chemistry" | "biology";
+type ScienceArea = "physics" | "chemistry" | "biology" | "environment";
 type LabAccess = { key: LabKey; subjects: string[]; modules: string[]; scienceAreas: ScienceArea[] };
 type AssignedLabSource = { subjectName: string; topics: string[] };
 
 const labMeta: Record<LabKey, { title: string; subtitle: string; icon: typeof Calculator; colour: string }> = {
   maths: { title: "Mathematics Lab", subtitle: "Explore numbers, equations, graphs, shapes and probability.", icon: Calculator, colour: "violet" },
-  science: { title: "Science Lab", subtitle: "Run safe, interactive physics, chemistry and biology simulations.", icon: Atom, colour: "blue" },
+  science: { title: "Science Lab", subtitle: "Explore physics, chemistry, biology and environmental science through safe simulations.", icon: Atom, colour: "blue" },
   geography: { title: "Geography Lab", subtitle: "Work with climate, map scale, coordinates and population data.", icon: Globe, colour: "teal" },
   business: { title: "Business Lab", subtitle: "Test pricing, costs, demand, marketing and business decisions.", icon: BriefcaseBusiness, colour: "amber" },
   accounting: { title: "Accounting Lab", subtitle: "Practise double-entry bookkeeping and check a trial balance.", icon: TrendingUp, colour: "green" },
-  computing: { title: "ICT & Computer Science Lab", subtitle: "Convert binary, test logic gates and explore algorithms.", icon: Code2, colour: "indigo" },
+  science: { title: "Science Lab", subtitle: "Explore physics, chemistry, biology and environmental science through safe simulations.", icon: Atom, colour: "blue" },
   agriculture: { title: "Agriculture Lab", subtitle: "Investigate soil, growing conditions and crop planning.", icon: Sprout, colour: "green" },
   engineering: { title: "Engineering & Design Lab", subtitle: "Explore forces, gears, structures and design constraints.", icon: Cog, colour: "orange" },
   languages: { title: "Language Lab", subtitle: "Practise vocabulary, grammar, sentence structure and reading.", icon: Languages, colour: "pink" },
@@ -43,9 +43,10 @@ const aliases: Record<LabKey, RegExp> = {
 };
 
 const scienceAliases: Record<ScienceArea, RegExp> = {
-  physics: /\b(physics|physical science|mechanics|forces and motion|electric circuits|electricity|electronics|waves|wave properties|optics)\b/i,
-  chemistry: /\b(chemistry|chemical science|organic chemistry|inorganic chemistry|analytical chemistry|acids and bases|chemical bonding|stoichiometry)\b/i,
-  biology: /\b(biology|biological sciences|life sciences|anatomy|physiology|cell biology|cell structure|photosynthesis|environmental science|ecology|genetics)\b/i,
+  physics: /\\b(physics|physical science|mechanics|forces and motion|electric circuits|electricity|electronics|waves|wave properties|optics)\\b/i,
+  chemistry: /\\b(chemistry|chemical science|organic chemistry|inorganic chemistry|analytical chemistry|acids and bases|chemical bonding|stoichiometry)\\b/i,
+  biology: /\\b(biology|biological sciences|life sciences|anatomy|physiology|cell biology|cell structure|photosynthesis|genetics)\\b/i,
+  environment: /\\b(environmental science|ecology|ecosystems|biodiversity|conservation|climate change|pollution|sustainability)\\b/i,
 };
 const generalScience = /^(science|general science|combined science|integrated science|physical science)$/i;
 
@@ -67,7 +68,7 @@ function classifySubject(value: string, category = ""): { keys: LabKey[]; scienc
   for (const key of Object.keys(aliases) as LabKey[]) {
     if (aliases[key].test(combined) && !(key === "science" && isNonLaboratoryScienceTitle)) keys.push(key);
   }
-  if (keys.includes("science") && generalScience.test(name)) areas.push("physics", "chemistry", "biology");
+  if (keys.includes("science") && generalScience.test(name)) areas.push("physics", "chemistry", "biology", "environment");
   return { keys: [...new Set(keys)], scienceAreas: [...new Set(areas)] };
 }
 function classifyAssignedModule(value: string): { keys: LabKey[]; scienceAreas: ScienceArea[] } {
@@ -87,7 +88,7 @@ function classifyAssignedModule(value: string): { keys: LabKey[]; scienceAreas: 
   };
   const keys = (Object.keys(strictAliases) as LabKey[]).filter(key => candidates.some(candidate => strictAliases[key].test(candidate)));
   const areas = (Object.keys(scienceAliases) as ScienceArea[]).filter(area => candidates.some(candidate => scienceAliases[area].test(candidate)));
-  if (keys.includes("science") && areas.length === 0 && candidates.some(candidate => generalScience.test(candidate))) areas.push("physics", "chemistry", "biology");
+  if (keys.includes("science") && areas.length === 0 && candidates.some(candidate => generalScience.test(candidate))) areas.push("physics", "chemistry", "biology", "environment");
   return { keys, scienceAreas: [...new Set(areas)] };
 }
 
@@ -274,10 +275,11 @@ function ScienceLab({ areas }: { areas: ScienceArea[] }) {
   useEffect(() => { if (!available.includes(area)) setArea(available[0] ?? "physics"); }, [available.join("|"), area]);
   return <section className="subject-lab-workspace">
     <LabHeading eyebrow="SAFE VIRTUAL EXPERIMENTS" title="Science Lab" description="Change one variable at a time, observe the results and explain the relationship. These are educational simulations, not instructions for handling hazardous materials."/>
-    <ToolTabs value={area} onChange={setArea} options={available.map(item => ({ value: item, label: item[0].toUpperCase() + item.slice(1) }))}/>
+    <ToolTabs value={area} onChange={setArea} options={available.map(item => ({ value: item, label: item === "environment" ? "Environmental science" : item[0].toUpperCase() + item.slice(1) }))}/>
     {area === "physics" && <PhysicsTools/>}
     {area === "chemistry" && <ChemistryTools/>}
     {area === "biology" && <BiologyTools/>}
+    {area === "environment" && <EnvironmentalTools/>}
   </section>;
 }
 function PhysicsTools() {
