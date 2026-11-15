@@ -534,7 +534,6 @@ export default function LabLearningHub({
   const submittedAttempts = attempts.filter(item => item.status === "submitted");
   const average = submittedAttempts.length ? Math.round(submittedAttempts.reduce((sum,item) => sum + Number(item.percentage || 0),0) / submittedAttempts.length) : 0;
   const best = submittedAttempts.length ? Math.max(...submittedAttempts.map(item => Number(item.percentage || 0))) : 0;
-  const resultItems = ((activeAttempt?.result as { items?: QuestionResult[] } | undefined)?.items ?? []);
 
   const tabItems = [
     { value:"home", label:"Overview", icon:Sparkles },
