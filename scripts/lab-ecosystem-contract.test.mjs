@@ -6,6 +6,7 @@ const read = (path) => readFileSync(path, "utf8");
 const hub = read("src/components/LabLearningHub.tsx");
 const subjectLabs = read("src/components/SubjectLabs.tsx");
 const databaseMigration = read("supabase/migrations/20261115192917_studyspace_complete_lab_learning_ecosystem.sql");
+const securityMigration = read("supabase/migrations/20261115195000_studyspace_harden_lab_data_security.sql");
 const edge = read("supabase/functions/lab-learning-engine/index.ts");
 const style = read("src/components/LabLearningHub.css");
 
@@ -65,6 +66,9 @@ test("Lab records have learner ownership, RLS and explicit authenticated grants"
   }
   assert.match(databaseMigration, /learner_id = \(select auth\.uid\(\)\)/);
   assert.match(databaseMigration, /is_active_studyspace_learner\(\)/);
+  assert.match(securityMigration, /revoke all privileges on table public\.lab_generated_materials from anon, public/i);
+  assert.match(securityMigration, /revoke all privileges on table public\.lab_practice_attempts from anon, public/i);
+  assert.match(securityMigration, /ai_generation_usage_actor_purpose_created_idx/);
   assert.match(databaseMigration, /revoke all privileges on table public\.lab_generated_materials from anon, public/i);
   assert.match(databaseMigration, /revoke all privileges on table public\.lab_practice_attempts from anon, public/i);
   assert.match(databaseMigration, /grant select, insert, update, delete on public\.lab_generated_materials to authenticated/i);
