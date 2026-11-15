@@ -20,7 +20,7 @@ const labMeta: Record<LabKey, { title: string; subtitle: string; icon: typeof Ca
   geography: { title: "Geography Lab", subtitle: "Work with climate, map scale, coordinates and population data.", icon: Globe, colour: "teal" },
   business: { title: "Business Lab", subtitle: "Test pricing, costs, demand, marketing and business decisions.", icon: BriefcaseBusiness, colour: "amber" },
   accounting: { title: "Accounting Lab", subtitle: "Practise double-entry bookkeeping and check a trial balance.", icon: TrendingUp, colour: "green" },
-  science: { title: "Science Lab", subtitle: "Explore physics, chemistry, biology and environmental science through safe simulations.", icon: Atom, colour: "blue" },
+  computing: { title: "ICT & Computer Science Lab", subtitle: "Convert binary, test logic gates and explore algorithms.", icon: Code2, colour: "indigo" },
   agriculture: { title: "Agriculture Lab", subtitle: "Investigate soil, growing conditions and crop planning.", icon: Sprout, colour: "green" },
   engineering: { title: "Engineering & Design Lab", subtitle: "Explore forces, gears, structures and design constraints.", icon: Cog, colour: "orange" },
   languages: { title: "Language Lab", subtitle: "Practise vocabulary, grammar, sentence structure and reading.", icon: Languages, colour: "pink" },
@@ -75,7 +75,7 @@ function classifyAssignedModule(value: string): { keys: LabKey[]; scienceAreas: 
   const candidates = moduleCandidates(value);
   const strictAliases: Record<LabKey, RegExp> = {
     maths: /^(mathematics|maths|additional mathematics|additional maths|further mathematics|pure mathematics|applied mathematics|statistics|calculus|algebra|probability|geometry|trigonometry|linear algebra)$/,
-    science: /^(science|general science|combined science|integrated science|physical science|environmental science|biology|biological sciences|life sciences|cell biology|cell structure|photosynthesis|chemistry|chemical science|acids and bases|chemical bonding|stoichiometry|physics|physical sciences|forces and motion|electric circuits|anatomy|physiology|ecology|genetics|mechanics|optics)$/,
+    science: /^(science|general science|combined science|integrated science|physical science|environmental science|biology|biological sciences|life sciences|cell biology|cell structure|photosynthesis|chemistry|chemical science|acids and bases|chemical bonding|stoichiometry|physics|physical sciences|forces and motion|electric circuits|anatomy|physiology|ecology|ecosystems|biodiversity|conservation|climate change|pollution|sustainability|genetics|mechanics|optics)$/,
     geography: /^(geography|physical geography|human geography|geology|geomorphology|climatology|cartography|gis|geospatial studies)$/,
     business: /^(business|business studies|business management|business administration|commerce|economics|marketing|entrepreneurship|enterprise|management studies)$/,
     accounting: /^(accounting|bookkeeping|book keeping|financial accounting|cost accounting|management accounting|auditing)$/,
