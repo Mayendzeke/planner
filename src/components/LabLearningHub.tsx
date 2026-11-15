@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   ArrowLeft, BookOpen, Brain, Check, CheckCircle2, ChevronLeft, ChevronRight,
   Clock3, Download, FileText, Filter, Flag, Flame, Heart, Library, LoaderCircle,
-  Play, Plus, RotateCcw, Save, Search, Sparkles, Target, Timer, Trophy, X,
+  Play, Plus, RotateCcw, Search, Sparkles, Target, Timer, Trophy, X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import "./LabLearningHub.css";
@@ -534,7 +535,6 @@ export default function LabLearningHub({
   const best = submittedAttempts.length ? Math.max(...submittedAttempts.map(item => Number(item.percentage || 0))) : 0;
   const currentQuestion = activeAttempt?.material_snapshot.questions[questionIndex];
   const resultItems = ((activeAttempt?.result as { items?: QuestionResult[] } | undefined)?.items ?? []);
-  const isQuestionComplete = activeAttempt ? Boolean(activeAttempt.responses[currentQuestion?.id || ""]) : false;
   const scoreText = activeAttempt?.score === null || activeAttempt?.score === undefined ? "" : Number(activeAttempt.score) + " / " + Number(activeAttempt.max_score);
 
   const tabItems = [
@@ -579,7 +579,7 @@ export default function LabLearningHub({
         <article><span><Library size={17}/></span><strong>{materials.filter(item=>item.is_favourite).length}</strong><small>favourites</small></article>
       </div>
       {materials.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">PICK UP WHERE YOU LEFT OFF</span><h3>Recently saved</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("library")}>View library <ChevronRight size={15}/></button></div><div className="lab-hub-material-grid">{materials.slice(0,3).map(item => <MaterialCard key={item.id} item={item} onOpen={() => { setSelectedMaterial(item); setFlashcardIndex(0); setFlashcardFlipped(false); setTab("library"); }} onPractice={() => void startAttempt(item)} />)}</div></section>}
-      {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">KEEP IMPROVING</span><h3>Continue your practice</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("practice")}>Practice history <ChevronRight size={15}/></button></div><div className="lab-hub-history-list">{attempts.slice(0,3).map(item => <AttemptRow key={item.id} attempt={item} onReview={() => { setActiveAttempt(item); setTab("practice"); }} />)}</div></section>}
+      {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">KEEP IMPROVING</span><h3>Continue your practice</h3></div><button type="button" className="lab-hub-text-button" onClick={() => setTab("practice")}>Practice history <ChevronRight size={15}/></button></div><div className="lab-hub-history-list">{attempts.slice(0,3).map(item => <AttemptRow key={item.id} attempt={item} onReview={() => { setActiveAttempt(item); setQuestionIndex(0); setStartedAt(item.status === "in_progress" ? (Date.parse(item.created_at) || Date.now()) : null); setTab("practice"); }} />)}</div></section>}
     </>}
 
     {tab === "create" && <section className="lab-hub-create">
@@ -635,7 +635,7 @@ export default function LabLearningHub({
       /> : <>
         <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">RETRIEVAL PRACTICE & EXAM MODE</span><h3>Choose what to practise</h3><p>Every attempt is saved separately. Retake the full set or focus on missed questions.</p></div></div>
         {materials.filter(item=>(item.content.questions?.length ?? 0)>0).length ? <div className="lab-hub-material-grid">{materials.filter(item=>(item.content.questions?.length ?? 0)>0).map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setTab("library");}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")}/>)}</div> : <EmptyState icon={<Target size={22}/>} title="No practice sets yet" text="Generate a practice quiz, question bank or revision pack to start practising." action="Create practice set" onClick={()=>{setTab("create");setForm(current=>({...current,materialType:"practice_quiz"}));}}/>}
-        {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR ATTEMPT HISTORY</span><h3>Past attempts</h3></div></div><div className="lab-hub-history-list">{attempts.map(item=><AttemptRow key={item.id} attempt={item} onReview={()=>setActiveAttempt(item)}/>)}</div></section>}
+        {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR ATTEMPT HISTORY</span><h3>Past attempts</h3></div></div><div className="lab-hub-history-list">{attempts.map(item=><AttemptRow key={item.id} attempt={item} onReview={()=>{setActiveAttempt(item);setQuestionIndex(0);setStartedAt(item.status==="in_progress"?(Date.parse(item.created_at)||Date.now()):null);}}/>)}</div></section>}
       </>}
     </section>}
 
@@ -715,6 +715,6 @@ function AttemptRow({ attempt, onReview }: { attempt:LabAttempt; onReview:()=>vo
   return <article className="lab-hub-attempt-row"><span className={attempt.status==="submitted"?"is-done":"is-draft"}>{attempt.status==="submitted"?<Check size={15}/>:<Play size={14}/>}</span><div><strong>{attempt.topic}</strong><small>{attempt.subject_name} · {attempt.attempt_number===1?"First attempt":"Attempt "+attempt.attempt_number} · {new Date(attempt.created_at).toLocaleDateString()}</small></div><b>{attempt.status==="submitted"?(attempt.percentage??0)+"%":"In progress"}</b><button type="button" onClick={onReview}>{attempt.status==="submitted"?"Review":"Continue"} <ChevronRight size={14}/></button></article>;
 }
 
-function EmptyState({ icon, title, text, action, onClick }: {icon:React.ReactNode;title:string;text:string;action:string;onClick:()=>void}) {
+function EmptyState({ icon, title, text, action, onClick }: {icon:ReactNode;title:string;text:string;action:string;onClick:()=>void}) {
   return <div className="lab-hub-empty"><span>{icon}</span><strong>{title}</strong><p>{text}</p><button type="button" className="lab-hub-primary small" onClick={onClick}>{action}</button></div>;
 }
