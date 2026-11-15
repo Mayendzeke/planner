@@ -4,6 +4,7 @@ export type StudyMaterialPreview =
   | { kind: "text"; text: string }
   | { kind: "slides"; slides: { number: number; title: string; body: string }[] }
   | { kind: "table"; sheetName: string; rows: string[][] }
+  | { kind: "workbook"; sheets: { name: string; rows: { value: string; formula?: string }[][] }[] }
   | { kind: "unsupported"; message: string };
 
 function xmlDocument(source: string): Document {
@@ -67,32 +68,52 @@ function pptxPreview(zip: Record<string, Uint8Array>): StudyMaterialPreview {
 }
 
 function xlsxPreview(zip: Record<string, Uint8Array>): StudyMaterialPreview {
-  const sheetPath = Object.keys(zip).filter(path => /^xl\/worksheets\/sheet\d+\.xml$/i.test(path))
-    .sort((a, b) => Number(a.match(/sheet(\d+)/i)?.[1] || 0) - Number(b.match(/sheet(\d+)/i)?.[1] || 0))[0];
-  if (!sheetPath) return { kind: "unsupported", message: "No readable worksheet was found. Download the original spreadsheet to open it in Excel or another spreadsheet app." };
+  const workbookPath = "xl/workbook.xml";
+  const relationsPath = "xl/_rels/workbook.xml.rels";
+  if (!zip[workbookPath] || !zip[relationsPath]) {
+    return { kind: "unsupported", message: "This spreadsheet is missing workbook information. Download the original XLSX file to open it in a compatible app." };
+  }
+  const workbook = xmlDocument(readZipEntry(zip, workbookPath));
+  const relations = xmlDocument(readZipEntry(zip, relationsPath));
+  const relationMap = new Map<string,string>();
+  Array.from(relations.getElementsByTagNameNS("*","Relationship")).forEach(node => {
+    relationMap.set(node.getAttribute("Id") || "", node.getAttribute("Target") || "");
+  });
   const strings: string[] = [];
   if (zip["xl/sharedStrings.xml"]) {
     const shared = xmlDocument(readZipEntry(zip, "xl/sharedStrings.xml"));
     strings.push(...Array.from(shared.getElementsByTagNameNS("*", "si")).map(nodeText));
   }
-  const sheet = xmlDocument(readZipEntry(zip, sheetPath));
-  const rows = Array.from(sheet.getElementsByTagNameNS("*", "row")).slice(0, 100).map(rowNode => {
-    const row: string[] = [];
-    for (const cell of Array.from(rowNode.getElementsByTagNameNS("*", "c"))) {
-      const reference = cell.getAttribute("r") || "";
-      const letters = reference.match(/^[A-Z]+/i)?.[0] || "";
-      let column = 0;
-      for (const letter of letters.toUpperCase()) column = column * 26 + letter.charCodeAt(0) - 64;
-      column = Math.max(0, Math.min(12, column)) - 1;
-      if (column < 0) continue;
-      const valueNode = cell.getElementsByTagNameNS("*", "v")[0];
-      const inlineNode = cell.getElementsByTagNameNS("*", "t")[0];
-      const raw = inlineNode?.textContent || valueNode?.textContent || "";
-      row[column] = cell.getAttribute("t") === "s" ? (strings[Number(raw)] || "") : raw;
-    }
-    return row.slice(0, 12).map(value => value || "");
-  }).filter(row => row.some(value => value.trim()));
-  return { kind: "table", sheetName: sheetPath.split("/").pop() || "Worksheet", rows };
+  const sheets = Array.from(workbook.getElementsByTagNameNS("*","sheet")).slice(0,30).flatMap(sheetNode => {
+    const name = sheetNode.getAttribute("name") || "Worksheet";
+    const relationId = sheetNode.getAttribute("r:id") || sheetNode.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id") || "";
+    const target = relationMap.get(relationId);
+    if (!target) return [];
+    const sheetPath = target.startsWith("/") ? target.slice(1) : target.startsWith("xl/") ? target : "xl/" + target;
+    if (!zip[sheetPath]) return [];
+    const sheet = xmlDocument(readZipEntry(zip,sheetPath));
+    const rows = Array.from(sheet.getElementsByTagNameNS("*","row")).slice(0,300).map(rowNode => {
+      const row: { value: string; formula?: string }[] = [];
+      for (const cell of Array.from(rowNode.getElementsByTagNameNS("*","c"))) {
+        const reference = cell.getAttribute("r") || "";
+        const letters = reference.match(/^[A-Z]+/i)?.[0] || "";
+        let column = 0;
+        for (const letter of letters.toUpperCase()) column = column * 26 + letter.charCodeAt(0) - 64;
+        column = Math.max(0,Math.min(30,column)) - 1;
+        if(column<0) continue;
+        const valueNode = cell.getElementsByTagNameNS("*","v")[0];
+        const inlineNode = cell.getElementsByTagNameNS("*","t")[0];
+        const formulaNode = cell.getElementsByTagNameNS("*","f")[0];
+        const raw = inlineNode?.textContent || valueNode?.textContent || "";
+        const value = cell.getAttribute("t")==="s" ? (strings[Number(raw)] || "") : cell.getAttribute("t")==="b" ? (raw==="1"?"TRUE":"FALSE") : raw;
+        row[column] = { value, formula: formulaNode?.textContent ? "=" + formulaNode.textContent : undefined };
+      }
+      return row.map(cell=>cell||{value:""});
+    }).filter(row=>row.some(cell=>cell.value.trim()||cell.formula));
+    return [{ name, rows }];
+  });
+  if(!sheets.length) return { kind:"unsupported", message:"No readable worksheets were found. Download the original spreadsheet to open it in Excel or another compatible app." };
+  return { kind:"workbook", sheets };
 }
 
 export async function readStudyMaterialPreview(file: Blob, fileName: string): Promise<StudyMaterialPreview> {
