@@ -37,6 +37,8 @@ test("practice engine supports autosave, navigation, timed sessions and detailed
   assert.match(hub, /status: "in_progress"/);
   assert.match(hub, /status: "submitted"/);
   assert.match(hub, /Submit and mark/);
+  assert.match(hub, /Exam simulation/);
+  assert.match(hub, /onExam/);
   assert.match(hub, /Review each explanation/);
 });
 
@@ -63,6 +65,8 @@ test("Lab records have learner ownership, RLS and explicit authenticated grants"
   }
   assert.match(databaseMigration, /learner_id = \(select auth\.uid\(\)\)/);
   assert.match(databaseMigration, /is_active_studyspace_learner\(\)/);
+  assert.match(databaseMigration, /revoke all privileges on table public\.lab_generated_materials from anon, public/i);
+  assert.match(databaseMigration, /revoke all privileges on table public\.lab_practice_attempts from anon, public/i);
   assert.match(databaseMigration, /grant select, insert, update, delete on public\.lab_generated_materials to authenticated/i);
   assert.match(databaseMigration, /grant select, insert, update, delete on public\.lab_practice_attempts to authenticated/i);
 });
