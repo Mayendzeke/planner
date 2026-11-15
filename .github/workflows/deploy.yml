@@ -107,6 +107,20 @@ jobs:
             throw new Error("Student MIΛ must be deployed and reject requests without a learner JWT (HTTP " + miaResponse.status + "): " + detail);
           }
           console.log("Student MIΛ Edge Function is deployed and rejects unauthenticated requests.");
+          const labEngineResponse = await fetch(url + "/functions/v1/lab-learning-engine", {
+            method: "POST",
+            headers: {
+              apikey: key,
+              "Content-Type": "application/json",
+              Origin: "https://mayendzeke.github.io",
+            },
+            body: JSON.stringify({ action: "generate_material" }),
+          });
+          if (![401, 403].includes(labEngineResponse.status)) {
+            const detail = (await labEngineResponse.text()).slice(0, 200);
+            throw new Error("The Lab learning engine must be deployed with JWT verification enabled (HTTP " + labEngineResponse.status + "): " + detail);
+          }
+          console.log("Lab generation Edge Function is deployed and requires a learner JWT.");
           const passwordChangeResponse = await fetch(url + "/functions/v1/change-student-password", {
             method: "POST",
             headers: {
