@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, BarChart3, Calculator, CheckCircle2, Compass, Divide, Grid3X3, Percent, Ruler, Shapes, Sigma, Triangle } from "lucide-react";
+import { BarChart3, Calculator, CheckCircle2, Compass, Divide, Grid3X3, Percent, Ruler, Shapes, Sigma, Triangle } from "lucide-react";
 import { useLabWorkspace } from "../lib/useLabWorkspace";
 
 type Tool = "Fractions" | "Algebra balance" | "Coordinate graph" | "Geometry" |
