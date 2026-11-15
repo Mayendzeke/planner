@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw, Calculator,
+  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw, Calculator, FlaskConical,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
   LifeBuoy, Menu, Moon, Plus, Search, Settings2, Sparkles, Brain, Sun, Target, MessageCircle,
   Trash2, TrendingUp, Upload, X, Flame, CreditCard, ShieldCheck, UserRound
@@ -27,6 +27,7 @@ import StudyReminders from "./components/StudyReminders";
 import SubjectManager from "./components/SubjectManager";
 import WeeklyTest from "./components/WeeklyTest";
 import MathsLab from "./components/MathsLab";
+import ScienceLab from "./components/ScienceLab";
 import AssignedAssessments from "./components/AssignedAssessments";
 import SchoolHomeworkHelp from "./components/SchoolHomeworkHelp";
 import TodaySession from "./components/TodaySession";
@@ -42,7 +43,7 @@ import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./c
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 
-type Page = "Overview" | "Today's Session" | "Maths Lab" | "MIΛ" | "Learning Studio" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "Study Materials & Resources" | "Academic Calendar" | "Progress" | "Messages" | "Testimonials" | "Help & feedback" | "My profile" | "Settings" | "Subscription";
+type Page = "Overview" | "Today's Session" | "Maths Lab" | "Science Lab" | "MIΛ" | "Learning Studio" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "Study Materials & Resources" | "Academic Calendar" | "Progress" | "Messages" | "Testimonials" | "Help & feedback" | "My profile" | "Settings" | "Subscription";
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type TaskForm = { title: string; subjectId: string; dueAt: string; minutes: string; priority: PlannerTask["priority"]; kind: PlannerTask["kind"]; notes: string };
 const blankTask: TaskForm = { title: "", subjectId: "", dueAt: "", minutes: "30", priority: "Medium", kind: "Study", notes: "" };
@@ -54,6 +55,7 @@ const pages: { name: Page; icon: typeof LayoutDashboard }[] = [
   { name: "MIΛ", icon: Brain },
   { name: "Subjects", icon: BookOpen },
   { name: "Maths Lab", icon: Calculator },
+  { name: "Science Lab", icon: FlaskConical },
   { name: "Study & Exams", icon: GraduationCap },
   { name: "Study Materials & Resources", icon: BookOpen },
   { name: "Planner", icon: CalendarDays },
@@ -1021,6 +1023,7 @@ export default function App() {
         {page==="MIΛ"&&profile&&<MiaChat profile={profile} subjects={subjects} variant="studio" initialAttachment={miaResourceStart?.file} initialPrompt={miaResourceStart?.prompt} onAttachmentConsumed={consumeMiaResourceStart}/>}
         {page==="Learning Studio"&&profile&&<LearningStudio subjects={subjects} learnerLevel={profile.level} grade={profile.grade} curriculum={profile.curriculum} onAskMia={startMiaWithPrompt} onOpenAssessments={()=>setPage("Study & Exams")} onOpenMaterials={()=>setPage("Study Materials & Resources")}/>}
         {page==="Maths Lab"&&<MathsLab/>}
+        {page==="Science Lab"&&<ScienceLab/>}
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<><SchoolHomeworkHelp/><AssignedAssessments/><WeeklyTest subjects={subjects}/></>}
         {page==="Testimonials"&&<StudentFeedback currentPage="Testimonials" initialCategory="Testimonial" lockCategory/>}
