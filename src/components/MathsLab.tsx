@@ -6,7 +6,7 @@ type Tool = "Fractions" | "Algebra balance" | "Coordinate graph" | "Geometry" |
   "Scientific calculator" | "Quadratic solver" | "Statistics" | "Trigonometry" | "Unit converter" | "Probability";
 
 function parseStatistics(source: string) {
-  const values = source.split(/[;,\\s]+/).map(Number).filter(value => Number.isFinite(value));
+  const values = source.split(/[;,\s]+/).map(Number).filter(value => Number.isFinite(value));
   if (!values.length) return null;
   const sorted = [...values].sort((a,b)=>a-b);
   const mean = values.reduce((sum,value)=>sum+value,0)/values.length;
