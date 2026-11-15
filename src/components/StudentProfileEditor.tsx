@@ -252,7 +252,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         <label className="field-label">Preferred name<input maxLength={80} value={draft.preferredName} onChange={event => update("preferredName", event.target.value)}/></label>
         <label className="field-label">Country<input readOnly value={draft.country} aria-readonly="true"/></label>
         <label className="field-label">School / institution<input maxLength={160} value={draft.institution} onChange={event => update("institution", event.target.value)}/></label>
-        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level"><option>Secondary High</option></select></label>
+        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level">{LEVELS.map(level => <option key={level}>{level}</option>)}</select></label>
         <label className="field-label">Grade / year<input maxLength={80} value={draft.grade} onChange={event => update("grade", event.target.value)}/></label>
         <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)}/></label>
         <label className="field-label">Curriculum<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select></label>
