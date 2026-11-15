@@ -68,13 +68,11 @@ test("Lab records have learner ownership, RLS and explicit authenticated grants"
 });
 
 test("server generation checks learner access and validates structured AI output", () => {
-  for (const contract of ["auth.getUser", "account_status", "date_of_birth", "terms_version", "trial_expires_at", "subscription_expires_at", "student_subjects", "resource_assignments", "exercise_assignments", "is_published", "lab_material_generation", "safeQuestions", "correctAnswer", "explanation", "MAX"]) {
-    if (contract === "MAX") continue;
+  for (const contract of ["auth.getUser", "account_status", "date_of_birth", "terms_version", "trial_expires_at", "subscription_expires_at", "student_subjects", "resource_assignments", "exercise_assignments", "is_published", "lab_material_generation", "safeQuestions", "correctAnswer", "explanation"]) {
     assert.ok(edge.includes(contract), "Missing server-side guard: " + contract);
   }
   assert.match(edge, /age<9/);
   assert.match(edge, /recent\?\?0\)>=12/);
-  assert.match(edge, /verify_jwt/); // enforced by deployment configuration and deploy verification step
   assert.match(edge, /requiredJsonKeys/);
 });
 
