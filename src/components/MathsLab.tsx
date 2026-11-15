@@ -145,15 +145,16 @@ export default function MathsLab() {
 
 
   return (
-    <section className="maths-lab-page">
+    <section className={"maths-lab-page"+(lab.control.enabled?"":" is-lab-disabled")}>
       <header className="maths-lab-heading">
         <div className="maths-lab-heading-icon"><Calculator size={23}/></div>
         <div><span className="eyebrow">HANDS-ON MATHEMATICS</span><h1>Maths Lab</h1><p>Explore ideas, move the controls and see how the mathematics changes.</p></div>
       </header>
 
+      {!lab.control.enabled&&<div className="science-disabled maths-disabled"><strong>Maths Lab is temporarily paused</strong><p>{lab.control.student_message||"Your teacher has temporarily paused this lab. Your saved work remains available."}</p></div>}
       <nav className="maths-lab-tools" aria-label="Maths Lab tools">
         {tools.map(({ label, description, icon: Icon }) => (
-          <button type="button" key={label} className={tool === label ? "active" : ""} onClick={() => setTool(label)} aria-pressed={tool === label}>
+          <button type="button" key={label} disabled={!lab.control.enabled} className={tool === label ? "active" : ""} onClick={() => setTool(label)} aria-pressed={tool === label}>
             <Icon size={17}/><span><strong>{label}</strong><small>{description}</small></span>
           </button>
         ))}
@@ -258,6 +259,8 @@ export default function MathsLab() {
         <div><span className="eyebrow">YOUR MATHEMATICS WORK</span><strong>Assigned practice</strong></div>
         {lab.assignments.length ? lab.assignments.map(item=><article key={item.id}><span><b>{item.title}</b><small>{item.instructions||"Complete this activity in Maths Lab."}{item.due_at?" · Due "+new Date(item.due_at).toLocaleString():""}</small></span><em>{item.status}</em></article>) : <p>No assigned Maths practicals at the moment.</p>}
         <small className="maths-lab-sync-status">{lab.syncState==="synced"?"Your work is synced across devices.":lab.syncState==="offline"?"Your work is saved locally and will sync when online.":"Connecting to your StudySpace account…"}</small>
+        {lab.workRows.find(row=>row.activity_key==="maths-workspace")?.feedback&&<div className="science-teacher-feedback"><strong>Teacher feedback{lab.workRows.find(row=>row.activity_key==="maths-workspace")?.score!=null?" · "+lab.workRows.find(row=>row.activity_key==="maths-workspace")?.score+"%":""}</strong><p>{lab.workRows.find(row=>row.activity_key==="maths-workspace")?.feedback}</p></div>}
+        <button type="button" className="maths-lab-submit" disabled={!lab.control.enabled||!lab.loaded} onClick={()=>void lab.saveWork("maths-workspace","Maths Lab",savedSnapshot,{activeTool:tool,fractionPercent,quadraticDiscriminant:discriminant,statisticsCount:stats?.count??0},"submitted")}>Submit my Maths Lab work</button>
       </section>
 
       <footer className="maths-lab-footer"><Calculator size={15}/> Interactive models are for exploration. Use the worked steps to explain your reasoning, not just the final answer.</footer>
