@@ -30,7 +30,7 @@ jobs:
         run: node --test scripts/free-trial-duration.test.mjs
       - name: Verify subject and assigned-module lab eligibility
         run: node --test scripts/subject-labs-eligibility.test.mjs
-      - name: Verify the single Secondary High learner level
+      - name: Verify the complete student education pathway model
         run: node --test scripts/education-level-standard.test.mjs
       - name: Verify shared StudySpace brand tokens
         run: node --test scripts/brand-token-protocol.test.mjs
