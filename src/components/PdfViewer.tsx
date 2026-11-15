@@ -4,7 +4,7 @@ import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import {
   ArrowLeft, ArrowRight, Check, ChevronDown, Download, FileSignature, Highlighter,
-  Minus, Pen, Plus, Save, Search, Type, Undo2, Upload, ZoomIn, ZoomOut,
+  Pen, Save, Search, Type, Undo2, Upload, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
