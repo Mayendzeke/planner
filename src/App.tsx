@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw, Calculator,
+  AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
   LifeBuoy, Menu, Moon, Plus, Search, Settings2, Sparkles, Brain, Sun, Target, MessageCircle, FlaskConical,
   Trash2, TrendingUp, Upload, X, Flame, CreditCard, ShieldCheck, UserRound
