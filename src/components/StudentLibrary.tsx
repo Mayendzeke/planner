@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ChangeEvent, type DragEvent } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   AlertCircle, BookOpen, Brain, Download, Eye, FileSpreadsheet, FileText, FolderOpen,
   Image as ImageIcon, Maximize2, Minimize2, Plus, Presentation, Search, ShieldCheck, Trash2, Upload, X,
@@ -81,6 +81,8 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
   const [filterSource, setFilterSource] = useState("All");
   const [viewing, setViewing] = useState<StudentResource | null>(null);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
+  const [landscapeFallback, setLandscapeFallback] = useState(false);
+  const viewerDialogRef = useRef<HTMLElement | null>(null);
   const [preview, setPreview] = useState<PreviewState>({ kind: "loading" });
   const [previewImageUrl, setPreviewImageUrl] = useState("");
   const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
@@ -172,16 +174,88 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
     };
   }, [viewing]);
 
+  function unlockPresentationOrientation() {
+    try {
+      const orientation = window.screen.orientation as ScreenOrientation & { unlock?: () => void };
+      orientation.unlock?.();
+    } catch {
+      // Orientation unlocking is not implemented by every mobile browser.
+    }
+  }
+
+  function exitPresentationFullscreen() {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+    unlockPresentationOrientation();
+    setFullscreenPreview(false);
+    setLandscapeFallback(false);
+  }
+
+  function closePreview() {
+    exitPresentationFullscreen();
+    setViewing(null);
+  }
+
+  async function togglePresentationFullscreen() {
+    if (fullscreenPreview) {
+      exitPresentationFullscreen();
+      return;
+    }
+
+    const target = viewerDialogRef.current;
+    let enteredNativeFullscreen = false;
+    if (target?.requestFullscreen) {
+      try {
+        await target.requestFullscreen({ navigationUI: "hide" });
+        enteredNativeFullscreen = true;
+      } catch {
+        // Continue with the in-app full-screen layout when the browser blocks this API.
+      }
+    }
+
+    setFullscreenPreview(true);
+    let orientationLocked = false;
+    if (enteredNativeFullscreen) {
+      try {
+        const orientation = window.screen.orientation as ScreenOrientation & {
+          lock?: (value: "landscape") => Promise<void>;
+        };
+        if (orientation.lock) {
+          await orientation.lock("landscape");
+          orientationLocked = true;
+        }
+      } catch {
+        // The CSS landscape fallback below is used when the browser denies the orientation lock.
+      }
+    }
+
+    const isTouchPortrait = window.matchMedia("(pointer: coarse)").matches && window.innerHeight > window.innerWidth;
+    setLandscapeFallback(isTouchPortrait && !orientationLocked);
+  }
+
   useEffect(() => {
     if (!viewing) return;
     const close = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (fullscreenPreview) setFullscreenPreview(false);
-      else setViewing(null);
+      if (fullscreenPreview) exitPresentationFullscreen();
+      else closePreview();
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [viewing, fullscreenPreview]);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      if (!document.fullscreenElement && fullscreenPreview) {
+        unlockPresentationOrientation();
+        setFullscreenPreview(false);
+        setLandscapeFallback(false);
+      }
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, [fullscreenPreview]);
 
   useEffect(() => {
     if (!fullscreenPreview) return;
@@ -440,16 +514,16 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         </article>)}</div>:<div className="library-empty"><div><FolderOpen size={23}/></div><strong>Your personal library is ready</strong><p>Save notes, presentations, worksheets, images and spreadsheets here. Choose files above to begin building your own study collection.</p></div>}
       </section>}
 
-      {viewing&&<div className={"modal-backdrop library-viewer-backdrop" + (fullscreenPreview ? " is-fullscreen" : "")} onMouseDown={event=>{if(event.target===event.currentTarget){setFullscreenPreview(false);setViewing(null);}}}>
-        <section className={"library-viewer" + (fullscreenPreview ? " is-fullscreen" : "")} role="dialog" aria-modal="true" aria-label={"Previewing "+viewing.name}>
+      {viewing&&<div className={"modal-backdrop library-viewer-backdrop" + (fullscreenPreview ? " is-fullscreen" : "")} onMouseDown={event=>{if(event.target===event.currentTarget)closePreview();}}>
+        <section ref={viewerDialogRef} className={"library-viewer" + (fullscreenPreview ? " is-fullscreen" : "") + (landscapeFallback ? " is-landscape-fallback" : "")} role="dialog" aria-modal="true" aria-label={"Previewing "+viewing.name}>
           <header className="library-viewer-header"><div><span>STUDYSPACE MATERIAL PREVIEW</span><strong>{viewing.name}</strong></div>
-            <div className="library-viewer-header-actions">{preview.kind==="powerpoint"&&<button type="button" className="secondary-button library-fullscreen-toggle" aria-pressed={fullscreenPreview} onClick={()=>setFullscreenPreview(value=>!value)}>{fullscreenPreview?<Minimize2 size={15}/>:<Maximize2 size={15}/>}<span>{fullscreenPreview?"Exit full screen":"Full screen"}</span></button>}{preview.kind==="powerpoint"&&canStudyWithMia(viewing.name,viewing.file.size)&&<button type="button" className="icon-button" aria-label="Ask MIΛ about this presentation" title="Ask MIΛ about these slides" onClick={()=>onAskMia(new File([viewing.file],viewing.name,{type:viewing.file.type||"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),"Please guide me through this presentation slide by slide. Explain the main idea, unpack any diagrams and images, define unfamiliar terms, connect ideas to my level and curriculum, and pause for a short question after each important section. Do not skip slide visuals.")}><Brain size={16}/></button>}<button type="button" className="icon-button" aria-label="Download original file" title="Download original file" onClick={()=>downloadResource(viewing)}><Download size={16}/></button><button type="button" className="icon-button" aria-label="Close preview" onClick={()=>{setFullscreenPreview(false);setViewing(null);}}><X size={18}/></button></div>
+            <div className="library-viewer-header-actions">{preview.kind==="powerpoint"&&<button type="button" className="secondary-button library-fullscreen-toggle" aria-pressed={fullscreenPreview} onClick={()=>void togglePresentationFullscreen()} aria-label={fullscreenPreview?"Exit landscape full screen":"Open landscape full screen"}>{fullscreenPreview?<Minimize2 size={15}/>:<Maximize2 size={15}/>}<span>{fullscreenPreview?"Exit full screen":"Landscape full screen"}</span></button>}{preview.kind==="powerpoint"&&canStudyWithMia(viewing.name,viewing.file.size)&&<button type="button" className="icon-button" aria-label="Ask MIΛ about this presentation" title="Ask MIΛ about these slides" onClick={()=>onAskMia(new File([viewing.file],viewing.name,{type:viewing.file.type||"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),"Please guide me through this presentation slide by slide. Explain the main idea, unpack any diagrams and images, define unfamiliar terms, connect ideas to my level and curriculum, and pause for a short question after each important section. Do not skip slide visuals.")}><Brain size={16}/></button>}<button type="button" className="icon-button" aria-label="Download original file" title="Download original file" onClick={()=>downloadResource(viewing)}><Download size={16}/></button><button type="button" className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={18}/></button></div>
           </header>
           <div className="library-viewer-content">
             {preview.kind==="loading"&&<div className="library-empty"><strong>Preparing preview…</strong></div>}
             {preview.kind==="pdf"&&<PdfViewer file={viewing.file} fileName={viewing.name}/>}
             {preview.kind==="image"&&previewImageUrl&&<img src={previewImageUrl} alt={viewing.name} style={{display:"block",maxWidth:"100%",maxHeight:"100%",margin:"0 auto",objectFit:"contain"}}/>}
-            {preview.kind==="powerpoint"&&<Suspense fallback={<div className="library-viewer-unsupported"><strong>Preparing your presentation…</strong><p>The slides are being opened securely in this browser.</p></div>}><PowerPointDocumentViewer key={viewing.name} file={viewing.file}/></Suspense>}
+            {preview.kind==="powerpoint"&&<Suspense fallback={<div className="library-viewer-unsupported"><strong>Preparing your presentation…</strong><p>The slides are being opened securely in this browser.</p></div>}><PowerPointDocumentViewer key={String(viewing.id)+"-"+viewing.name+"-"+viewing.file.size} file={viewing.file}/></Suspense>}
             {preview.kind==="text"&&<pre className="library-preview-text">{preview.text||"No readable text was found in this file."}</pre>}
             {preview.kind==="slides"&&<><div className="library-preview-note"><Presentation size={14}/><span>Slide text preview. The original presentation remains available to download; embedded graphics and exact slide layout are not shown in this preview.</span></div><div className="library-preview-slides">{preview.slides.map(slide=><article className="library-preview-slide" key={slide.number}><div className="library-preview-slide-head"><span>SLIDE {String(slide.number).padStart(2,"0")}</span><span>POWERPOINT</span></div><h4>{slide.title}</h4>{slide.body&&<p>{slide.body}</p>}</article>)}</div></>}
             {preview.kind==="table"&&<><div className="library-preview-note"><FileSpreadsheet size={14}/><span>Spreadsheet preview · showing the first worksheet and up to 100 rows. Download the original for full formulas, formatting and workbook features.</span></div><div className="library-preview-table-wrap"><table className="library-preview-table"><tbody>{preview.rows.map((row,index)=><tr key={index}>{row.map((cell,cellIndex)=><td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div></>}
