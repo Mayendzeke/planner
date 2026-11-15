@@ -642,19 +642,35 @@ export default function App() {
         preferredName: nextProfile.preferredName.trim() || safeName
       };
       {
-          const { error: profileError } = await supabase.rpc("update_studyspace_learner_academic_profile", {
-            p_full_name: profileToSave.fullName,
-            p_preferred_name: profileToSave.preferredName,
-            p_country: profileToSave.country,
-            p_institution: profileToSave.institution,
-            p_education_level: profileToSave.level,
-            p_grade: profileToSave.grade,
-            p_curriculum: profileToSave.curriculum,
-            p_academic_year: profileToSave.academicYear,
-            p_course: isTertiaryLevel(profileToSave.level) ? profileToSave.course : "",
-            p_institution_type: isTertiaryLevel(profileToSave.level) ? profileToSave.institutionType : "School",
-            p_qualification_level: isTertiaryLevel(profileToSave.level) ? profileToSave.qualificationLevel : ""
-          });
+          let profileError: { message: string } | null = null;
+          if (skipSetup) {
+            const result = await supabase.rpc("update_studyspace_learner_profile", {
+              p_full_name: profileToSave.fullName,
+              p_preferred_name: profileToSave.preferredName,
+              p_country: profileToSave.country,
+              p_institution: profileToSave.institution,
+              p_education_level: profileToSave.level,
+              p_grade: profileToSave.grade || "",
+              p_curriculum: profileToSave.curriculum || "",
+              p_academic_year: profileToSave.academicYear || ""
+            });
+            profileError = result.error;
+          } else {
+            const result = await supabase.rpc("update_studyspace_learner_academic_profile", {
+              p_full_name: profileToSave.fullName,
+              p_preferred_name: profileToSave.preferredName,
+              p_country: profileToSave.country,
+              p_institution: profileToSave.institution,
+              p_education_level: profileToSave.level,
+              p_grade: profileToSave.grade,
+              p_curriculum: profileToSave.curriculum,
+              p_academic_year: profileToSave.academicYear,
+              p_course: isTertiaryLevel(profileToSave.level) ? profileToSave.course : "",
+              p_institution_type: isTertiaryLevel(profileToSave.level) ? profileToSave.institutionType : "School",
+              p_qualification_level: isTertiaryLevel(profileToSave.level) ? profileToSave.qualificationLevel : ""
+            });
+            profileError = result.error;
+          }
           if (profileError) throw new Error("Your cloud profile could not be saved: " + profileError.message);
           if (profileToSave.subjects.length) {
             const { error: subjectsError } = await supabase.from("student_subjects").upsert(
