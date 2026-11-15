@@ -17,7 +17,9 @@
     "pdfjs-dist": "^4.10.38",
     "@supabase/supabase-js": "^2.57.0",
     "fflate": "^0.8.2",
-    "@extend-ai/react-pptx": "0.2.2"
+    "@extend-ai/react-pptx": "0.2.2",
+    "pdf-lib": "^1.17.1",
+    "docx-preview": "^0.4.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
