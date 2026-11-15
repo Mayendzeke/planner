@@ -26,12 +26,12 @@ export type StudentProfile = {
 };
 
 const emptyProfile: StudentProfile = {
-  fullName: "", preferredName: "", country: "", institution: "", course: "", level: "Secondary school",
+  fullName: "", preferredName: "", country: "", institution: "", course: "", level: "Secondary High",
   grade: "", curriculum: "", academicYear: String(new Date().getFullYear()), termCount: "3",
   goals: "Improve my marks", targetMark: "75", weeklyHours: "6", preferredDays: ["Saturday", "Sunday"], subjects: []
 };
 
-const levels = ["Primary school", "Secondary school", "High school / Sixth form", "College", "University", "Other"];
+const levels = ["Secondary High"];
 const curricula = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const subjectCatalog: Record<string, string[]> = {
@@ -140,7 +140,6 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     setError("");
     if (step === 0 && !profile.fullName.trim()) { setError("Please enter the student's name."); return; }
     if (step === 1 && (!profile.grade.trim() || !profile.academicYear.trim() || !profile.curriculum.trim())) { setError("Please enter your grade or year, academic year and curriculum."); return; }
-    if (step === 1 && (profile.level === "University" || profile.level === "College") && !profile.course.trim()) { setError("Please enter your course or programme."); return; }
     if (step === 2) {
       if (!profile.subjects.length) { setError("Select at least one subject or course to continue."); return; }
       setStep(3);
@@ -221,10 +220,9 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
       </div>}
 
       {step === 1 && <div className="onboarding-fields">
-        <label className="field-label">Education level<select value={profile.level} onChange={e => update("level", e.target.value)}>{levels.map(item => <option key={item}>{item}</option>)}</select></label>
-        {(profile.level === "University" || profile.level === "College") && <label className="field-label">Course / programme<input value={profile.course} onChange={e => update("course", e.target.value)} placeholder="Enter your course or programme" maxLength={160}/></label>}
+        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level"><option>Secondary High</option></select></label>
         <div className="onboarding-two-col">
-          <label className="field-label">{profile.level === "University" || profile.level === "College" ? "Year of study" : profile.level === "Primary school" ? "Grade / class" : profile.level === "Secondary school" ? "Form / grade" : profile.level === "High school / Sixth form" ? "Form / sixth form year" : "Grade / year"}<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder={profile.level === "University" || profile.level === "College" ? "e.g. Year 1, Year 2, Final year" : profile.level === "Primary school" ? "e.g. Grade 4" : profile.level === "Secondary school" ? "e.g. Form 3" : profile.level === "High school / Sixth form" ? "e.g. Lower Sixth, Upper Sixth" : "e.g. Grade 10"} maxLength={60}/></label>
+          <label className="field-label">Form / grade<input value={profile.grade} onChange={e => update("grade", e.target.value)} placeholder="e.g. Form 3, Form 5 or Lower Sixth" maxLength={60}/></label>
           <label className="field-label">Academic year<input value={profile.academicYear} onChange={e => update("academicYear", e.target.value)} placeholder="2026" maxLength={20}/></label>
         </div>
         <label className="field-label">Curriculum<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum</option>{curricula.map(item => <option key={item}>{item}</option>)}</select></label>
@@ -233,13 +231,13 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
 
       {step === 2 && <div className="onboarding-fields">
         <div className="subject-picker">
-          <div className="subject-picker-heading"><div><strong>Choose your subjects or courses</strong><span>Tap each item to select it. You can choose more than one.</span></div><b>{profile.subjects.length} selected</b></div>
+          <div className="subject-picker-heading"><div><strong>Choose your subjects</strong><span>Tap each item to select it. You can choose more than one.</span></div><b>{profile.subjects.length} selected</b></div>
           <label className="subject-picker-search"><BookOpen size={16}/><input value={subjectSearch} onChange={e => setSubjectSearch(e.target.value)} placeholder="Search subjects or courses…" aria-label="Search subjects and courses"/></label>
           <div className="subject-picker-list" role="group" aria-label="Available subjects">
             {filteredSubjects.map(name => <label className="subject-picker-option" key={name}><input type="checkbox" checked={profile.subjects.includes(name)} onChange={() => toggleSubject(name)}/><span>{name}</span><i>{profile.subjects.includes(name) ? "Selected" : "Add"}</i></label>)}
             {!filteredSubjects.length && <p className="subject-picker-empty">No matching subject in this list. Add it below.</p>}
           </div>
-          <div className="subject-picker-custom"><input value={customSubject} onChange={e => setCustomSubject(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomSubject(); } }} placeholder="Add a subject or course not listed…" maxLength={80}/><button type="button" className="secondary-button" onClick={addCustomSubject} disabled={!customSubject.trim()}>Add</button></div>
+          <div className="subject-picker-custom"><input value={customSubject} onChange={e => setCustomSubject(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomSubject(); } }} placeholder="Add a subject not listed…" maxLength={80}/><button type="button" className="secondary-button" onClick={addCustomSubject} disabled={!customSubject.trim()}>Add</button></div>
           {!!profile.subjects.length && <div className="subject-picker-selected"><span>YOUR SELECTION</span><div>{profile.subjects.map(name => <button type="button" key={name} onClick={() => toggleSubject(name)} title={"Remove "+name}>{name}<b>×</b></button>)}</div></div>}
         </div>
         <label className="field-label">Main academic goal<select value={profile.goals} onChange={e => update("goals", e.target.value)}><option>Improve my marks</option><option>Prepare for examinations</option><option>Stay organised and meet deadlines</option><option>Build consistent study habits</option><option>Maintain strong academic performance</option></select></label>
