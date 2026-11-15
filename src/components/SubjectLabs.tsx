@@ -105,6 +105,7 @@ function useAssignedModules(studentId?: string | null) {
     let active = true;
     const load = async () => {
       setLoading(true);
+      setSources([]);
       try {
         const [{ data: resourceAssignments, error: resourceAssignmentError }, { data: exerciseAssignments, error: exerciseAssignmentError }] = await Promise.all([
           supabase.from("resource_assignments").select("resource_id").eq("learner_id", studentId),
