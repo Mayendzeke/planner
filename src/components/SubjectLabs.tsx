@@ -12,7 +12,7 @@ import "./SubjectLabs.css";
 type LabKey = "maths" | "science" | "geography" | "business" | "accounting" | "computing" | "agriculture" | "engineering" | "languages" | "hospitality" | "design";
 type ScienceArea = "physics" | "chemistry" | "biology";
 type LabAccess = { key: LabKey; subjects: string[]; modules: string[]; scienceAreas: ScienceArea[] };
-type ModuleSource = { subject_name?: string | null; topic?: string | null; title?: string | null };
+type AssignedLabSource = { subjectName: string; topics: string[] };
 
 const labMeta: Record<LabKey, { title: string; subtitle: string; icon: typeof Calculator; colour: string }> = {
   maths: { title: "Mathematics Lab", subtitle: "Explore numbers, equations, graphs, shapes and probability.", icon: Calculator, colour: "violet" },
@@ -91,58 +91,81 @@ function classifyAssignedModule(value: string): { keys: LabKey[]; scienceAreas: 
   return { keys, scienceAreas: [...new Set(areas)] };
 }
 
+function readQuestionTopic(content: unknown): string {
+  if (!content || typeof content !== "object" || Array.isArray(content)) return "";
+  const topic = (content as Record<string, unknown>).topic;
+  return typeof topic === "string" ? topic.trim() : "";
+}
+
 function useAssignedModules(studentId?: string | null) {
-  const [modules, setModules] = useState<string[]>([]);
+  const [sources, setSources] = useState<AssignedLabSource[]>([]);
   const [loading, setLoading] = useState(Boolean(studentId && supabase));
   useEffect(() => {
-    if (!supabase || !studentId) { setLoading(false); setModules([]); return; }
+    if (!supabase || !studentId) { setLoading(false); setSources([]); return; }
     let active = true;
     const load = async () => {
       setLoading(true);
-      const found: string[] = [];
       try {
-        const [{ data: resourceAssignments }, { data: exerciseAssignments }] = await Promise.all([
+        const [{ data: resourceAssignments, error: resourceAssignmentError }, { data: exerciseAssignments, error: exerciseAssignmentError }] = await Promise.all([
           supabase.from("resource_assignments").select("resource_id").eq("learner_id", studentId),
           supabase.from("exercise_assignments").select("exercise_set_id,available_at").eq("learner_id", studentId),
         ]);
+        if (resourceAssignmentError) throw resourceAssignmentError;
+        if (exerciseAssignmentError) throw exerciseAssignmentError;
+
         const resourceIds = [...new Set((resourceAssignments ?? []).map(row => row.resource_id).filter(Boolean))];
         const releasedExerciseIds = [...new Set((exerciseAssignments ?? [])
           .filter(row => !row.available_at || new Date(row.available_at).getTime() <= Date.now())
           .map(row => row.exercise_set_id).filter(Boolean))];
-        const [resourcesResult, exercisesResult] = await Promise.all([
-          resourceIds.length
-            ? supabase.from("learning_resources").select("subject_name,topic,title").in("id", resourceIds)
-            : Promise.resolve({ data: [] as ModuleSource[] }),
-          releasedExerciseIds.length
-            ? supabase.from("exercise_sets").select("subject_name,title,is_published").in("id", releasedExerciseIds).eq("is_published", true)
-            : Promise.resolve({ data: [] as ModuleSource[] }),
-        ]);
-        for (const row of (resourcesResult.data ?? []) as ModuleSource[]) {
-          if (row.subject_name) found.push(row.subject_name);
-          if (row.topic) found.push(row.topic);
-          if (row.title) found.push(row.title);
+
+        const resourcesResult = resourceIds.length
+          ? await supabase.from("learning_resources").select("subject_name,topic").in("id", resourceIds)
+          : { data: [], error: null };
+        if (resourcesResult.error) throw resourcesResult.error;
+
+        const exercisesResult = releasedExerciseIds.length
+          ? await supabase.from("exercise_sets").select("id,subject_name,is_published").in("id", releasedExerciseIds).eq("is_published", true)
+          : { data: [], error: null };
+        if (exercisesResult.error) throw exercisesResult.error;
+
+        const publishedSetIds = (exercisesResult.data ?? []).map(row => row.id).filter(Boolean);
+        const questionsResult = publishedSetIds.length
+          ? await supabase.from("exercise_questions").select("exercise_set_id,topic,content").in("exercise_set_id", publishedSetIds)
+          : { data: [], error: null };
+        if (questionsResult.error) throw questionsResult.error;
+
+        const next: AssignedLabSource[] = [];
+        for (const row of resourcesResult.data ?? []) {
+          const subjectName = String(row.subject_name ?? "").trim();
+          if (!subjectName || /^uncategorised$|^uncategorized$/i.test(subjectName)) continue;
+          const topics = [String(row.topic ?? "").trim()].filter(Boolean);
+          next.push({ subjectName, topics });
         }
-        for (const row of (exercisesResult.data ?? []) as ModuleSource[]) {
-          if (row.subject_name) found.push(row.subject_name);
-          if (row.title) found.push(row.title);
+        for (const row of exercisesResult.data ?? []) {
+          const subjectName = String(row.subject_name ?? "").trim();
+          if (!subjectName) continue;
+          const topics = (questionsResult.data ?? [])
+            .filter(question => question.exercise_set_id === row.id)
+            .flatMap(question => [String(question.topic ?? "").trim(), readQuestionTopic(question.content)])
+            .filter(Boolean);
+          next.push({ subjectName, topics: [...new Set(topics)] });
         }
+        if (active) setSources(next);
       } catch {
         // Local subject enrolments remain available when assigned-content metadata is offline.
+        if (active) setSources([]);
       }
-      if (active) {
-        setModules([...new Set(found.filter(value => typeof value === "string" && value.trim()).map(value => value.trim()))]);
-        setLoading(false);
-      }
+      if (active) setLoading(false);
     };
     void load();
     const onFocus = () => { if (document.visibilityState === "visible") void load(); };
     window.addEventListener("focus", onFocus);
     return () => { active = false; window.removeEventListener("focus", onFocus); };
   }, [studentId]);
-  return { modules, loading };
+  return { sources, loading };
 }
 
-function buildLabAccess(subjects: Subject[], modules: string[]): LabAccess[] {
+function buildLabAccess(subjects: Subject[], assignedSources: AssignedLabSource[]): LabAccess[] {
   const access = new Map<LabKey, LabAccess>();
   const add = (key: LabKey, source: string, isModule: boolean, scienceAreas: ScienceArea[] = []) => {
     const current = access.get(key) ?? { key, subjects: [], modules: [], scienceAreas: [] };
@@ -155,16 +178,29 @@ function buildLabAccess(subjects: Subject[], modules: string[]): LabAccess[] {
     const match = classifySubject(subject.name, subject.category ?? "");
     for (const key of match.keys) add(key, subject.name, false, match.scienceAreas);
   }
-  for (const moduleName of modules) {
-    const match = classifyAssignedModule(moduleName);
-    for (const key of match.keys) add(key, moduleName, true, match.scienceAreas);
+  for (const source of assignedSources) {
+    const parent = classifyAssignedModule(source.subjectName);
+    if (!parent.keys.length) continue;
+    const topicMatches = source.topics.map(topic => ({ topic, match: classifyAssignedModule(topic) }))
+      .filter(item => item.match.keys.some(key => parent.keys.includes(key)));
+    const topicScienceAreas = [...new Set(topicMatches
+      .filter(item => parent.keys.includes("science"))
+      .flatMap(item => item.match.scienceAreas)
+      .filter(area => !parent.scienceAreas.length || parent.scienceAreas.includes(area)))];
+    const scienceAreas = topicScienceAreas.length ? topicScienceAreas : parent.scienceAreas;
+    for (const key of parent.keys) add(key, source.subjectName, true, key === "science" ? scienceAreas : []);
+    for (const item of topicMatches) {
+      for (const key of item.match.keys.filter(value => parent.keys.includes(value))) {
+        add(key, item.topic, true, key === "science" ? scienceAreas : []);
+      }
+    }
   }
   return [...access.values()].sort((a, b) => labMeta[a.key].title.localeCompare(labMeta[b.key].title));
 }
 
 export default function SubjectLabs({ subjects, studentId }: { subjects: Subject[]; studentId?: string | null }) {
-  const { modules, loading } = useAssignedModules(studentId);
-  const labs = useMemo(() => buildLabAccess(subjects, modules), [subjects, modules]);
+  const { sources, loading } = useAssignedModules(studentId);
+  const labs = useMemo(() => buildLabAccess(subjects, sources), [subjects, sources]);
   const [selected, setSelected] = useState<LabKey | null>(null);
   const activeLab = labs.find(item => item.key === selected);
   useEffect(() => {
