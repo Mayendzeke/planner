@@ -122,11 +122,13 @@ function saveLocal<T>(key: string, value: T) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Indexed cloud copies remain the source of truth. */ }
 }
 function toMaterialPayload(item: LabMaterial) {
-  const { syncStatus: _syncStatus, ...payload } = item;
+  const payload = { ...item };
+  delete payload.syncStatus;
   return payload;
 }
 function toAttemptPayload(item: LabAttempt) {
-  const { syncStatus: _syncStatus, ...payload } = item;
+  const payload = { ...item };
+  delete payload.syncStatus;
   return payload;
 }
 function displayType(value: MaterialType) {
