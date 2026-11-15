@@ -28,6 +28,12 @@ jobs:
         run: node --test scripts/change-student-password-auth.test.mjs
       - name: Verify seven-day free trial and guardian activation
         run: node --test scripts/free-trial-duration.test.mjs
+      - name: Verify subject and assigned-module lab eligibility
+        run: node --test scripts/subject-labs-eligibility.test.mjs
+      - name: Verify the single Secondary High learner level
+        run: node --test scripts/education-level-standard.test.mjs
+      - name: Verify shared StudySpace brand tokens
+        run: node --test scripts/brand-token-protocol.test.mjs
       - name: Report dependency audit
         run: |
           npm audit --json > audit-all.json || true
