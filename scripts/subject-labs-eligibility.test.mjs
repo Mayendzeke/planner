@@ -6,6 +6,12 @@ const source = readFileSync(new URL("../src/components/SubjectLabs.tsx", import.
 const start = source.indexOf("function classifySubject(");
 const end = source.indexOf("function classifyAssignedModule(", start);
 const classifier = source.slice(start, end);
+const scienceStart = source.indexOf("const scienceAliases:");
+const scienceEnd = source.indexOf("const generalScience", scienceStart);
+const scienceAreaBlock = source.slice(scienceStart, scienceEnd);
+const scienceAreaPatterns = [...scienceAreaBlock.matchAll(/:\s*\/(.*?)\/i/g)].map(match => new RegExp(match[1], "i"));
+const generalScienceSource = source.match(/const generalScience = \/(.*?)\/i/)?.[1] || "";
+const generalSciencePattern = new RegExp(generalScienceSource, "i");
 
 test("lab access is determined by the enrolled subject name, not its editable category", () => {
   assert.match(source, /classifySubject\(subject\.name\)/);
@@ -13,9 +19,18 @@ test("lab access is determined by the enrolled subject name, not its editable ca
   assert.doesNotMatch(classifier, /const combined = value \+ " " \+ category/);
 });
 
-test("Science Lab requires a recognised discipline or explicit general Science course", () => {\n  assert.match(classifier, /const hasExperimentalScience = areas.length > 0 \|\| isGeneralScience/);\n  assert.match(classifier, /key === "science" && !hasExperimentalScience/);\n});\n\ntest("computing, agriculture-labelled and social-science subjects do not unlock the experimental Science Lab", () => {
-  for (const excluded of ["computer science", "data science", "information science", "library science", "social science", "political science", "agricultural science"]) {
-    assert.ok(classifier.toLowerCase().includes(excluded), "explicitly exclude " + excluded);
+test("Science Lab requires a recognised discipline or explicit general Science course", () => {
+  assert.match(classifier, /const hasExperimentalScience = areas.length > 0 \|\| isGeneralScience/);
+  assert.match(classifier, /key === "science" && !hasExperimentalScience/);
+});
+
+test("non-laboratory science-labelled subjects do not meet Science Lab eligibility", () => {
+  for (const title of [
+    "Computer Science", "Data Science", "Information Science", "Library Science",
+    "Social Science", "Political Science", "Agricultural Science"
+  ]) {
+    assert.equal(scienceAreaPatterns.some(pattern => pattern.test(title)), false, title + " must not match an experimental science discipline");
+    assert.equal(generalSciencePattern.test(title.trim().toLowerCase()), false, title + " must not match general Science");
   }
 });
 
