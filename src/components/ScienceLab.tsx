@@ -92,7 +92,7 @@ const toolSets: Record<ScienceArea, {label:Tool;description:string;icon:typeof A
     {label:"Optics",description:"Thin lenses and magnification",icon:Activity},
   ],
   chemistry: [
-    {label:"Element explorer",description:"Explore the first 36 elements",icon:Atom},
+    {label:"Element explorer",description:"Explore all 118 elements",icon:Atom},
     {label:"Molar mass",description:"Calculate formula mass",icon:Calculator},
     {label:"Solutions & pH",description:"Concentration, dilution and pH",icon:FlaskConical},
     {label:"Equation balancer",description:"Conserve atoms in reactions",icon:Activity},
@@ -164,8 +164,6 @@ export default function ScienceLab() {
   const molecularMass=molarMass(formula);
   const pH=-Math.log10(Math.max(solutionData.hydrogen,1e-14));
   const solutionMoles=solutionData.concentration*(solutionData.volume/1000);
-  const diluted=solutionData.stock*solutionData.target;
-  const finalVolume=solutionData.stock>0?diluted/Math.max(solutionData.concentration,1e-9):0;
   const balanced=useMemo(()=>balanceEquation(equation),[equation]);
   const punnett=useMemo(()=>{
     const a=genetics.parentOne.trim().toUpperCase(), b=genetics.parentTwo.trim().toUpperCase();
