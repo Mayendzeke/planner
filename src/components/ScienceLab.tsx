@@ -4,28 +4,14 @@ import {
   Leaf, Microscope, Waves, Zap, ShieldAlert, Calculator, RotateCcw,
 } from "lucide-react";
 import { useLabWorkspace, type LabArea, type LabAssignment } from "../lib/useLabWorkspace";
+import { periodicElements } from "../data/periodicTable";
 
 type ScienceArea = Exclude<LabArea, "maths">;
 type Tool = "Motion" | "Forces" | "Energy" | "Circuits" | "Waves" | "Optics" |
   "Element explorer" | "Molar mass" | "Solutions & pH" | "Equation balancer" |
   "Cell biology" | "Genetics" | "DNA analysis" | "Ecology";
 
-const elementRows = [
-  [1,"H","Hydrogen",1.008],[2,"He","Helium",4.0026],[3,"Li","Lithium",6.94],[4,"Be","Beryllium",9.0122],
-  [5,"B","Boron",10.81],[6,"C","Carbon",12.011],[7,"N","Nitrogen",14.007],[8,"O","Oxygen",15.999],
-  [9,"F","Fluorine",18.998],[10,"Ne","Neon",20.18],[11,"Na","Sodium",22.99],[12,"Mg","Magnesium",24.305],
-  [13,"Al","Aluminium",26.982],[14,"Si","Silicon",28.085],[15,"P","Phosphorus",30.974],[16,"S","Sulfur",32.06],
-  [17,"Cl","Chlorine",35.45],[18,"Ar","Argon",39.948],[19,"K","Potassium",39.098],[20,"Ca","Calcium",40.078],
-  [21,"Sc","Scandium",44.956],[22,"Ti","Titanium",47.867],[23,"V","Vanadium",50.942],[24,"Cr","Chromium",51.996],
-  [25,"Mn","Manganese",54.938],[26,"Fe","Iron",55.845],[27,"Co","Cobalt",58.933],[28,"Ni","Nickel",58.693],
-  [29,"Cu","Copper",63.546],[30,"Zn","Zinc",65.38],[31,"Ga","Gallium",69.723],[32,"Ge","Germanium",72.63],
-  [33,"As","Arsenic",74.922],[34,"Se","Selenium",78.971],[35,"Br","Bromine",79.904],[36,"Kr","Krypton",83.798],
-] as const;
-const masses: Record<string, number> = {
-  H:1.008,He:4.0026,Li:6.94,Be:9.0122,B:10.81,C:12.011,N:14.007,O:15.999,F:18.998,Ne:20.18,
-  Na:22.99,Mg:24.305,Al:26.982,Si:28.085,P:30.974,S:32.06,Cl:35.45,Ar:39.948,K:39.098,Ca:40.078,
-  Fe:55.845,Cu:63.546,Zn:65.38,Ag:107.868,Au:196.967
-};
+const masses: Record<string, number> = Object.fromEntries(periodicElements.map(item=>[item.symbol,item.mass]));
 
 function parseFormula(formula: string): Record<string, number> | null {
   const source = formula.replace(/\s+/g, "");
@@ -174,7 +160,7 @@ export default function ScienceLab() {
     }
   },[area,active.loaded,active.workRows]);
 
-  const water=elementRows.find(item=>item[0]===selectedElement)!;
+  const element=periodicElements.find(item=>item.number===selectedElement)!;
   const molecularMass=molarMass(formula);
   const pH=-Math.log10(Math.max(solutionData.hydrogen,1e-14));
   const solutionMoles=solutionData.concentration*(solutionData.volume/1000);
@@ -237,7 +223,7 @@ export default function ScienceLab() {
 
       {area==="physics"&&tool==="Optics"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">THIN LENS MODEL</span><h3>Image distance and magnification</h3><p>Use the thin-lens equation. Object distance must be greater than zero and focal length cannot be zero.</p><div className="science-fields"><NumberField label="Focal length" value={physicsData.focalLength} onChange={v=>changePhysics("focalLength",Math.max(.01,v))} unit="cm"/><NumberField label="Object distance" value={physicsData.objectDistance} onChange={v=>changePhysics("objectDistance",Math.max(.01,v))} unit="cm"/></div><div className="science-equation">1/f = 1/u + 1/v</div></section><aside className="science-results"><Result label="Image distance" value={(1/(1/physicsData.focalLength-1/physicsData.objectDistance)||0).toFixed(2)+" cm"} detail="Negative values indicate a virtual image"/><Result label="Magnification" value={(-(1/(1/physicsData.focalLength-1/physicsData.objectDistance)||0)/physicsData.objectDistance).toFixed(2)+" ×"} detail="m = −v/u"/><Result label="Image type" value={physicsData.objectDistance>physicsData.focalLength?"Real (for a converging lens)":"Virtual / boundary case"} detail="Assumes a thin converging lens"/></aside></div>}
 
-      {area==="chemistry"&&tool==="Element explorer"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">PERIODIC TABLE EXPLORER</span><h3>Choose an element to inspect</h3><p>Explore atomic number, relative atomic mass and basic atomic structure for the first 36 elements.</p><div className="science-periodic-grid">{elementRows.map(item=><button key={item[0]} className={selectedElement===item[0]?"active":""} onClick={()=>setSelectedElement(item[0])}><small>{item[0]}</small><strong>{item[1]}</strong><span>{item[2]}</span></button>)}</div></section><aside className="science-results"><div className="science-element-focus"><span>{water[0]}</span><strong>{water[1]}</strong><b>{water[2]}</b><small>Relative atomic mass {water[3]}</small></div><Result label="Protons" value={String(water[0])} detail="Atomic number"/><Result label="Electrons (neutral atom)" value={String(water[0])} detail="Equal to protons"/><Result label="Neutrons (approx.)" value={String(Math.max(0,Math.round(water[3])-water[0]))} detail="Rounded mass number − atomic number"/></aside></div>}
+      {area==="chemistry"&&tool==="Element explorer"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">PERIODIC TABLE EXPLORER</span><h3>Choose an element to inspect</h3><p>Explore all 118 recognised elements, their atomic data, categories, phases and electron configurations.</p><div className="science-periodic-grid">{periodicElements.map(item=><button key={item.number} style={{gridColumnStart:item.group,gridRowStart:item.period}} className={selectedElement===item.number?"active":""} onClick={()=>setSelectedElement(item.number)}><small>{item.number}</small><strong>{item.symbol}</strong><span>{item.name}</span></button>)}</div></section><aside className="science-results"><div className="science-element-focus"><span>{element.number}</span><strong>{element.symbol}</strong><b>{element.name}</b><small>Relative atomic mass {element.mass}</small><small>{element.category} · {element.phase}</small><small>Group {element.group} · Period {element.period}</small><small>{element.electronConfiguration||"Electron configuration not listed"}</small></div><Result label="Protons" value={String(element.number)} detail="Atomic number"/><Result label="Electrons (neutral atom)" value={String(water[0])} detail="Equal to protons"/><Result label="Neutrons (approx.)" value={String(Math.max(0,Math.round(element.mass)-element.number))} detail="Rounded mass number − atomic number"/></aside></div>}
 
       {area==="chemistry"&&tool==="Molar mass"&&<div className="science-workspace"><section className="science-card"><span className="eyebrow">FORMULA MASS CALCULATOR</span><h3>Calculate molar mass</h3><p>Enter a chemical formula such as H₂O, CO₂, Ca(OH)₂ or C₆H₁₂O₆. Parentheses and subscripts are supported for elements in the built-in mass table.</p><label className="science-text-field">Chemical formula<input value={formula} onChange={event=>setFormula(event.target.value)} placeholder="e.g. Ca(OH)2"/></label><div className="science-equation">M = Σ (number of atoms × relative atomic mass)</div></section><aside className="science-results"><Result label="Molar mass" value={molecularMass===null?"Check formula":molecularMass.toFixed(3)+" g/mol"} detail={molecularMass===null?"Use valid element symbols and subscripts":"Calculated from relative atomic masses"}/><Result label="Formula" value={formula||"—"} detail="Chemical composition"/></aside></div>}
 
