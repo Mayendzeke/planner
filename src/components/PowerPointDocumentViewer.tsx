@@ -1,8 +1,8 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, useState, type ErrorInfo, type ReactNode } from "react";
 import { ReactPptxViewer } from "@extend-ai/react-pptx";
 import "@extend-ai/react-pptx/styles.css";
 
-type ViewerErrorBoundaryProps = { children: ReactNode };
+type ViewerErrorBoundaryProps = { children: ReactNode; onRetry: () => void };
 type ViewerErrorBoundaryState = { hasError: boolean };
 
 class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
@@ -21,7 +21,8 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
       return (
         <div className="library-viewer-unsupported" role="alert">
           <strong>This presentation could not be rendered here.</strong>
-          <p>The original file is still available from the Download button above. Open it in PowerPoint or another compatible presentation app for the complete experience.</p>
+          <p>The file may contain damaged or unsupported content. Your original is still available from the Download button.</p>
+          <button type="button" className="primary-button" onClick={this.props.onRetry}>Retry preview</button>
         </div>
       );
     }
@@ -30,20 +31,31 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
 }
 
 export default function PowerPointDocumentViewer({ file }: { file: Blob }) {
+  const [retryKey, setRetryKey] = useState(0);
+  const [hasDegradedSlides, setHasDegradedSlides] = useState(false);
+
   return (
-    <div className="library-powerpoint-viewer">
+    <div className="library-powerpoint-viewer" aria-label="PowerPoint presentation viewer">
       <div className="library-preview-note">
         <span aria-hidden="true">▣</span>
-        <span>Browse slides with the thumbnail rail and toolbar. Move between slides, adjust zoom and search supported slide text. Some PowerPoint animations may appear as still content.</span>
+        <span>Use the slide thumbnails, navigation, search and zoom tools to explore your presentation. Choose Landscape full screen for a larger reading canvas.</span>
       </div>
+      {hasDegradedSlides && (
+        <div className="library-powerpoint-warning" role="status">
+          Some advanced effects or embedded objects may look different in a browser. The original PowerPoint remains available to download.
+        </div>
+      )}
       <div className="library-powerpoint-viewer-stage">
-        <ViewerErrorBoundary>
+        <ViewerErrorBoundary key={retryKey} onRetry={() => { setHasDegradedSlides(false); setRetryKey(value => value + 1); }}>
           <ReactPptxViewer
             source={file}
             mode="continuous"
-            defaultZoom="fit-width"
+            defaultZoom="fit-page"
             showThumbnails
             showToolbar
+            onWarning={(warning) => {
+              if (warning.code === "degraded-rendering") setHasDegradedSlides(true);
+            }}
           />
         </ViewerErrorBoundary>
       </div>
