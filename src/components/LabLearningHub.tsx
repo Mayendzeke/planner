@@ -660,7 +660,7 @@ function buildWeakTopics(attempts: LabAttempt[]) {
   return [...byTopic.values()].sort((a,b)=>a.latest-b.latest).slice(0,8);
 }
 
-function MaterialCard({ item, onOpen, onPractice, onTimed, onFavourite }: {
+function MaterialCard({ item, onOpen, onPractice, onTimed, onExam, onFavourite }: {
   item: LabMaterial; onOpen:()=>void; onPractice:()=>void; onTimed?:()=>void; onExam?:()=>void; onFavourite?:()=>void;
 }) {
   return <article className="lab-hub-material-card">
@@ -670,7 +670,7 @@ function MaterialCard({ item, onOpen, onPractice, onTimed, onFavourite }: {
   </article>;
 }
 
-function MaterialDetail({ item, flashcardIndex, flashcardFlipped, setFlashcardIndex, setFlashcardFlipped, onBack, onPractice, onTimed, onFavourite, onDownload, onDelete }: {
+function MaterialDetail({ item, flashcardIndex, flashcardFlipped, setFlashcardIndex, setFlashcardFlipped, onBack, onPractice, onTimed, onExam, onFavourite, onDownload, onDelete }: {
   item:LabMaterial; flashcardIndex:number; flashcardFlipped:boolean; setFlashcardIndex:(value:number)=>void; setFlashcardFlipped:(value:boolean)=>void;
   onBack:()=>void; onPractice:()=>void; onTimed:()=>void; onExam:()=>void; onFavourite:()=>void; onDownload:()=>void; onDelete:()=>void;
 }) {
