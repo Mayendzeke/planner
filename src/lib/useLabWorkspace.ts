@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 
 export type LabArea = "maths" | "physics" | "chemistry" | "biology";
@@ -46,6 +46,7 @@ function writeCache(userId: string, area: LabArea, rows: LabWorkRow[]) {
 
 export function useLabWorkspace(area: LabArea) {
   const [workRows, setWorkRows] = useState<LabWorkRow[]>([]);
+  const workRowsRef = useRef<LabWorkRow[]>([]);
   const [assignments, setAssignments] = useState<LabAssignment[]>([]);
   const [control, setControl] = useState<LabControl>({ lab_area: area, enabled: true, student_message: "" });
   const [loaded, setLoaded] = useState(false);
@@ -67,6 +68,7 @@ export function useLabWorkspace(area: LabArea) {
         if (!active) return;
         setLearnerId(userId);
         const cached = readCache(userId, area);
+        workRowsRef.current = cached;
         setWorkRows(cached);
         const [workResult, assignmentResult, controlResult] = await Promise.all([
           supabase.from("student_lab_work").select("*").eq("learner_id", userId).eq("lab_area", area),
@@ -84,6 +86,7 @@ export function useLabWorkspace(area: LabArea) {
           if (!local || Date.parse(row.updated_at) >= Date.parse(local.updated_at || "")) byKey.set(row.activity_key, row);
         }
         const merged = Array.from(byKey.values());
+        workRowsRef.current = merged;
         setWorkRows(merged);
         writeCache(userId, area, merged);
         setAssignments((assignmentResult.data || []) as LabAssignment[]);
@@ -98,6 +101,7 @@ export function useLabWorkspace(area: LabArea) {
             setWorkRows(current => {
               const updated = current.filter(item => item.activity_key !== next.activity_key);
               if (payload.eventType !== "DELETE") updated.push(next);
+              workRowsRef.current = updated;
               writeCache(userId, area, updated);
               return updated;
             });
@@ -132,7 +136,7 @@ export function useLabWorkspace(area: LabArea) {
     status: LabWorkRow["status"] = "in_progress",
   ) => {
     const updatedAt = new Date().toISOString();
-    const existing = workRows.find(item => item.activity_key === activityKey);
+    const existing = workRowsRef.current.find(item => item.activity_key === activityKey);
     const effectiveStatus = status === "in_progress" && existing?.status === "submitted" ? "submitted" : status;
     const row: LabWorkRow = {
       learner_id: learnerId,
@@ -145,13 +149,10 @@ export function useLabWorkspace(area: LabArea) {
       last_accessed_at: updatedAt,
       updated_at: updatedAt,
     };
-    if (learnerId) {
-      setWorkRows(current => {
-        const next = [...current.filter(item => item.activity_key !== activityKey), row];
-        writeCache(learnerId, area, next);
-        return next;
-      });
-    }
+    const nextRows = [...workRowsRef.current.filter(item => item.activity_key !== activityKey), row];
+    workRowsRef.current = nextRows;
+    setWorkRows(nextRows);
+    writeCache(learnerId || "guest", area, nextRows);
     if (!supabase || !learnerId || !navigator.onLine) {
       setSyncState("offline");
       return false;
@@ -165,7 +166,7 @@ export function useLabWorkspace(area: LabArea) {
     }
     setSyncState("synced");
     return true;
-  }, [area, learnerId, workRows]);
+  }, [area, learnerId]);
 
   const submitWork = useCallback(async (activityKey: string) => {
     const existing = workRows.find(item => item.activity_key === activityKey);
