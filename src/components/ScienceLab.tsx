@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity, Atom, BookOpen, CheckCircle2, ClipboardCheck, Dna, FlaskConical,
   Leaf, Microscope, Waves, Zap, ShieldAlert, Calculator, RotateCcw,
