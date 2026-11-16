@@ -377,6 +377,21 @@ export default function LabLearningHub({
     await sync();
   }, [studentId, storageKey]);
 
+  useEffect(() => {
+    const flush = () => {
+      const current = attemptRef.current;
+      if (current) void persistAttempt(current, true);
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      for (const timer of saveTimersRef.current.values()) window.clearTimeout(timer);
+      saveTimersRef.current.clear();
+      const current = attemptRef.current;
+      if (current?.status === "in_progress") void persistAttempt(current, true);
+    };
+  }, [persistAttempt]);
+
   const generate = async (override?: Partial<CreateForm>) => {
     if (!studentId || !supabase) { setError("Sign in to generate and save Lab materials."); return; }
     const draft = { ...form, ...override };
