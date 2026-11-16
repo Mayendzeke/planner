@@ -346,11 +346,12 @@ export default function LabLearningHub({
       saveLocal(storageKey + ":attempts", next);
       return next;
     });
-    if (!supabase || !studentId || !navigator.onLine) return;
+    const client = supabase;
+    if (!client || !studentId || !navigator.onLine) return;
     const sync = async () => {
       const previous = saveQueuesRef.current.get(item.id) ?? Promise.resolve();
       const queued = previous.catch(() => undefined).then(async () => {
-        const { error: saveError } = await supabase.from("lab_practice_attempts").upsert(toAttemptPayload(item));
+        const { error: saveError } = await client.from("lab_practice_attempts").upsert(toAttemptPayload(item));
         if (saveError) return;
         setAttempts(current => {
           const next = current.map(value => value.id === item.id
