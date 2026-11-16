@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import "./LabGraphSheet.css";
 
 export type LabGraphCurve = { label: string; evaluate: (x: number) => number | null };
+export type LabGraphPoint = { x: number; y: number; label: string };
 export type LabGraphConfig = {
   title: string;
   xMin: number;
@@ -13,6 +14,7 @@ export type LabGraphConfig = {
   yLabel?: string;
   unitNote?: string;
   curves: LabGraphCurve[];
+  points?: LabGraphPoint[];
 };
 export type LabNumberLineConfig = { boundary: number; direction: "left" | "right"; inclusive?: boolean };
 
@@ -61,6 +63,7 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
     return { xMin, xMax, yMin: graph?.yMin ?? observedMin - padding, yMax: graph?.yMax ?? observedMax + padding };
   }, [graph, numberLine]);
   useEffect(() => { setView(initial); }, [initial]);
+  const graphId = useId().replace(/:/g, "");
   const [view, setView] = useState<View>(initial);
   const [resetKey, setResetKey] = useState(0);
   const xTicks = useMemo(() => ticks(view.xMin, view.xMax), [view.xMin, view.xMax]);
@@ -97,11 +100,11 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
     const map = (value: number) => 54 + ((value - min) / (max - min)) * 792;
     const boundaryX = map(numberLine.boundary);
     return <section className={"lab-graph-sheet " + (compact ? "is-compact" : "")} aria-label="Interactive number line">
-      <header className="lab-graph-head"><div><span>INTERACTIVE GRAPH SHEET</span><h4>Number-line solution</h4><p>Zoom and move the number line to inspect the boundary and solution region.</p></div><div className="lab-graph-controls"><button type="button" onClick={() => adjust(.75)} aria-label="Zoom in"><ZoomIn/></button><button type="button" onClick={() => adjust(1.35)} aria-label="Zoom out"><ZoomOut/></button><button type="button" onClick={reset} aria-label="Reset graph"><RotateCcw/></button></div></header>
+      <header className="lab-graph-head"><div><span>INTERACTIVE GRAPH SHEET</span><h4>Number-line solution</h4><p>Zoom and move the number line to inspect the boundary and solution region.</p></div><div className="lab-graph-controls"><button type="button" onClick={() => adjust(.75)} aria-label="Zoom in"><ZoomIn/></button><button type="button" onClick={() => adjust(1.35)} aria-label="Zoom out"><ZoomOut/></button><button type="button" onClick={() => adjust(1, -.15, 0)} aria-label="Pan left"><ArrowLeft/></button><button type="button" onClick={() => adjust(1, .15, 0)} aria-label="Pan right"><ArrowRight/></button><button type="button" onClick={reset} aria-label="Reset graph"><RotateCcw/></button></div></header>
       <div className="lab-graph-canvas"><svg viewBox="0 0 900 180" role="img" aria-label={numberLine.direction === "left" ? "Solution extends left from the boundary" : "Solution extends right from the boundary"}>
-        <defs><marker id={"number-arrow-" + resetKey} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" className="lab-graph-arrow"/></marker></defs>
+        <defs><marker id={graphId + "-number-arrow-" + resetKey} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" className="lab-graph-arrow"/></marker></defs>
         <line x1="54" y1="82" x2="846" y2="82" className="lab-graph-axis"/>
-        <line x1={numberLine.direction === "left" ? boundaryX : 54} y1="82" x2={numberLine.direction === "left" ? 54 : boundaryX} y2="82" className="lab-graph-solution" markerEnd={"url(#number-arrow-" + resetKey + ")"} />
+        <line x1={numberLine.direction === "left" ? boundaryX : 54} y1="82" x2={numberLine.direction === "left" ? 54 : boundaryX} y2="82" className="lab-graph-solution" markerEnd={"url(#" + graphId + "-number-arrow-" + resetKey + ")"} />
         {ticks(min, max).map(value => <g key={value}><line x1={map(value)} y1="73" x2={map(value)} y2="91" className="lab-graph-tick"/><text x={map(value)} y="112" className="lab-graph-tick-label" textAnchor="middle">{label(value)}</text></g>)}
         <circle cx={boundaryX} cy="82" r="8" className={numberLine.inclusive ? "lab-graph-closed-point" : "lab-graph-open-point"}/>
         <text x={boundaryX} y="48" className="lab-graph-axis-label" textAnchor="middle">{label(numberLine.boundary)} {numberLine.inclusive ? "included" : "excluded"}</text>
@@ -122,13 +125,14 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
       <button type="button" onClick={reset} aria-label="Reset graph" title="Reset graph"><RotateCcw/></button>
     </div></header>
     <div className="lab-graph-canvas"><svg viewBox={"0 0 " + WIDTH + " " + HEIGHT} role="img" aria-label={graph.title + ". Interactive coordinate plane."}>
-      <defs><clipPath id={"lab-graph-clip-" + resetKey}><rect x={MARGIN.left} y={MARGIN.top} width={plotWidth} height={plotHeight}/></clipPath></defs>
+      <defs><clipPath id={graphId + "-lab-graph-clip-" + resetKey}><rect x={MARGIN.left} y={MARGIN.top} width={plotWidth} height={plotHeight}/></clipPath></defs>
       <rect x={MARGIN.left} y={MARGIN.top} width={plotWidth} height={plotHeight} className="lab-graph-plot-bg"/>
       {xTicks.map(value => <g key={"x"+value}><line x1={px(value)} y1={MARGIN.top} x2={px(value)} y2={HEIGHT-MARGIN.bottom} className="lab-graph-grid"/><text x={px(value)} y={HEIGHT-MARGIN.bottom+23} className="lab-graph-tick-label" textAnchor="middle">{label(value)}</text></g>)}
       {yTicks.map(value => <g key={"y"+value}><line x1={MARGIN.left} y1={py(value)} x2={WIDTH-MARGIN.right} y2={py(value)} className="lab-graph-grid"/><text x={MARGIN.left-12} y={py(value)+4} className="lab-graph-tick-label" textAnchor="end">{label(value)}</text></g>)}
       {zeroX !== null && <line x1={zeroX} y1={MARGIN.top} x2={zeroX} y2={HEIGHT-MARGIN.bottom} className="lab-graph-axis"/>}
       {zeroY !== null && <line x1={MARGIN.left} y1={zeroY} x2={WIDTH-MARGIN.right} y2={zeroY} className="lab-graph-axis"/>}
-      <g clipPath={"url(#lab-graph-clip-" + resetKey + ")"}>{paths.map((item,index)=><path key={item.label} d={item.d} className={"lab-graph-curve curve-" + (index % 4)} />)}</g>
+      <g clipPath={"url(#" + graphId + "-lab-graph-clip-" + resetKey + ")"}>{paths.map((item,index)=><path key={item.label} d={item.d} className={"lab-graph-curve curve-" + (index % 4)} />)}</g>
+      {(graph.points ?? []).filter(point => point.x >= view.xMin && point.x <= view.xMax && point.y >= view.yMin && point.y <= view.yMax).map((point,index)=><g key={point.label + index}><circle cx={px(point.x)} cy={py(point.y)} r="6" className="lab-graph-solution-point"/><text x={px(point.x)+9} y={py(point.y)-10} className="lab-graph-point-label">{point.label}</text></g>)}
       <text x={WIDTH/2} y={HEIGHT-12} className="lab-graph-axis-label" textAnchor="middle">{graph.xLabel || "x"}</text>
       <text x="18" y={HEIGHT/2} className="lab-graph-axis-label" textAnchor="middle" transform={"rotate(-90 18 " + HEIGHT/2 + ")"}>{graph.yLabel || "y"}</text>
     </svg></div>
