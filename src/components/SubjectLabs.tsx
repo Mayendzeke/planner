@@ -522,8 +522,9 @@ function ComputingLab() {
   const [numbers, setNumbers] = useState("8, 3, 6, 1, 5");
   const binary = decimal.toString(2).padStart(8, "0");
   const logic = gate==="AND"?left&&right:gate==="OR"?left||right:gate==="XOR"?left!==right:!(left&&right);
-  const parsed = numbers.split(",").map(value=>Number(value.trim()));
-  const valid = parsed.length>0 && parsed.length<=20 && parsed.every(Number.isFinite);
+  const numberTokens = numbers.split(",").map(value => value.trim());
+  const parsed = numberTokens.map(Number);
+  const valid = numberTokens.length > 0 && numberTokens.length <= 20 && numberTokens.every(value => value.length > 0 && Number.isFinite(Number(value)));
   const sortTrace = valid ? (() => {
     const values = [...parsed];
     let comparisons = 0;
