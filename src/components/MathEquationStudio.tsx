@@ -135,7 +135,7 @@ function guidanceForMethod(method: string, topic: Topic): string {
   return "Choose a valid sequence of equivalent transformations, state any restrictions, and verify your final solution in the original equation.";
 }
 
-export default function MathEquationStudio({ subjectName = "Mathematics" }: { subjectName?: string }) {
+export default function MathEquationStudio({ subjectName = "Mathematics", studentId }: { subjectName?: string; studentId?: string | null }) {
   const [pathway, setPathway] = useState<Pathway>("High School");
   const [topic, setTopic] = useState<Topic>("linear");
   const [difficulty, setDifficulty] = useState<"guided" | "independent" | "challenge">("guided");
@@ -208,6 +208,34 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
     window.addEventListener("online", onOnline);
     return () => { active = false; window.removeEventListener("online", onOnline); };
   }, [learnerHistoryKey, pendingHistoryKey, subjectName]);
+  useEffect(() => {
+    if (!studentId || !supabase) return;
+    let active = true;
+    void supabase.from("profiles").select("education_level").eq("id", studentId).maybeSingle().then(({ data, error }) => {
+      if (!active || error || !data?.education_level) return;
+      const raw = String(data.education_level).trim().toLowerCase();
+      const matched: Pathway | undefined = raw === "primary" ? "Primary"
+        : raw === "secondary high" ? "Secondary High"
+        : raw === "high school" ? "High School"
+        : raw === "matric" ? "Matric"
+        : ["tertiary", "university", "college", "certificate", "diploma", "bachelor", "masters", "phd"].some(value => raw.includes(value)) ? "Tertiary" : undefined;
+      if (!matched) return;
+      const preferredTopic: Topic = matched === "Primary" ? "arithmetic" : topic;
+      const nextTopic = topics.find(item => item.id === preferredTopic && item.pathways.includes(matched))?.id ?? topics.find(item => item.pathways.includes(matched))!.id;
+      setPathway(matched);
+      setTopic(nextTopic);
+      const generated = createProblem(nextTopic, matched, difficulty);
+      setProblem(generated);
+      setMethod(generated.methods[0]);
+      setAnswer("");
+      setChecked(false);
+      setShowHint(matched === "Primary");
+      setShowSteps(false);
+      setStartedAt(Date.now());
+    });
+    return () => { active = false; };
+  }, [studentId]);
+
   useEffect(() => {
     if (!topics.find(item => item.id === topic)?.pathways.includes(pathway)) {
       const next = topics.find(item => item.pathways.includes(pathway));
