@@ -39,6 +39,10 @@ jobs:
         run: node --test scripts/subject-labs-eligibility.test.mjs
       - name: Verify the shared Labs learning ecosystem
         run: node --test scripts/lab-ecosystem-contract.test.mjs
+      - name: Verify the Mathematics Equation Studio
+        run: node --test scripts/math-equation-studio.test.mjs
+      - name: Verify adaptive Lab spaced revision
+        run: node --test scripts/lab-spaced-review.test.mjs
       - name: Verify the single Secondary High learner level
         run: node --test scripts/education-level-standard.test.mjs
       - name: Verify shared StudySpace brand tokens

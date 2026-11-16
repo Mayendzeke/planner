@@ -181,7 +181,7 @@ export default function LabLearningHub({
   subjectOptions: string[];
 }) {
   const availableSubjects = useMemo(() => [...new Set(subjectOptions.map(value => value.trim()).filter(Boolean))], [subjectOptions]);
-  const [tab, setTab] = useState<"home" | "create" | "practice" | "library" | "progress">("home");
+  const [tab, setTab] = useState<"home" | "create" | "practice" | "library" | "review" | "progress">("home");
   const [materials, setMaterials] = useState<LabMaterial[]>([]);
   const [attempts, setAttempts] = useState<LabAttempt[]>([]);
   const [loading, setLoading] = useState(Boolean(studentId));
@@ -533,12 +533,14 @@ export default function LabLearningHub({
   const submittedAttempts = attempts.filter(item => item.status === "submitted");
   const average = submittedAttempts.length ? Math.round(submittedAttempts.reduce((sum,item) => sum + Number(item.percentage || 0),0) / submittedAttempts.length) : 0;
   const best = submittedAttempts.length ? Math.max(...submittedAttempts.map(item => Number(item.percentage || 0))) : 0;
+  const reviewQueue = useMemo(() => buildReviewQueue(submittedAttempts), [attempts]);
 
   const tabItems = [
     { value:"home", label:"Overview", icon:Sparkles },
     { value:"create", label:"Create", icon:Plus },
     { value:"practice", label:"Practice", icon:Target },
     { value:"library", label:"My Library", icon:Library },
+    { value:"review", label:"Review", icon:Clock3 },
     { value:"progress", label:"Progress", icon:Trophy },
   ] as const;
 
@@ -637,6 +639,26 @@ export default function LabLearningHub({
       </>}
     </section>}
 
+    {tab === "review" && <section className="lab-hub-progress">
+      <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">SPACED REVISION</span><h3>Your review schedule</h3><p>Topics return at sensible intervals based on your latest practice result. Stronger recall earns a longer gap; difficult topics return sooner.</p></div></div>
+      {reviewQueue.length ? <div className="lab-review-queue">{reviewQueue.slice(0,12).map(item => {
+        const material = materials.find(value => norm(value.subject_name) === norm(item.subject) && norm(value.topic) === norm(item.topic) && (value.content.questions?.length ?? 0) > 0);
+        const days = Math.max(0, Math.ceil((Date.parse(item.nextReviewAt) - Date.now()) / 86400000));
+        const due = days === 0;
+        return <article className="lab-review-card" key={norm(item.subject)+":"+norm(item.topic)}>
+          <div><span className={due ? "lab-review-status is-due" : "lab-review-status"}>{due ? "Review due" : "Coming up"}</span><strong>{item.topic}</strong><small>{item.subject} · {item.attempts} completed attempts · latest score {item.latest}%</small><small>{due ? "Scheduled for review now" : "Next review: " + new Date(item.nextReviewAt).toLocaleDateString() + " · " + days + " day(s)"}</small></div>
+          <button type="button" className="lab-hub-primary small" onClick={() => {
+            if (material) void startAttempt(material);
+            else {
+              setForm(current => ({ ...current, subjectName: item.subject, topic: item.topic, materialType: "practice_quiz", difficulty: item.latest < 60 ? "foundation" : "mixed" }));
+              setTab("create");
+              setMessage("Create a fresh review quiz for " + item.topic + ".");
+            }
+          }}>{material ? "Review now" : "Create review quiz"} <ChevronRight size={14}/></button>
+        </article>;
+      })}</div> : <EmptyState icon={<Clock3 size={22}/>} title="Your review schedule will appear here" text="Complete a practice set. StudySpace will schedule the next revision based on how well you did." action="Start practising" onClick={() => setTab("practice")}/>}
+    </section>}
+
     {tab === "progress" && <section className="lab-hub-progress">
       <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR LEARNING ANALYTICS</span><h3>Progress and improvement</h3><p>Only your personal Lab practice is included here. Official assessment grades remain elsewhere.</p></div></div>
       <div className="lab-hub-progress-metrics"><article><span>Attempts completed</span><strong>{submittedAttempts.length}</strong></article><article><span>Average score</span><strong>{average}%</strong></article><article><span>Personal best</span><strong>{best}%</strong></article><article><span>Materials created</span><strong>{materials.length}</strong></article></div>
@@ -646,6 +668,33 @@ export default function LabLearningHub({
       </> : <EmptyState icon={<Trophy size={22}/>} title="Your progress starts with one attempt" text="Complete a practice set to see your average, personal best and topics that deserve another look." action="Start practising" onClick={()=>setTab("practice")}/>}
     </section>}
   </section>;
+}
+
+function buildReviewQueue(attempts: LabAttempt[]) {
+  const grouped = new Map<string, LabAttempt[]>();
+  for (const attempt of attempts.filter(item => item.status === "submitted")) {
+    const key = norm(attempt.subject_name) + ":" + norm(attempt.topic);
+    grouped.set(key, [...(grouped.get(key) ?? []), attempt]);
+  }
+  return [...grouped.values()].map(history => {
+    const ordered = [...history].sort((a,b) => b.created_at.localeCompare(a.created_at));
+    const latest = ordered[0];
+    const score = Number(latest.percentage ?? 0);
+    let consecutiveStrong = 0;
+    for (const item of ordered) {
+      if (Number(item.percentage ?? 0) < 90) break;
+      consecutiveStrong++;
+    }
+    const intervalDays = consecutiveStrong >= 3 ? 30 : score < 60 ? 1 : score < 75 ? 3 : score < 90 ? 7 : 14;
+    return {
+      subject: latest.subject_name,
+      topic: latest.topic,
+      latest: score,
+      attempts: history.length,
+      intervalDays,
+      nextReviewAt: new Date(Date.parse(latest.submitted_at || latest.created_at) + intervalDays * 86400000).toISOString(),
+    };
+  }).sort((a,b) => Date.parse(a.nextReviewAt) - Date.parse(b.nextReviewAt));
 }
 
 function buildWeakTopics(attempts: LabAttempt[]) {
