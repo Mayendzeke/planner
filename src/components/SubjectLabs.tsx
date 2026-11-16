@@ -10,6 +10,7 @@ import MathsLab from "./MathsLab";
 import MathEquationStudio from "./MathEquationStudio";
 import AssignedLabPracticals from "./AssignedLabPracticals";
 import LabLearningHub from "./LabLearningHub";
+import LabGraphSheet, { type LabGraphConfig } from "./LabGraphSheet";
 import "./SubjectLabs.css";
 
 type LabKey = "maths" | "science" | "geography" | "business" | "accounting" | "computing" | "agriculture" | "engineering" | "languages" | "hospitality" | "design";
@@ -98,6 +99,12 @@ function classifyAssignedModule(value: string): { keys: LabKey[]; scienceAreas: 
   return { keys, scienceAreas: [...new Set(areas)] };
 }
 
+function interpolateMonthly(values: number[], month: number): number | null {
+  if (month < 1 || month > 12 || values.length !== 12) return null;
+  const index = Math.min(10, Math.floor(month) - 1);
+  const fraction = month - (index + 1);
+  return values[index] + (values[index + 1] - values[index]) * fraction;
+}
 function readQuestionTopic(content: unknown): string {
   if (!content || typeof content !== "object" || Array.isArray(content)) return "";
   const topic = (content as Record<string, unknown>).topic;
@@ -419,8 +426,30 @@ function GeographyLab() {
   const [scale, setScale] = useState(50000);
   const [population, setPopulation] = useState(120000);
   const [area, setArea] = useState(80);
+  const climateGraphs = useMemo(() => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const temperatureOffsets = [3.5, 3.5, 2.5, .5, -2.5, -4.5, -4.5, -3.5, -1.5, .5, 2.5, 3.5];
+    const rainfallFactors = [1.45, 1.35, 1.2, .9, .65, .4, .35, .4, .6, .9, 1.25, 1.55];
+    const factorMean = rainfallFactors.reduce((sum, value) => sum + value, 0) / 12;
+    const temperatures = temperatureOffsets.map(offset => temperature + offset);
+    const rain = rainfallFactors.map(factor => rainfall * factor / factorMean);
+    const monthNote = "Illustrative seasonal profile generated from your sliders, not observed station data. Months: 1 Jan · 2 Feb · 3 Mar · 4 Apr · 5 May · 6 Jun · 7 Jul · 8 Aug · 9 Sep · 10 Oct · 11 Nov · 12 Dec.";
+    const temperatureGraph: LabGraphConfig = {
+      title: "Monthly temperature profile",
+      xMin: 1, xMax: 12, yMin: Math.min(...temperatures) - 3, yMax: Math.max(...temperatures) + 3,
+      xLabel: "Month (1–12)", yLabel: "Temperature (°C)", unitNote: monthNote,
+      curves: [{ label: "Mean temperature", evaluate: month => interpolateMonthly(temperatures, month) }],
+    };
+    const rainfallGraph: LabGraphConfig = {
+      title: "Monthly rainfall profile",
+      xMin: 1, xMax: 12, yMin: 0, yMax: Math.max(1, ...rain) * 1.2,
+      xLabel: "Month (1–12)", yLabel: "Rainfall (mm)", unitNote: monthNote,
+      curves: [{ label: "Monthly rainfall", evaluate: month => interpolateMonthly(rain, month) }],
+    };
+    return { temperatureGraph, rainfallGraph, months };
+  }, [temperature, rainfall]);
   return <section className="subject-lab-workspace"><LabHeading eyebrow="SPATIAL DATA & FIELD SKILLS" title="Geography Lab" description="Practise interpreting data, map scale and human-environment patterns with adjustable examples."/><ToolTabs value={tab} onChange={setTab} options={[{value:"climate",label:"Climate graph"},{value:"scale",label:"Map scale"},{value:"population",label:"Population"}]}/>
-    {tab === "climate" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Climate data explorer</h3><p>Change the sample monthly conditions and interpret the pattern.</p><RangeField label="Mean temperature" value={temperature} min={-5} max={40} unit=" °C" onChange={setTemperature}/><RangeField label="Rainfall" value={rainfall} min={0} max={400} step={5} unit=" mm" onChange={setRainfall}/><div className="subject-lab-climate-bars"><i style={{height:(rainfall/4)+"px"}}/><i style={{height:(Math.max(0,temperature+5)*3)+"px"}}/></div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Climate snapshot" value={temperature < 10 ? "Cool" : temperature < 25 ? "Mild" : "Hot"}/><Result label="Rainfall class" value={rainfall < 30 ? "Low" : rainfall < 100 ? "Moderate" : "High"}/><p>Compare several months before deciding whether a place has a seasonal pattern.</p></aside></div>}
+    {tab === "climate" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Climate data explorer</h3><p>Adjust the average conditions. The two interactive graph sheets show a clearly labelled illustrative Southern Hemisphere seasonal profile.</p><RangeField label="Mean temperature" value={temperature} min={-5} max={40} unit=" °C" onChange={setTemperature}/><RangeField label="Mean monthly rainfall" value={rainfall} min={0} max={400} step={5} unit=" mm" onChange={setRainfall}/><LabGraphSheet graph={climateGraphs.temperatureGraph} compact/><LabGraphSheet graph={climateGraphs.rainfallGraph} compact/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Mean temperature" value={temperature+" °C"}/><Result label="Rainfall class" value={rainfall < 30 ? "Low" : rainfall < 100 ? "Moderate" : "High"}/><p>These are simulated teaching values, not local weather observations. Compare real monthly station data when answering climate-data questions.</p></aside></div>}
     {tab === "scale" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Map scale converter</h3><p>Representative fraction (1 : n) converts map distance to ground distance.</p><RangeField label="Map distance" value={mapDistance} min={1} max={20} unit=" cm" onChange={setMapDistance}/><RangeField label="Scale denominator" value={scale} min={10000} max={250000} step={10000} onChange={setScale}/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Ground distance" value={(mapDistance*scale/100000).toFixed(2)+" km"}/><Result label="Scale" value={"1 : "+scale.toLocaleString()}/></aside></div>}
     {tab === "population" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Population density</h3><p>Density = population ÷ land area.</p><RangeField label="Population" value={population} min={1000} max={1000000} step={1000} onChange={setPopulation}/><RangeField label="Land area" value={area} min={1} max={1000} unit=" km²" onChange={setArea}/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Population density" value={(population/area).toFixed(1)+" people/km²"}/><Result label="Population" value={population.toLocaleString()}/></aside></div>}
   </section>;
