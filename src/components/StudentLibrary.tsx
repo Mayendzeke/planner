@@ -16,10 +16,12 @@ type TeacherResource = {
   id: string; title: string; description: string; subject_name: string; topic?: string;
   resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string;
 };
-type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" } | { kind: "powerpoint" };
+type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" } | { kind: "powerpoint" } | { kind: "word" };
 type StorageStatus = { used_bytes: number; quota_bytes: number; reserved_bytes: number; available_bytes: number; used_percent: number };
 const resourceTypes: ResourceType[] = ["Study notes", "Revision notes", "Worksheet", "Past paper", "Reference", "Other"];
 const PowerPointDocumentViewer = lazy(() => import("./PowerPointDocumentViewer"));
+const DocxViewer = lazy(() => import("./DocxViewer"));
+const SpreadsheetViewer = lazy(() => import("./SpreadsheetViewer"));
 
 function extensionOf(name: string) { return name.toLowerCase().slice(name.lastIndexOf(".")); }
 function formatSize(bytes: number) {
@@ -160,6 +162,8 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         if (active) { setPreviewImageUrl(imageUrl); setPreview({ kind: "image" }); }
       } else if (extension === ".pptx" || extension === ".ppt") {
         if (active) setPreview({ kind: "powerpoint" });
+      } else if (extension === ".docx") {
+        if (active) setPreview({ kind: "word" });
       } else {
         const result = await readStudyMaterialPreview(viewing.file, viewing.name);
         if (active) setPreview(result);
@@ -356,6 +360,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       if (error) throw error;
       setViewing({
         id: Date.now(),
+        cloudId: "teacher:" + resource.id,
         name: resource.title,
         mimeType: resource.mime_type || "application/octet-stream",
         size: Number(resource.file_size),
@@ -517,16 +522,18 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       {viewing&&<div className={"modal-backdrop library-viewer-backdrop" + (fullscreenPreview ? " is-fullscreen" : "")} onMouseDown={event=>{if(event.target===event.currentTarget)closePreview();}}>
         <section ref={viewerDialogRef} className={"library-viewer" + (fullscreenPreview ? " is-fullscreen" : "") + (landscapeFallback ? " is-landscape-fallback" : "")} role="dialog" aria-modal="true" aria-label={"Previewing "+viewing.name}>
           <header className="library-viewer-header"><div><span>STUDYSPACE MATERIAL PREVIEW</span><strong>{viewing.name}</strong></div>
-            <div className="library-viewer-header-actions">{preview.kind==="powerpoint"&&<button type="button" className="secondary-button library-fullscreen-toggle" aria-pressed={fullscreenPreview} onClick={()=>void togglePresentationFullscreen()} aria-label={fullscreenPreview?"Exit landscape full screen":"Open landscape full screen"}>{fullscreenPreview?<Minimize2 size={15}/>:<Maximize2 size={15}/>}<span>{fullscreenPreview?"Exit full screen":"Landscape · Full screen"}</span></button>}{preview.kind==="powerpoint"&&canStudyWithMia(viewing.name,viewing.file.size)&&<button type="button" className="icon-button" aria-label="Ask MIΛ about this presentation" title="Ask MIΛ about these slides" onClick={()=>onAskMia(new File([viewing.file],viewing.name,{type:viewing.file.type||"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),"Please guide me through this presentation slide by slide. Explain the main idea, unpack any diagrams and images, define unfamiliar terms, connect ideas to my level and curriculum, and pause for a short question after each important section. Do not skip slide visuals.")}><Brain size={16}/></button>}<button type="button" className="icon-button" aria-label="Download original file" title="Download original file" onClick={()=>downloadResource(viewing)}><Download size={16}/></button><button type="button" className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={18}/></button></div>
+            <div className="library-viewer-header-actions">{preview.kind!=="loading"&&preview.kind!=="unsupported"&&<button type="button" className="secondary-button library-fullscreen-toggle" aria-pressed={fullscreenPreview} onClick={()=>void togglePresentationFullscreen()} aria-label={fullscreenPreview?"Exit landscape full screen":"Open landscape full screen"}>{fullscreenPreview?<Minimize2 size={15}/>:<Maximize2 size={15}/>}<span>{fullscreenPreview?"Exit full screen":"Landscape · Full screen"}</span></button>}{preview.kind==="powerpoint"&&canStudyWithMia(viewing.name,viewing.file.size)&&<button type="button" className="icon-button" aria-label="Ask MIΛ about this presentation" title="Ask MIΛ about these slides" onClick={()=>onAskMia(new File([viewing.file],viewing.name,{type:viewing.file.type||"application/vnd.openxmlformats-officedocument.presentationml.presentation"}),"Please guide me through this presentation slide by slide. Explain the main idea, unpack any diagrams and images, define unfamiliar terms, connect ideas to my level and curriculum, and pause for a short question after each important section. Do not skip slide visuals.")}><Brain size={16}/></button>}<button type="button" className="icon-button" aria-label="Download original file" title="Download original file" onClick={()=>downloadResource(viewing)}><Download size={16}/></button><button type="button" className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={18}/></button></div>
           </header>
           <div className="library-viewer-content">
             {preview.kind==="loading"&&<div className="library-empty"><strong>Preparing preview…</strong></div>}
-            {preview.kind==="pdf"&&<PdfViewer file={viewing.file} fileName={viewing.name}/>}
+            {preview.kind==="pdf"&&<PdfViewer file={viewing.file} fileName={viewing.name} resourceKey={viewing.cloudId ? viewing.cloudId : "personal:"+viewing.name+":"+viewing.createdAt}/>}
+            {preview.kind==="word"&&<Suspense fallback={<div className="library-viewer-unsupported"><strong>Preparing Word document…</strong><p>Rendering page layout, tables and images.</p></div>}><DocxViewer file={viewing.file}/></Suspense>}
+            {preview.kind==="workbook"&&<SpreadsheetViewer sheets={preview.sheets}/>}
             {preview.kind==="image"&&previewImageUrl&&<img src={previewImageUrl} alt={viewing.name} style={{display:"block",maxWidth:"100%",maxHeight:"100%",margin:"0 auto",objectFit:"contain"}}/>}
             {preview.kind==="powerpoint"&&<Suspense fallback={<div className="library-viewer-unsupported"><strong>Preparing your presentation…</strong><p>The slides are being opened securely in this browser.</p></div>}><PowerPointDocumentViewer key={String(viewing.id)+"-"+viewing.name+"-"+viewing.file.size} file={viewing.file}/></Suspense>}
             {preview.kind==="text"&&<pre className="library-preview-text">{preview.text||"No readable text was found in this file."}</pre>}
             {preview.kind==="slides"&&<><div className="library-preview-note"><Presentation size={14}/><span>Slide text preview. The original presentation remains available to download; embedded graphics and exact slide layout are not shown in this preview.</span></div><div className="library-preview-slides">{preview.slides.map(slide=><article className="library-preview-slide" key={slide.number}><div className="library-preview-slide-head"><span>SLIDE {String(slide.number).padStart(2,"0")}</span><span>POWERPOINT</span></div><h4>{slide.title}</h4>{slide.body&&<p>{slide.body}</p>}</article>)}</div></>}
-            {preview.kind==="table"&&<><div className="library-preview-note"><FileSpreadsheet size={14}/><span>Spreadsheet preview · showing the first worksheet and up to 100 rows. Download the original for full formulas, formatting and workbook features.</span></div><div className="library-preview-table-wrap"><table className="library-preview-table"><tbody>{preview.rows.map((row,index)=><tr key={index}>{row.map((cell,cellIndex)=><td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div></>}
+            
             {preview.kind==="unsupported"&&<div className="library-empty"><div><AlertCircle size={24}/></div><strong>Preview not available</strong><p>{preview.message}</p><button type="button" className="primary-button" onClick={()=>downloadResource(viewing)}><Download size={15}/> Download original file</button></div>}
           </div>
           <footer className="library-viewer-footer">Private StudySpace file · Original file download remains available</footer>
