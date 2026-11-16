@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, LoaderCircle, Send, ShieldCheck, Trophy } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { studentStorageKey } from "../lib/studentStorage";
@@ -31,10 +31,15 @@ export default function AssignedAssessments() {
   const [attemptsByAssignment,setAttemptsByAssignment] = useState<Record<string,StoredAttempt>>({});
   const [draftSaveError,setDraftSaveError] = useState(false);
   const [learnerId,setLearnerId] = useState("");
+  const refreshInFlight=useRef(false);
+  const hasLoadedOnce=useRef(false);
 
   const refresh = useCallback(async () => {
-    if(!supabase){setError("Studyspace cloud access is not configured.");setLoading(false);return;}
-    setLoading(true);setError("");
+    if(refreshInFlight.current)return;
+    if(!supabase){setError("StudySpace cloud access is not configured.");setLoading(false);hasLoadedOnce.current=true;return;}
+    refreshInFlight.current=true;
+    if(!hasLoadedOnce.current)setLoading(true);
+    setError("");
     try {
       const {data:authState,error:authError}=await supabase.auth.getUser();
       if(authError||!authState.user) throw new Error("Sign in again to load your assigned assessments.");
@@ -73,7 +78,11 @@ export default function AssignedAssessments() {
       setAssignments(next);
     } catch(reason) {
       setError(reason instanceof Error?reason.message:"Assigned assessments could not be loaded.");
-    } finally {setLoading(false);}
+    } finally {
+      hasLoadedOnce.current=true;
+      refreshInFlight.current=false;
+      setLoading(false);
+    }
   },[]);
 
   useEffect(()=>{
@@ -172,7 +181,7 @@ export default function AssignedAssessments() {
       <div><span className="eyebrow">FROM YOUR TEACHER</span><h2>Assigned by my teacher</h2><p>Interactive homework and assessments published to your StudySpace account.</p></div>
       <div className="assigned-assessment-actions"><button type="button" className="icon-button" title="Refresh assignments" aria-label="Refresh assignments" onClick={()=>void refresh()} disabled={loading}><LoaderCircle size={17}/></button><ClipboardCheck size={21}/></div>
     </div>
-    {error&&<div className="assigned-assessment-error" role="alert"><AlertCircle size={16}/>{error}</div>}
+    {error&&<div className="assigned-assessment-error" role="alert"><AlertCircle size={16}/><span>{error}</span><button type="button" className="secondary-button" onClick={()=>void refresh()} disabled={loading}>Try again</button></div>}
     {loading?<div className="assigned-assessment-empty"><LoaderCircle className="assigned-spinner" size={22}/><span>Loading your assignments…</span></div>:
       active?<div className="assigned-assessment-detail">
         <div className="assigned-assessment-detail-heading"><button type="button" className="subtle-button" onClick={back}><ChevronLeft size={15}/> Back to assignments</button><span className="assigned-assessment-subject">{active.set.subject_name}</span></div>
