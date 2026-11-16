@@ -75,7 +75,7 @@ export default function AssignedLabPracticals({ studentId, areas }: { studentId?
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!active || !studentId || !supabase || saving) return;
+    if (!active || !studentId || !supabase || saving || workByAssignment.get("assignment:" + active.id)?.reviewed_at) return;
     const text = reflection.trim();
     if (text.length < 20) { setError("Write at least 20 characters about what you did, observed or learned."); return; }
     setSaving(true); setError(""); setNotice("");
@@ -121,10 +121,11 @@ export default function AssignedLabPracticals({ studentId, areas }: { studentId?
     {!loading && assignments.map(item => {
       const record = workByAssignment.get("assignment:" + item.id);
       const submitted = record?.status === "submitted";
+      const reviewed = Boolean(record?.reviewed_at);
       const overdue = item.due_at ? Date.parse(item.due_at) < Date.now() && !submitted : false;
       return <article className="assigned-lab-card" key={item.id}>
         <div className="assigned-lab-card-copy"><div className="assigned-lab-tags"><span>{labelFor(item.lab_area)}</span><span>{item.required ? "Required" : "Practice"}</span><span className={overdue ? "is-overdue" : submitted ? "is-submitted" : ""}>{overdue ? "Overdue" : submitted ? "Submitted" : "Assigned"}</span></div><strong>{item.title}</strong><p>{item.instructions || "Explore the relevant Lab tools, record what you discover and submit a reflection."}</p><small><CalendarClock size={13}/> Due: {when(item.due_at)}</small>{record?.reviewed_at && <small><CheckCircle2 size={13}/> Teacher reviewed · {record.score == null ? "Feedback available" : "Score " + record.score + "%"}</small>}{record?.reviewed_at && record.feedback && <p className="assigned-lab-feedback"><strong>Teacher feedback:</strong> {record.feedback}</p>}</div>
-        <button type="button" className="assigned-lab-action" onClick={() => openAssignment(item)}>{submitted ? "Update submission" : "Start and submit"}</button>
+        <button type="button" className="assigned-lab-action" onClick={() => openAssignment(item)}>{reviewed ? "View reviewed submission" : submitted ? "Update submission" : "Start and submit"}</button>
       </article>;
     })}
     {active && <div className="assigned-lab-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !saving) setActive(null); }}>
@@ -133,10 +134,10 @@ export default function AssignedLabPracticals({ studentId, areas }: { studentId?
         <span className="eyebrow">{labelFor(active.lab_area)} · PRACTICAL SUBMISSION</span>
         <h3>{active.title}</h3>
         <p>{active.instructions || "Use the interactive Lab tools on this page before writing your reflection."}</p>
-        <label>Your observations and reflection<textarea value={reflection} onChange={event => setReflection(event.target.value)} rows={6} maxLength={3000} placeholder="What did you investigate? What did you observe? What did the results teach you? What would you improve next time?"/></label>
+        <label>Your observations and reflection<textarea value={reflection} onChange={event => setReflection(event.target.value)} readOnly={Boolean(workByAssignment.get("assignment:" + active.id)?.reviewed_at)} rows={6} maxLength={3000} placeholder="What did you investigate? What did you observe? What did the results teach you? What would you improve next time?"/></label>
         <small>{reflection.length} / 3,000 characters · At least 20 characters required</small>
-        {workByAssignment.get("assignment:" + active.id)?.reviewed_at && <p className="assigned-lab-notice">Your teacher has reviewed this submission. A new submission will replace your previous reflection.</p>}
-        <div><button type="button" onClick={() => setActive(null)} disabled={saving}>Cancel</button><button type="submit" disabled={saving || reflection.trim().length < 20}>{saving ? "Submitting…" : "Submit to teacher"} <Send size={14}/></button></div>
+        {workByAssignment.get("assignment:" + active.id)?.reviewed_at && <p className="assigned-lab-notice">Your teacher has reviewed this submission. The reflection is locked to preserve the teacher's feedback.</p>}
+        <div><button type="button" onClick={() => setActive(null)} disabled={saving}>Cancel</button><button type="submit" disabled={saving || reflection.trim().length < 20 || Boolean(workByAssignment.get("assignment:" + active.id)?.reviewed_at)}>{saving ? "Submitting…" : workByAssignment.get("assignment:" + active.id)?.reviewed_at ? "Reviewed" : "Submit to teacher"} <Send size={14}/></button></div>
       </form>
     </div>}
   </section>;
