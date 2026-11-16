@@ -8,7 +8,12 @@ type Topic = "linear" | "quadratic" | "systems" | "rational" | "radical" | "expo
 type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; steps: string[]; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
-type PendingStudioAttempt = { id: string; learner_id: string; [key: string]: any };
+type PendingStudioAttempt = {
+  id: string; learner_id: string; material_id: null; subject_name: string; topic: string;
+  material_snapshot: any; responses: any; result: any; score: number; max_score: number;
+  percentage: number; duration_seconds: number; mode: "practice"; status: "submitted";
+  attempt_number: number; retake_mode: "original"; retake_of: null; created_at: string; submitted_at: string;
+};
 
 const topics: TopicMeta[] = [
   { id: "linear", title: "Linear equations", description: "Inverse operations and the balance principle", pathways: ["Primary", "Secondary High", "High School", "Matric", "Tertiary"] },
