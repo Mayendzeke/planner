@@ -141,7 +141,19 @@ export default function MathEquationStudio() {
       <article><strong>{total}</strong><span>Practice attempts</span></article><article><strong>{accuracy}%</strong><span>Accuracy</span></article><article><strong>{weakTopic ? topics.find(item => item.id === weakTopic)?.title : "Building"}</strong><span>Topic to revisit</span></article>
     </div>
     <div className="equation-studio-controls">
-      <label>Learning pathway<select value={pathway} onChange={event => setPathway(event.target.value as Pathway)}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
+      <label>Learning pathway<select value={pathway} onChange={event => {
+        const nextPathway = event.target.value as Pathway;
+        const nextTopic = topics.find(item => item.id === topic && item.pathways.includes(nextPathway))?.id ?? topics.find(item => item.pathways.includes(nextPathway))!.id;
+        setPathway(nextPathway);
+        setTopic(nextTopic);
+        const generated = createProblem(nextTopic, nextPathway);
+        setProblem(generated);
+        setMethod(generated.methods[0]);
+        setAnswer("");
+        setChecked(false);
+        setShowHint(false);
+        setShowSteps(false);
+      }}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
       <label>Equation family<select value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
       <label>Practice style<select value={difficulty} onChange={event => setDifficulty(event.target.value as typeof difficulty)}><option value="guided">Guided · show hints</option><option value="independent">Independent · fewer prompts</option><option value="challenge">Challenge · solve first</option></select></label>
     </div>
