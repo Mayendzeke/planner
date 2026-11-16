@@ -14,7 +14,7 @@ test("Math Equation Studio is mounted only inside the Mathematics Lab", () => {
 
 test("Equation Studio covers pathway-scoped equation families", () => {
   for (const pathway of ["Primary", "Secondary High", "High School", "Matric", "Tertiary"]) assert.ok(studio.includes(pathway));
-  for (const topic of ["arithmetic", "linear", "quadratic", "systems", "rational", "radical", "exponential", "logarithmic", "absolute", "word-problems", "trigonometry"]) assert.ok(studio.includes('id: "' + topic + '"'), "Missing equation family " + topic);
+  for (const topic of ["arithmetic", "linear", "quadratic", "systems", "rational", "radical", "exponential", "logarithmic", "absolute", "word-problems", "inequalities", "systems3", "polynomial", "trigonometry"]) assert.ok(studio.includes('id: "' + topic + '"'), "Missing equation family " + topic);
   assert.match(studio, /pathways: \["Primary", "Secondary High", "High School", "Matric", "Tertiary"\]/);
 });
 
@@ -50,4 +50,13 @@ test("Equation Studio follows the learner's saved academic pathway and isolates 
   assert.ok(studio.includes('raw === "secondary high"'));
   assert.ok(studio.includes('matched === "Primary" ? "arithmetic"'));
   assert.ok(studio.includes('(studentId ?? "anonymous")'));
+});
+
+test("Equation Studio supports inequalities, 3-variable systems and cubic polynomials", () => {
+  assert.ok(studio.includes('topic === "inequalities"'));
+  assert.ok(studio.includes('topic === "systems3"'));
+  assert.ok(studio.includes('topic === "polynomial"'));
+  assert.ok(studio.includes("Gaussian elimination"));
+  assert.ok(studio.includes("Factor theorem"));
+  assert.ok(studio.includes("problem.textAnswer"));
 });
