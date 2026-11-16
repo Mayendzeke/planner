@@ -2619,3 +2619,103 @@ select option, select optgroup {
 @media(prefers-reduced-motion:reduce){
   .library-viewer.is-fullscreen,.library-viewer.is-landscape-fallback{scroll-behavior:auto}
 }
+
+
+/* Unified document centre — reader chrome and mobile annotation tools */
+.library-viewer-content:has(.pdf-viewer),.library-viewer-content:has(.studyspace-docx-viewer),.library-viewer-content:has(.studyspace-sheet-viewer){padding:0;overflow:hidden}
+.pdf-viewer{display:flex;flex-direction:column;min-width:0;min-height:0;width:100%;height:100%;background:var(--panel);color:var(--text);overflow:hidden}
+.pdf-reader-toolbar{position:relative;z-index:4;display:grid;gap:7px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel-strong)}
+.pdf-reader-toolbar-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.pdf-reader-page-controls,.pdf-reader-zoom,.pdf-reader-save{display:flex;align-items:center;gap:6px;min-width:0}
+.pdf-reader-page-controls input{width:48px;height:30px;padding:4px 5px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--text);text-align:center;font-size:11px}
+.pdf-reader-page-controls span,.pdf-reader-zoom span{font-size:10px;color:var(--muted);white-space:nowrap}
+.pdf-reader-toolbar button{min-height:30px;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font-size:9px;white-space:nowrap}
+.pdf-reader-toolbar button:disabled{opacity:.35;cursor:not-allowed}
+.pdf-reader-toolbar button.active{border-color:var(--purple);background:color-mix(in srgb,var(--purple) 12%,var(--panel));color:var(--purple)}
+.pdf-reader-save-state{font-size:8px;color:var(--muted);white-space:nowrap}
+.pdf-reader-save-state.is-saved{color:var(--mint)}
+.pdf-reader-tools{display:flex;align-items:center;gap:5px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
+.pdf-reader-tools button{flex:0 0 auto}
+.pdf-reader-tools button small{font-size:8px}
+.pdf-reader-color{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--muted);font-size:9px}
+.pdf-reader-color input{width:21px;height:21px;padding:0;border:0;background:transparent}
+.pdf-reader-search{display:flex;align-items:center;gap:7px;min-width:0;overflow-x:auto;color:var(--muted)}
+.pdf-reader-search input{flex:1 1 130px;min-width:90px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font-size:10px}
+.pdf-reader-search>span{font-size:9px;white-space:nowrap}
+.pdf-reader-search button{flex:0 0 auto;min-height:25px;padding:4px 7px}
+.pdf-reader-body{display:flex;flex:1 1 0%;min-height:0;overflow:hidden}
+.pdf-reader-thumbnails{width:58px;flex:0 0 58px;display:flex;flex-direction:column;align-items:stretch;gap:4px;overflow:auto;padding:7px;border-right:1px solid var(--border);background:var(--panel)}
+.pdf-reader-thumbnails>span{text-align:center;font-size:8px;color:var(--muted);padding-bottom:3px}
+.pdf-reader-thumbnails button{min-height:34px;border:1px solid var(--border);border-radius:7px;background:var(--panel-strong);color:var(--muted);font-size:10px}
+.pdf-reader-thumbnails button.active{border-color:var(--purple);background:color-mix(in srgb,var(--purple) 11%,var(--panel-strong));color:var(--purple);font-weight:800}
+.pdf-reader-thumbnails small{font-size:8px;line-height:1.4;color:var(--muted)}
+.pdf-viewer-stage{position:relative;flex:1 1 0%;min-width:0;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:15px;background:#e9ebef}
+.pdf-page-shell{position:relative;flex:0 0 auto;align-self:flex-start;margin:0 auto 20px;background:#fff;box-shadow:0 5px 25px rgba(0,0,0,.18)}
+.pdf-page-shell>canvas{display:block;max-width:none;background:#fff}
+.pdf-page-shell .pdf-annotation-layer{position:absolute;z-index:2;left:0;top:0;touch-action:none}
+.pdf-page-shell .pdf-annotation-layer.is-drawing{cursor:crosshair}
+.pdf-reader-notice{position:sticky;z-index:3;bottom:8px;max-width:min(520px,90%);margin:0 auto;padding:9px 12px;border:1px solid rgba(35,167,121,.25);border-radius:10px;background:rgba(20,45,40,.93);color:#f3fff9;font-size:10px;line-height:1.4;box-shadow:0 4px 18px rgba(0,0,0,.14)}
+.pdf-reader-save{margin-left:auto}
+.pdf-fill-panel{width:260px;flex:0 0 260px;display:flex;flex-direction:column;gap:10px;overflow:auto;padding:12px;border-left:1px solid var(--border);background:var(--panel)}
+.pdf-fill-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pdf-fill-panel-head strong{font:800 14px Manrope,sans-serif;color:var(--text)}
+.pdf-fill-panel-head button{width:28px;height:28px;border:1px solid var(--border);border-radius:8px;background:var(--panel-strong);color:var(--text);font-size:18px}
+.pdf-fill-panel>label{display:grid;gap:5px;font-size:9px;color:var(--muted)}
+.pdf-fill-panel>label input:not([type=checkbox]){width:100%;min-width:0;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--panel-strong);color:var(--text);font-size:10px}
+.pdf-fill-panel>label input[type=checkbox]{width:18px;height:18px;accent-color:var(--purple)}
+.pdf-fill-panel>p{font-size:9px;line-height:1.5;color:var(--muted)}
+.pdf-fill-save,.pdf-fill-submit{display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px;border:1px solid var(--border);border-radius:9px;background:var(--panel-strong);color:var(--text);font-size:9px;font-weight:700}
+.pdf-fill-submit{border-color:var(--purple);background:var(--purple);color:#fff}
+.pdf-viewer-footnote{flex:0 0 auto;margin:0;padding:7px 10px;background:var(--panel-strong);color:var(--muted);font-size:8px;text-align:center}
+.pdf-viewer-message{margin:auto;padding:20px;text-align:center;color:var(--muted);font-size:11px}
+.pdf-render-status{position:sticky;bottom:8px;align-self:flex-end;margin:8px;padding:5px 8px;border-radius:7px;background:rgba(20,20,25,.78);color:#fff;font-size:9px}
+.studyspace-docx-viewer{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;overflow:auto;background:#e8ebf0;color:#1d2430}
+.studyspace-docx-pages{flex:1 0 auto;min-height:0;padding:18px 12px;overflow:visible}
+.studyspace-docx-pages .docx-wrapper{padding:18px 0;background:transparent}
+.studyspace-docx-pages .docx{margin:0 auto 18px!important;box-shadow:0 5px 24px rgba(0,0,0,.14);color:#111;background:#fff}
+.studyspace-docx-status{position:sticky;top:0;z-index:2;padding:12px;text-align:center;background:var(--panel-strong);color:var(--muted);font-size:10px}
+.studyspace-docx-note{position:sticky;bottom:0;margin:0;padding:8px;background:var(--panel-strong);color:var(--muted);text-align:center;font-size:8px}
+.studyspace-sheet-viewer{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;background:var(--panel);color:var(--text)}
+.studyspace-sheet-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid var(--border);background:var(--panel-strong)}
+.studyspace-sheet-toolbar>div{display:grid;gap:4px}
+.studyspace-sheet-toolbar .eyebrow{font-size:8px;letter-spacing:1px;color:var(--purple)}
+.studyspace-sheet-toolbar strong{font-size:11px;color:var(--text)}
+.studyspace-sheet-toolbar label{display:grid;gap:4px;font-size:8px;color:var(--muted)}
+.studyspace-sheet-toolbar input{width:min(230px,42vw);padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font-size:10px}
+.studyspace-sheet-formula{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:10px;color:var(--muted);overflow:hidden}
+.studyspace-sheet-formula b{min-width:38px;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--panel-strong);color:var(--purple);text-align:center}
+.studyspace-sheet-formula span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studyspace-sheet-grid-wrap{flex:1;min-height:0;overflow:auto;background:var(--panel-strong)}
+.studyspace-sheet-grid{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:10px}
+.studyspace-sheet-grid th{position:sticky;top:0;z-index:1;min-width:40px;padding:7px 9px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--panel);color:var(--muted);font-weight:700;text-align:center}
+.studyspace-sheet-grid tbody th{left:0;z-index:2}
+.studyspace-sheet-grid td{min-width:85px;max-width:240px;padding:0;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.studyspace-sheet-grid td button{display:block;width:100%;min-height:29px;padding:5px 8px;overflow:hidden;border:0;background:transparent;color:var(--text);font:400 10px 'DM Sans',sans-serif;text-align:left;text-overflow:ellipsis;white-space:nowrap}
+.studyspace-sheet-grid td button.selected{outline:2px solid var(--purple);outline-offset:-2px;background:color-mix(in srgb,var(--purple) 9%,var(--panel-strong))}
+.studyspace-sheet-tabs{display:flex;gap:5px;overflow:auto;padding:8px;border-top:1px solid var(--border);background:var(--panel)}
+.studyspace-sheet-tabs button{flex:0 0 auto;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel-strong);color:var(--muted);font-size:9px}
+.studyspace-sheet-tabs button.active{border-color:var(--purple);background:color-mix(in srgb,var(--purple) 11%,var(--panel-strong));color:var(--purple);font-weight:800}
+.studyspace-sheet-empty{padding:18px;color:var(--muted);text-align:center;font-size:10px}
+.studyspace-sheet-note{margin:0;padding:7px 10px;background:var(--panel-strong);color:var(--muted);text-align:center;font-size:8px}
+@media(max-width:720px){
+  .pdf-reader-thumbnails{width:42px;flex-basis:42px;padding:5px}
+  .pdf-reader-fill-panel{width:100%}
+  .pdf-fill-panel{position:absolute;z-index:6;top:0;right:0;bottom:0;width:min(290px,88%);box-shadow:-12px 0 32px rgba(0,0,0,.15)}
+  .pdf-reader-toolbar-row{flex-wrap:wrap}
+  .pdf-reader-save{margin-left:0}
+  .pdf-viewer-stage{padding:8px}
+  .pdf-page-shell{margin-bottom:10px}
+}
+@media(max-width:420px){
+  .pdf-reader-toolbar{padding:6px}
+  .pdf-reader-toolbar-row{justify-content:flex-start}
+  .pdf-reader-page-controls input{width:39px}
+  .pdf-reader-zoom{margin-left:auto}
+  .pdf-reader-save-state{display:none}
+  .pdf-reader-tools button{padding:5px 7px}
+  .studyspace-sheet-toolbar{align-items:flex-start;flex-direction:column}
+  .studyspace-sheet-toolbar input{width:100%}
+  .studyspace-docx-pages{padding:8px 4px}
+}
+
+
