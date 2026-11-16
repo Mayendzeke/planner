@@ -70,7 +70,7 @@ function createProblem(topic: Topic, pathway: Pathway): Problem {
 }
 
 function parseAnswers(value: string): number[] {
-  return value.split(/[,;\\s]+/).map(item => item.trim()).filter(Boolean).map(Number);
+  return value.split(/[,;\s]+/).map(item => item.trim()).filter(Boolean).map(Number);
 }
 function sameAnswers(actual: number[], expected: number[]) {
   if (actual.length !== expected.length || actual.some(value => !Number.isFinite(value))) return false;
