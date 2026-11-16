@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 import { Activity, BookOpenCheck, CheckCircle2, ChevronRight, Lightbulb, RefreshCw, Sigma, Sparkles } from "lucide-react";
 import "./MathEquationStudio.css";
 
@@ -6,6 +7,8 @@ type Pathway = "Primary" | "Secondary High" | "High School" | "Matric" | "Tertia
 type Topic = "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "trigonometry";
 type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; steps: string[]; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
+type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
+type PendingStudioAttempt = Record<string, unknown> & { id: string; learner_id: string };
 
 const topics: TopicMeta[] = [
   { id: "linear", title: "Linear equations", description: "Inverse operations and the balance principle", pathways: ["Primary", "Secondary High", "High School", "Matric", "Tertiary"] },
@@ -95,7 +98,7 @@ function guidanceForMethod(method: string, topic: Topic): string {
   return "Choose a valid sequence of equivalent transformations, state any restrictions, and verify your final solution in the original equation.";
 }
 
-export default function MathEquationStudio() {
+export default function MathEquationStudio({ subjectName = "Mathematics" }: { subjectName?: string }) {
   const [pathway, setPathway] = useState<Pathway>("High School");
   const [topic, setTopic] = useState<Topic>("linear");
   const [difficulty, setDifficulty] = useState<"guided" | "independent" | "challenge">("guided");
@@ -105,12 +108,68 @@ export default function MathEquationStudio() {
   const [checked, setChecked] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
-  const [attempts, setAttempts] = useState<{ topic: Topic; correct: boolean }[]>([]);
+  const [attempts, setAttempts] = useState<StudioHistoryAttempt[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
+  const [savingAttempt, setSavingAttempt] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState("");
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const learnerHistoryKey = historyKey + ":" + subjectName;
+  const pendingHistoryKey = learnerHistoryKey + ":pending";
 
   useEffect(() => {
-    try { setAttempts(JSON.parse(localStorage.getItem(historyKey) || "[]")); } catch { setAttempts([]); }
-  }, []);
+    let active = true;
+    try {
+      const saved = localStorage.getItem(learnerHistoryKey) ?? localStorage.getItem(historyKey) ?? "[]";
+      setAttempts(JSON.parse(saved));
+    } catch { setAttempts([]); }
+    const sync = async () => {
+      const client = supabase;
+      if (!client) return;
+      try {
+        const { data: auth } = await client.auth.getUser();
+        if (!auth.user || !active) return;
+        let pending: PendingStudioAttempt[] = [];
+        try { pending = JSON.parse(localStorage.getItem(pendingHistoryKey) || "[]"); } catch { pending = []; }
+        const ownedPending = pending.filter(item => item.learner_id === auth.user.id);
+        if (ownedPending.length) {
+          const { error: syncError } = await client.from("lab_practice_attempts").upsert(ownedPending, { onConflict: "id" });
+          if (!syncError) {
+            const syncedIds = new Set(ownedPending.map(item => item.id));
+            localStorage.setItem(pendingHistoryKey, JSON.stringify(pending.filter(item => !syncedIds.has(item.id))));
+            setCloudStatus("Your saved practice has synced to StudySpace.");
+          }
+        }
+        const { data, error } = await client.from("lab_practice_attempts")
+          .select("id,topic,percentage,created_at,result")
+          .eq("learner_id", auth.user.id)
+          .eq("subject_name", subjectName.slice(0, 120))
+          .order("created_at", { ascending: false })
+          .limit(250);
+        if (error || !active) return;
+        const remote: StudioHistoryAttempt[] = (data ?? []).map(item => ({
+          id: item.id,
+          topic: ((item.result as Record<string, unknown> | null)?.topic_key as Topic) || "linear",
+          correct: Number(item.percentage ?? 0) >= 100,
+          created_at: item.created_at,
+        }));
+        setAttempts(current => {
+          const merged = new Map<string, StudioHistoryAttempt>();
+          current.filter(item => item.id).forEach(item => merged.set(item.id!, item));
+          remote.forEach(item => merged.set(item.id!, item));
+          const localOnly = current.filter(item => !item.id);
+          const next = [...merged.values(), ...localOnly].slice(-250);
+          try { localStorage.setItem(learnerHistoryKey, JSON.stringify(next)); } catch { /* Cloud history remains available. */ }
+          return next;
+        });
+      } catch {
+        if (active) setCloudStatus("Practice remains available offline; saved attempts will sync when possible.");
+      }
+    };
+    void sync();
+    const onOnline = () => { void sync(); };
+    window.addEventListener("online", onOnline);
+    return () => { active = false; window.removeEventListener("online", onOnline); };
+  }, [learnerHistoryKey, pendingHistoryKey, subjectName]);
   useEffect(() => {
     if (!topics.find(item => item.id === topic)?.pathways.includes(pathway)) {
       const next = topics.find(item => item.pathways.includes(pathway));
@@ -138,15 +197,74 @@ export default function MathEquationStudio() {
 
   function nextProblem(nextTopic = topic) {
     const next = createProblem(nextTopic, pathway, difficulty);
-    setProblem(next); setMethod(next.methods[0]); setAnswer(""); setChecked(false); setShowHint(difficulty === "guided"); setShowSteps(false); setStepIndex(0);
+    setProblem(next); setMethod(next.methods[0]); setAnswer(""); setChecked(false); setShowHint(difficulty === "guided"); setShowSteps(false); setStepIndex(0); setStartedAt(Date.now());
   }
-  function checkAnswer() {
-    if (!answer.trim()) return;
+  async function checkAnswer() {
+    if (!answer.trim() || savingAttempt) return;
     const correct = sameAnswers(parseAnswers(answer), problem.answer);
-    const next = [...attempts, { topic: problem.topic, correct }].slice(-250);
+    const now = new Date().toISOString();
+    const attemptId = crypto.randomUUID();
+    const questionId = crypto.randomUUID();
+    const topicTitle = topics.find(item => item.id === problem.topic)?.title ?? "Mathematics";
+    const next = [...attempts, { id: attemptId, topic: problem.topic, correct, created_at: now }].slice(-250);
     setAttempts(next);
-    try { localStorage.setItem(historyKey, JSON.stringify(next)); } catch { /* The current session remains usable if storage is full. */ }
-    setChecked(true);
+    try { localStorage.setItem(learnerHistoryKey, JSON.stringify(next)); } catch { /* The current session remains usable if storage is full. */ }
+    setSavingAttempt(true);
+    try {
+      const client = supabase;
+      if (!client) { setCloudStatus("Saved on this device. Cloud progress is not connected."); return; }
+      const { data: auth, error: authError } = await client.auth.getUser();
+      if (authError || !auth.user) { setCloudStatus("Saved on this device. Sign in again to sync progress."); return; }
+      const durationSeconds = Math.max(0, Math.min(86400, Math.floor((Date.now() - startedAt) / 1000)));
+      const score = correct ? 1 : 0;
+      const record: PendingStudioAttempt = {
+        id: attemptId,
+        learner_id: auth.user.id,
+        material_id: null,
+        subject_name: subjectName.slice(0, 120),
+        topic: topicTitle.slice(0, 180),
+        material_snapshot: {
+          title: "Math Equation Studio",
+          material_type: "practice_quiz",
+          subject_name: subjectName,
+          topic: topicTitle,
+          difficulty,
+          questions: [{ id: questionId, type: "short_answer", prompt: problem.prompt, correctAnswer: problem.answer.map(String), explanation: problem.steps.join("\\n"), points: 1 }],
+        },
+        responses: { [questionId]: answer },
+        result: {
+          topic_key: problem.topic,
+          method,
+          domain: problem.domain,
+          items: [{ questionId, prompt: problem.prompt, given: answer, correctAnswer: problem.answer.join(", "), correct, explanation: problem.steps.join("\\n"), points: 1, earnedPoints: score }],
+        },
+        score,
+        max_score: 1,
+        percentage: correct ? 100 : 0,
+        duration_seconds: durationSeconds,
+        mode: "practice",
+        status: "submitted",
+        attempt_number: Math.max(1, attempts.filter(item => item.topic === problem.topic).length + 1),
+        retake_mode: "original",
+        retake_of: null,
+        created_at: now,
+        submitted_at: now,
+      };
+      const { error: saveError } = await client.from("lab_practice_attempts").upsert(record, { onConflict: "id" });
+      if (saveError) {
+        let pending: PendingStudioAttempt[] = [];
+        try { pending = JSON.parse(localStorage.getItem(pendingHistoryKey) || "[]"); } catch { pending = []; }
+        localStorage.setItem(pendingHistoryKey, JSON.stringify([...pending.filter(item => item.id !== attemptId), record]));
+        setCloudStatus("Saved on this device. StudySpace will retry the cloud sync when you are online.");
+      } else {
+        setCloudStatus("Synced to your StudySpace progress and teacher's Monitor.");
+      }
+    } catch {
+      setCloudStatus("Saved on this device. Cloud sync will retry when possible.");
+    } finally {
+      setSavingAttempt(false);
+      setChecked(true);
+    }
   }
 
   return <section className="equation-studio" aria-labelledby="equation-studio-title">
@@ -190,7 +308,7 @@ export default function MathEquationStudio() {
       <div className="equation-studio-equation" aria-live="polite">{problem.prompt}</div>
       <p className="equation-studio-domain"><strong>Domain / restrictions:</strong> {problem.domain}</p>
       <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={problem.answer.length > 1 ? "Enter both answers, separated by a comma" : "Enter your value for x"}/></label>
-      <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked}>Check my answer</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
+      <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked || savingAttempt}>{savingAttempt ? "Saving…" : "Check my answer"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
       {checked && <div className={"equation-studio-feedback " + (sameAnswers(parseAnswers(answer), problem.answer) ? "correct" : "incorrect")} role="status"><strong>{sameAnswers(parseAnswers(answer), problem.answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.answer.join(", ")}</span></div>}
       {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {problem.steps.length}</span></div><p>{problem.steps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(problem.steps.length - 1, value + 1))} disabled={stepIndex === problem.steps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
@@ -198,6 +316,6 @@ export default function MathEquationStudio() {
     <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{guidanceForMethod(method, topic)}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => setMethod(item)}>{item}</button>)}</div></div>
     {difficulty === "guided" && <div className="equation-studio-guidance"><Sparkles size={15}/> Guided mode is selected. Try the hint first, then reveal one worked step at a time.</div>}
     {weakTopic && <div className="equation-studio-guidance"><Activity size={15}/> Your recent practice suggests revisiting {topics.find(item => item.id === weakTopic)?.title}. Switch to that topic for a focused refresher.</div>}
-    <footer className="equation-studio-footer"><CheckCircle2 size={15}/> Practice history is saved on this device. Teacher-assigned marks remain separate from personal Lab practice.</footer>
+    <footer className="equation-studio-footer"><CheckCircle2 size={15}/> {cloudStatus || "Practice attempts sync to your StudySpace account when online."} Teacher-assigned marks remain separate from personal Lab practice.</footer>
   </section>;
 }
