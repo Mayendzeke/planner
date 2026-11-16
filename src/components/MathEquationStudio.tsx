@@ -78,6 +78,23 @@ function sameAnswers(actual: number[], expected: number[]) {
   return a.every((value, index) => Math.abs(value - b[index]) < 0.011);
 }
 
+function guidanceForMethod(method: string, topic: Topic): string {
+  if (method === "Graph both sides" || method === "Graphing") return "Draw each side as a graph. The solution is the x-coordinate where the graphs intersect; check the intersection in the original equation.";
+  if (method === "Quadratic formula") return "Write the equation as ax² + bx + c = 0, identify a, b and c, then use x = (−b ± √(b² − 4ac)) / 2a. Check the discriminant and both roots.";
+  if (method === "Factorisation") return "Find factors that multiply to c and add to b. Set each factor equal to zero, then verify both roots in the original equation.";
+  if (method === "Elimination") return "Scale the equations to make one variable's coefficients opposites. Add the equations, solve the remaining variable, then substitute back.";
+  if (method === "Substitution") return "Rearrange one equation to make a variable the subject. Substitute that expression into the other equation, solve, then back-substitute.";
+  if (method === "Clear the denominator") return "Record every excluded denominator value first. Multiply through by the least common denominator, solve, then reject any candidate that violates the original domain.";
+  if (method === "Isolate and square") return "Isolate the radical before squaring. Squaring can introduce extraneous roots, so substitute every candidate into the original equation.";
+  if (method === "Common-base method") return "Rewrite both sides with the same positive base (not 1). Equate exponents and solve the resulting equation.";
+  if (method === "Logarithms") return "Take logarithms of both sides and use log laws to bring the exponent down. Check that all logarithm arguments are positive.";
+  if (method === "Positive / negative cases") return "Split the absolute-value equation into two cases: the inside equals the positive value and the inside equals its negative.";
+  if (method === "Reference-angle method" || method === "Unit-circle method") return "Find the reference angle, identify the quadrants with the required sign, then list every solution in the stated interval.";
+  if (method === "Balance / inverse operations") return "Undo operations in reverse order. Apply each operation to both sides so equality is preserved.";
+  if (topic === "linear") return "Use equivalent operations to isolate the unknown, then substitute your result into the original equation.";
+  return "Choose a valid sequence of equivalent transformations, state any restrictions, and verify your final solution in the original equation.";
+}
+
 export default function MathEquationStudio() {
   const [pathway, setPathway] = useState<Pathway>("High School");
   const [topic, setTopic] = useState<Topic>("linear");
@@ -168,7 +185,7 @@ export default function MathEquationStudio() {
       {checked && <div className={"equation-studio-feedback " + (sameAnswers(parseAnswers(answer), problem.answer) ? "correct" : "incorrect")} role="status"><strong>{sameAnswers(parseAnswers(answer), problem.answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.answer.join(", ")}</span></div>}
       {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {problem.steps.length}</span></div><p>{problem.steps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(problem.steps.length - 1, value + 1))} disabled={stepIndex === problem.steps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
     </div>
-    <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{problem.methodNote}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => setMethod(item)}>{item}</button>)}</div></div>
+    <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{guidanceForMethod(method, topic)}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => setMethod(item)}>{item}</button>)}</div></div>
     {difficulty === "guided" && <div className="equation-studio-guidance"><Sparkles size={15}/> Guided mode is selected. Try the hint first, then reveal one worked step at a time.</div>}
     {weakTopic && <div className="equation-studio-guidance"><Activity size={15}/> Your recent practice suggests revisiting {topics.find(item => item.id === weakTopic)?.title}. Switch to that topic for a focused refresher.</div>}
     <footer className="equation-studio-footer"><CheckCircle2 size={15}/> Practice history is saved on this device. Teacher-assigned marks remain separate from personal Lab practice.</footer>
