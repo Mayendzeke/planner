@@ -91,3 +91,13 @@ test("Practice autosaves are debounced, serialized and flushed on page hide", ()
   assert.ok(hub.includes('window.addEventListener("pagehide", flush)'));
   assert.ok(hub.includes("persistAttempt(completed, true)"));
 });
+test("Every subject Lab graph uses the shared responsive graph sheet", () => {
+  const mathsLab = read("src/components/MathsLab.tsx");
+  const subjectLabs = read("src/components/SubjectLabs.tsx");
+  assert.ok(mathsLab.includes('from "./LabGraphSheet"'));
+  assert.ok(mathsLab.includes("<LabGraphSheet graph={coordinateGraph} compact/>"));
+  assert.ok(!mathsLab.includes("<svg"));
+  assert.ok(subjectLabs.includes("<LabGraphSheet graph={climateGraphs.temperatureGraph} compact/>"));
+  assert.ok(subjectLabs.includes("<LabGraphSheet graph={climateGraphs.rainfallGraph} compact/>"));
+  assert.ok(subjectLabs.includes("<LabGraphSheet graph={demandSupplyGraph} compact/>"));
+});
