@@ -8,6 +8,7 @@ import {
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
 import { syncStudentWorkspace } from "./lib/cloudSync";
+import { EDUCATION_LEVEL_VALUES, isEducationLevel, isTertiaryLevel } from "./lib/educationPathways";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
 import StudentProfileEngagementCard from "./components/StudentProfileEngagementCard";
@@ -358,7 +359,12 @@ export default function App() {
           const parsed = JSON.parse(raw) as Partial<StudentProfile>;
           if (parsed && typeof parsed.fullName === "string" && typeof parsed.preferredName === "string"
             && Array.isArray(parsed.subjects) && Array.isArray(parsed.preferredDays)) {
-            cached = { ...(parsed as StudentProfile), level: "Secondary High" };
+            cached = {
+              ...(parsed as StudentProfile),
+              level: isEducationLevel(String(parsed.level || "")) ? String(parsed.level) : "Secondary High",
+              institutionType: String(parsed.institutionType || ""),
+              qualificationLevel: String(parsed.qualificationLevel || ""),
+            };
           }
         }
       } catch {
@@ -370,7 +376,7 @@ export default function App() {
         // Always refresh from the cloud when online. A local cache must not
         // silently overwrite profile changes made on another signed-in device.
         const [profileResult, goalResult, subjectsResult] = await Promise.all([
-          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,grade,curriculum,academic_year,avatar_path,date_of_birth,sex,profile_setup_dismissed_at").eq("id", cloudUserId).single(),
+          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,institution_type,qualification_level,grade,curriculum,academic_year,avatar_path,date_of_birth,sex,profile_setup_dismissed_at").eq("id", cloudUserId).single(),
           supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
           supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
         ]);
@@ -382,12 +388,18 @@ export default function App() {
         const fullName = String(cloud.full_name || "");
         const preferredName = String(cloud.preferred_name || "");
         const cloudSubjects = (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean);
+        const educationLevel = String(cloud.education_level || "").trim();
+        const tertiary = isTertiaryLevel(educationLevel);
         const academicSetupComplete = Boolean(
-          String(cloud.education_level || "").trim() === "Secondary High"
+          EDUCATION_LEVEL_VALUES.includes(educationLevel as typeof EDUCATION_LEVEL_VALUES[number])
           && String(cloud.grade || "").trim()
-          && String(cloud.curriculum || "").trim()
           && String(cloud.academic_year || "").trim()
           && cloudSubjects.length > 0
+          && (tertiary
+            ? String(cloud.institution_type || "").trim()
+              && String(cloud.qualification_level || "").trim()
+              && String(cloud.course || "").trim()
+            : String(cloud.curriculum || "").trim())
         );
         if (!cloud.profile_setup_dismissed_at && !academicSetupComplete) {
           if (alive) {
@@ -412,7 +424,9 @@ export default function App() {
           country: String(cloud.country || ""),
           institution: String(cloud.institution || ""),
           course: String(cloud.course || ""),
-          level: "Secondary High",
+          level: isEducationLevel(educationLevel) ? educationLevel : "Secondary High",
+          institutionType: String(cloud.institution_type || ""),
+          qualificationLevel: String(cloud.qualification_level || ""),
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
           academicYear: String(cloud.academic_year || new Date().getFullYear()),
@@ -621,22 +635,42 @@ export default function App() {
       const safeName = nextProfile.fullName.trim() || accountName || "Student";
       const profileToSave: StudentProfile = {
         ...nextProfile,
-        level: "Secondary High",
+        level: isEducationLevel(nextProfile.level) ? nextProfile.level : "Secondary High",
+        institutionType: isTertiaryLevel(nextProfile.level) ? nextProfile.institutionType : "School",
+        qualificationLevel: isTertiaryLevel(nextProfile.level) ? nextProfile.qualificationLevel : "",
         fullName: safeName,
         preferredName: nextProfile.preferredName.trim() || safeName
       };
       {
-          const { error: profileError } = await supabase.rpc("update_studyspace_learner_profile", {
-            p_full_name: profileToSave.fullName,
-            p_preferred_name: profileToSave.preferredName,
-            p_country: profileToSave.country,
-            p_institution: profileToSave.institution,
-            p_education_level: "Secondary High",
-            p_grade: profileToSave.grade,
-            p_curriculum: profileToSave.curriculum,
-            p_academic_year: profileToSave.academicYear,
-            p_course: profileToSave.course || ""
-          });
+          let profileError: { message: string } | null = null;
+          if (skipSetup) {
+            const result = await supabase.rpc("update_studyspace_learner_profile", {
+              p_full_name: profileToSave.fullName,
+              p_preferred_name: profileToSave.preferredName,
+              p_country: profileToSave.country,
+              p_institution: profileToSave.institution,
+              p_education_level: profileToSave.level,
+              p_grade: profileToSave.grade || "",
+              p_curriculum: profileToSave.curriculum || "",
+              p_academic_year: profileToSave.academicYear || ""
+            });
+            profileError = result.error;
+          } else {
+            const result = await supabase.rpc("update_studyspace_learner_academic_profile", {
+              p_full_name: profileToSave.fullName,
+              p_preferred_name: profileToSave.preferredName,
+              p_country: profileToSave.country,
+              p_institution: profileToSave.institution,
+              p_education_level: profileToSave.level,
+              p_grade: profileToSave.grade,
+              p_curriculum: profileToSave.curriculum,
+              p_academic_year: profileToSave.academicYear,
+              p_course: isTertiaryLevel(profileToSave.level) ? profileToSave.course : "",
+              p_institution_type: isTertiaryLevel(profileToSave.level) ? profileToSave.institutionType : "School",
+              p_qualification_level: isTertiaryLevel(profileToSave.level) ? profileToSave.qualificationLevel : ""
+            });
+            profileError = result.error;
+          }
           if (profileError) throw new Error("Your cloud profile could not be saved: " + profileError.message);
           if (profileToSave.subjects.length) {
             const { error: subjectsError } = await supabase.from("student_subjects").upsert(

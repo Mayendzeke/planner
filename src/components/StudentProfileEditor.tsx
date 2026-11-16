@@ -2,10 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { BookOpen, ImagePlus, Pencil, Save, UserRound, X } from "lucide-react";
 import type { StudentProfile } from "./StudentOnboarding";
 import { supabase } from "../lib/supabase";
+import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isStandardGrade, isTertiaryLevel } from "../lib/educationPathways";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const LEVELS = ["Secondary High"];
-const CURRICULA = ["National curriculum", "IGCSE / Cambridge", "A-Level", "IB", "CAPS", "Other / Not sure"];
 function calculatedAge(dateOfBirth?: string): number | null {
   if (!dateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth)) return null;
   const [year, month, day] = dateOfBirth.split("-").map(Number);
@@ -26,7 +25,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   avatarUrl?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<StudentProfile>({ ...profile, level: "Secondary High" });
+  const [draft, setDraft] = useState<StudentProfile>({ ...profile, level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" });
+  const [otherGradeSelected, setOtherGradeSelected] = useState(() => Boolean(profile.grade && !isStandardGrade(profile.grade, profile.level || "Secondary High")));
   const [customSubject, setCustomSubject] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -36,6 +36,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [sexChoice, setSexChoice] = useState<"male" | "female" | "">("");
   const [savingSex, setSavingSex] = useState(false);
+  const gradeOptions = gradeOptionsFor(draft.level);
 
   useEffect(() => {
     if (!avatarFile) { setAvatarPreview(""); return; }
@@ -91,6 +92,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
     event.preventDefault();
     if (!supabase || saving) return;
     if (!draft.fullName.trim()) { setError("Full name is required."); return; }
+    if (!draft.level || !draft.grade.trim() || (!isTertiaryLevel(draft.level) && !draft.curriculum.trim())) { setError("Choose your education stage, grade or year, and curriculum."); return; }
+    if (isTertiaryLevel(draft.level) && (!draft.institutionType || !draft.qualificationLevel || !draft.course.trim())) { setError("Choose your institution type and qualification, then enter your course or programme."); return; }
     if (!draft.preferredDays.length) { setError("Choose at least one preferred study day."); return; }
     const targetMark = Number(draft.targetMark);
     const weeklyHours = Number(draft.weeklyHours);
@@ -103,16 +106,18 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
       const learnerId = sessionState.session?.user.id;
       if (sessionError || !learnerId) throw new Error("Your secure session has expired. Sign in again.");
 
-      const { error: profileError } = await supabase.rpc("update_studyspace_learner_profile", {
+      const { error: profileError } = await supabase.rpc("update_studyspace_learner_academic_profile", {
         p_full_name: draft.fullName.trim(),
         p_preferred_name: draft.preferredName.trim(),
         p_country: draft.country.trim(),
         p_institution: draft.institution.trim(),
-        p_education_level: "Secondary High",
+        p_education_level: draft.level,
         p_grade: draft.grade.trim(),
         p_curriculum: draft.curriculum,
         p_academic_year: draft.academicYear.trim(),
-        p_course: draft.course.trim(),
+        p_course: isTertiaryLevel(draft.level) ? draft.course.trim() : "",
+        p_institution_type: isTertiaryLevel(draft.level) ? draft.institutionType : "School",
+        p_qualification_level: isTertiaryLevel(draft.level) ? draft.qualificationLevel : "",
       });
       if (profileError) throw new Error("Your profile could not be updated: " + profileError.message);
 
@@ -178,7 +183,9 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
 
       const next: StudentProfile = {
         ...draft,
-        level: "Secondary High",
+        level: draft.level,
+        institutionType: isTertiaryLevel(draft.level) ? draft.institutionType : "School",
+        qualificationLevel: isTertiaryLevel(draft.level) ? draft.qualificationLevel : "",
         fullName: draft.fullName.trim(),
         preferredName: draft.preferredName.trim(),
         country: draft.country.trim(),
@@ -205,7 +212,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   }
 
   function cancel() {
-    setDraft({ ...profile, level: "Secondary High" });
+    setDraft({ ...profile, level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" });
+    setOtherGradeSelected(Boolean(profile.grade && !isStandardGrade(profile.grade, profile.level || "Secondary High")));
     setCustomSubject("");
     setAvatarFile(null);
     setRemoveAvatar(false);
@@ -238,12 +246,12 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
     {!editing ? <>
       <div className="profile-editor-identity"><div className="profile-editor-avatar">{avatarUrl ? <img src={avatarUrl} alt="Your profile"/> : <UserRound size={28}/>}</div><div><strong>{profile.preferredName || profile.fullName}</strong><span>{profile.fullName}</span></div></div>
       <div className="privacy-list">
-        <p><strong>{profile.preferredName || profile.fullName}</strong> · {profile.level}{profile.grade ? " · " + profile.grade : ""}</p>
-        <p>{profile.institution || "School / institution not added"} · {profile.curriculum || "Curriculum not set"} · Academic year {profile.academicYear || "not set"}</p>
+        <p><strong>{profile.preferredName || profile.fullName}</strong> · {EDUCATION_PATHWAYS.find(stage => stage.value === profile.level)?.label || profile.level}{profile.grade ? " · " + profile.grade : ""}</p>
+        <p>{profile.institution || "Institution not added"} · {isTertiaryLevel(profile.level) ? [profile.institutionType, profile.qualificationLevel, profile.course].filter(Boolean).join(" · ") : (profile.curriculum || "Curriculum not set")} · Academic year {profile.academicYear || "not set"}</p>
         <p>{profile.subjects.length ? profile.subjects.join(" · ") : "No subjects added yet"}</p>
         <p>Goal: {profile.goals} · Target: {profile.targetMark}% · {profile.weeklyHours} study hours per week</p>
       </div>
-      <div className="setting-row"><div><strong>Update learner details</strong><span>Changes sync to your StudySpace account when online.</span></div><button type="button" className="secondary-button" onClick={() => { setDraft({ ...profile, level: "Secondary High" }); setEditing(true); setError(""); setNotice(""); }}><Pencil size={15}/> Edit profile</button></div>
+      <div className="setting-row"><div><strong>Update learner details</strong><span>Changes sync to your StudySpace account when online.</span></div><button type="button" className="secondary-button" onClick={() => { setDraft({ ...profile, level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" }); setOtherGradeSelected(Boolean(profile.grade && !isStandardGrade(profile.grade, profile.level || "Secondary High"))); setEditing(true); setError(""); setNotice(""); }}><Pencil size={15}/> Edit profile</button></div>
     </> : <form className="onboarding-fields" onSubmit={event => void save(event)}>
       <div className="profile-editor-photo-edit"><div className="profile-editor-avatar">{avatarPreview ? <img src={avatarPreview} alt="New profile picture preview"/> : avatarUrl && !removeAvatar ? <img src={avatarUrl} alt="Current profile picture"/> : <UserRound size={28}/>}</div><div><strong>Profile picture</strong><small>Optional · PNG/JPG/WebP · up to 2 MB · Private to you and authorised administrators</small><div className="profile-editor-photo-actions"><label className="secondary-button"><ImagePlus size={14}/>{avatarFile ? "Change picture" : "Upload picture"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseAvatar(event.target.files?.[0] || null)}/></label>{(profile.avatarPath || avatarFile) && <button className="text-button" type="button" onClick={() => { setAvatarFile(null); setRemoveAvatar(true); setError(""); }}>Remove picture</button>}</div></div></div>
       <p className="profile-locked-note">Full name and country are protected account details. To correct either one, contact the StudySpace administrator. Date of birth and guardian-verification details are not editable here.</p>
@@ -252,10 +260,23 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         <label className="field-label">Preferred name<input maxLength={80} value={draft.preferredName} onChange={event => update("preferredName", event.target.value)}/></label>
         <label className="field-label">Country<input readOnly value={draft.country} aria-readonly="true"/></label>
         <label className="field-label">School / institution<input maxLength={160} value={draft.institution} onChange={event => update("institution", event.target.value)}/></label>
-        <label className="field-label">Education level<select value="Secondary High" disabled aria-label="Education level">{LEVELS.map(level => <option key={level}>{level}</option>)}</select></label>
-        <label className="field-label">Grade / year<input maxLength={80} value={draft.grade} onChange={event => update("grade", event.target.value)}/></label>
-        <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)}/></label>
-        <label className="field-label">Curriculum<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select></label>
+        <label className="field-label">Education stage<select value={draft.level} onChange={event => {
+          const level = event.target.value;
+          setDraft(current => ({ ...current, level, grade: "", course: "", institutionType: level === "Tertiary" ? "" : "School", qualificationLevel: "", curriculum: "" }));
+          setOtherGradeSelected(false);
+        }}><option value="">Choose education stage</option>{EDUCATION_PATHWAYS.map(stage => <option key={stage.value} value={stage.value}>{stage.label} · {stage.description}</option>)}</select></label>
+        <label className="field-label">{isTertiaryLevel(draft.level) ? "Year / semester" : draft.level === "Primary" ? "Primary grade" : draft.level === "Matric" ? "Advanced studies year" : "Form"}<select value={draft.grade && gradeOptions.includes(draft.grade) ? draft.grade : otherGradeSelected ? OTHER_GRADE_VALUE : ""} onChange={event => {
+          const value = event.target.value;
+          setOtherGradeSelected(value === OTHER_GRADE_VALUE);
+          update("grade", value === OTHER_GRADE_VALUE ? "" : value);
+        }} disabled={!draft.level}><option value="">Choose grade or year</option>{gradeOptions.map(item => <option key={item}>{item}</option>)}<option value={OTHER_GRADE_VALUE}>Other / international equivalent</option></select></label>
+        {otherGradeSelected && <label className="field-label">Enter your grade / year<input maxLength={80} value={draft.grade} onChange={event => update("grade", event.target.value)} placeholder="Enter your institution's equivalent"/></label>}
+        {isTertiaryLevel(draft.level) && <>
+          <label className="field-label">Institution type<select value={draft.institutionType} onChange={event => update("institutionType", event.target.value)}><option value="">Choose institution type</option>{INSTITUTION_TYPES.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label className="field-label">Qualification level<select value={draft.qualificationLevel} onChange={event => update("qualificationLevel", event.target.value)}><option value="">Choose qualification</option>{QUALIFICATION_LEVELS.map(item => <option key={item}>{item}</option>)}</select></label>
+          <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)} placeholder="e.g. Diploma in IT, BBA, MSc Education"/></label>
+        </>}
+        <label className="field-label">Curriculum / awarding framework<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}><option value="">Choose curriculum / framework</option>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select>{isTertiaryLevel(draft.level) && <span className="field-optional"> OPTIONAL</span>}</label>
         <label className="field-label">Academic year<input maxLength={30} value={draft.academicYear} onChange={event => update("academicYear", event.target.value)}/></label>
         <label className="field-label">Number of terms<select value={draft.termCount} onChange={event => update("termCount", event.target.value)}><option value="1">1 academic year</option><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="custom">Other / not sure</option></select></label>
       </div>
