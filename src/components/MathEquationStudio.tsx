@@ -128,9 +128,16 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const centre = randomInt(-8, 8), distance = randomInt(1, 7);
     return { topic, pathway, prompt: "|x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + "| = " + distance, answer: [centre - distance, centre + distance], hint: "An absolute value measures distance. There are usually two cases: the inside is positive or negative.", domain: "All real numbers", methods: ["Positive / negative cases", "Graphing"], methodNote: "For |u| = k with k > 0, solve u = k and u = −k.", steps: ["Split into two cases: x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + " = " + distance + " OR x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + " = −" + distance + ".", "Solve the first case: x = " + (centre + distance) + ".", "Solve the second case: x = " + (centre - distance) + ".", "Both values are valid because each is exactly " + distance + " units from " + centre + "."] };
   }
-  const pairs: Record<string, number[]> = { "1/2": [30, 150], "√3/2": [60, 120], "−1/2": [210, 330] };
-  const keys = Object.keys(pairs), selected = keys[randomInt(0, keys.length - 1)], roots = pairs[selected];
-  return { topic, pathway, prompt: "Solve sin(θ) = " + selected + " for 0° ≤ θ < 360°.", answer: roots, hint: "Find the reference angle, then use the signs of sine in the first and second quadrants.", domain: "0° ≤ θ < 360°", methods: ["Reference-angle method", "Unit-circle method", "Graphing"], methodNote: "Sine is positive in quadrants I and II and negative in quadrants III and IV.", steps: ["Find the reference angle for the given sine value.", "Locate the quadrants where sine has the required sign.", "The solutions in this interval are " + roots[0] + "° and " + roots[1] + "°.", "Check both angles on the unit circle."] };
+  const trigOptions = [
+    { fn: "sin", value: "1/2", roots: [30, 150], quadrants: "I and II" },
+    { fn: "sin", value: "√3/2", roots: [60, 120], quadrants: "I and II" },
+    { fn: "sin", value: "−1/2", roots: [210, 330], quadrants: "III and IV" },
+    { fn: "cos", value: "1/2", roots: [60, 300], quadrants: "I and IV" },
+    { fn: "cos", value: "−1/2", roots: [120, 240], quadrants: "II and III" },
+    { fn: "tan", value: "1", roots: [45, 225], quadrants: "I and III" },
+  ];
+  const selected = trigOptions[randomInt(0, trigOptions.length - 1)], roots = selected.roots;
+  return { topic, pathway, prompt: "Solve " + selected.fn + "(θ) = " + selected.value + " for 0° ≤ θ < 360°.", answer: roots, hint: "Find the reference angle, then use the sign of " + selected.fn + " to identify the correct quadrants.", domain: "0° ≤ θ < 360°", methods: ["Reference-angle method", "Unit-circle method", "Graphing"], methodNote: selected.fn + " has the required sign in quadrants " + selected.quadrants + ".", steps: ["Find the reference angle for the given " + selected.fn + " value.", "Locate the quadrants where " + selected.fn + " has the required sign: " + selected.quadrants + ".", "The solutions in this interval are " + roots[0] + "° and " + roots[1] + "°.", "Check both angles on the unit circle."] };
 }
 
 function parseAnswers(value: string): number[] {
