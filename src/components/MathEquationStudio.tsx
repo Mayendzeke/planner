@@ -231,7 +231,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
   useEffect(() => {
     let active = true;
     try {
-      const saved = localStorage.getItem(learnerHistoryKey) ?? (!studentId ? localStorage.getItem(historyKey) : null) ?? "[]";
+      const saved = localStorage.getItem(learnerHistoryKey) ?? "[]";
       setAttempts(JSON.parse(saved));
     } catch { setAttempts([]); }
     const sync = async () => {
