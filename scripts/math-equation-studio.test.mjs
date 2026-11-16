@@ -67,3 +67,9 @@ test("Trigonometry practice includes sine, cosine and tangent in a full rotation
   assert.ok(studio.includes('fn: "tan"'));
   assert.ok(studio.includes("0° ≤ θ < 360°"));
 });
+test("Selected quadratic and simultaneous methods show method-matched worked steps", () => {
+  assert.ok(studio.includes('methodSteps: { "Quadratic formula": formulaSteps, "Graphing": graphSteps }'));
+  assert.ok(studio.includes('methodSteps: { "Substitution": substitutionSteps, "Graphing": graphSteps }'));
+  assert.ok(studio.includes("const activeSteps = problem.methodSteps?.[method] ?? problem.steps"));
+  assert.ok(studio.includes("activeSteps[stepIndex]"));
+});
