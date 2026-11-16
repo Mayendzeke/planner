@@ -4,7 +4,7 @@ import { Activity, BookOpenCheck, CheckCircle2, ChevronRight, Lightbulb, Refresh
 import "./MathEquationStudio.css";
 
 type Pathway = "Primary" | "Secondary High" | "High School" | "Matric" | "Tertiary";
-type Topic = "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "trigonometry";
+type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "trigonometry";
 type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; steps: string[]; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
@@ -16,6 +16,7 @@ type PendingStudioAttempt = {
 };
 
 const topics: TopicMeta[] = [
+  { id: "arithmetic", title: "Arithmetic & pre-algebra", description: "Fractions, decimals, negative numbers and order of operations", pathways: ["Primary", "Secondary High", "High School", "Matric", "Tertiary"] },
   { id: "linear", title: "Linear equations", description: "Inverse operations and the balance principle", pathways: ["Primary", "Secondary High", "High School", "Matric", "Tertiary"] },
   { id: "quadratic", title: "Quadratic equations", description: "Factorisation and the quadratic formula", pathways: ["Secondary High", "High School", "Matric", "Tertiary"] },
   { id: "systems", title: "Simultaneous equations", description: "Elimination and substitution in two variables", pathways: ["Secondary High", "High School", "Matric", "Tertiary"] },
@@ -32,6 +33,29 @@ const signed = (value: number) => value < 0 ? " − " + Math.abs(value) : " + " 
 const multiply = (a: number, variable: string) => a === 1 ? variable : a === -1 ? "−" + variable : a + variable;
 
 function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "independent" | "challenge" = "guided"): Problem {
+  if (topic === "arithmetic") {
+    const variant = randomInt(0, 4);
+    if (variant === 0) {
+      const a = randomInt(2, difficulty === "challenge" ? 90 : 30), b = randomInt(2, difficulty === "challenge" ? 90 : 30);
+      return { topic, pathway, prompt: a + " + " + b + " = ?", answer: [a + b], hint: "Add the ones first, then the tens. Estimate the answer to check it makes sense.", domain: "Whole numbers", methods: ["Column addition", "Number-line method"], methodNote: "Addition combines quantities. Keep place values aligned when adding larger numbers.", steps: ["Write " + a + " + " + b + ".", "Add the ones, carrying if their total is 10 or more.", "Add the tens and any carried value.", "The total is " + (a + b) + ".", "Estimate and check the sum."] };
+    }
+    if (variant === 1) {
+      const a = randomInt(3, 18), b = randomInt(1, 8);
+      return { topic, pathway, prompt: "−" + a + " + " + (a + b) + " = ?", answer: [b], hint: "Start at the negative number on a number line, then move right by the positive amount.", domain: "Integers", methods: ["Number-line method", "Additive inverse"], methodNote: "A negative number represents movement left of zero; a positive number moves right.", steps: ["Start at −" + a + " on the number line.", "Adding " + (a + b) + " means move " + (a + b) + " places to the right.", "You pass zero and finish at " + b + ".", "Check the result on the number line."] };
+    }
+    if (variant === 2) {
+      const a = Number((randomInt(10, 90) / 10).toFixed(1)), b = Number((randomInt(10, 90) / 10).toFixed(1));
+      return { topic, pathway, prompt: a.toFixed(1) + " + " + b.toFixed(1) + " = ?", answer: [Number((a + b).toFixed(2))], hint: "Line up the decimal points. Add tenths to tenths and ones to ones.", domain: "Terminating decimals", methods: ["Place-value alignment", "Convert to fractions"], methodNote: "Align decimal points before adding so each digit keeps its place value.", steps: ["Write the numbers with decimal points aligned.", "Add the tenths and hundredths columns.", "Add the whole-number part.", "The sum is " + (a + b).toFixed(2) + ".", "Estimate to check the result."] };
+    }
+    if (variant === 3) {
+      const denominator = [2, 4, 5, 10][randomInt(0, 3)], numeratorA = randomInt(1, denominator - 1), numeratorB = randomInt(1, denominator - 1);
+      const answer = Number(((numeratorA + numeratorB) / denominator).toFixed(3));
+      return { topic, pathway, prompt: numeratorA + "/" + denominator + " + " + numeratorB + "/" + denominator + " = ?", answer: [answer], hint: "The denominators are the same. Add the numerators and keep the denominator.", domain: "Fractions with a common denominator", methods: ["Fraction arithmetic", "Convert to decimals"], methodNote: "When denominators match, add the numerators and keep the shared denominator.", steps: ["Keep the denominator " + denominator + ".", "Add the numerators: " + numeratorA + " + " + numeratorB + " = " + (numeratorA + numeratorB) + ".", "The result is " + (numeratorA + numeratorB) + "/" + denominator + ".", "As a decimal this is " + answer + ".", "Simplify the fraction if possible."] };
+    }
+    const a = randomInt(2, 9), b = randomInt(2, 9), d = randomInt(2, 5);
+    return { topic, pathway, prompt: a + " + " + b + " × " + d + " = ?", answer: [a + b * d], hint: "Remember the order of operations: multiplication before addition.", domain: "Whole numbers", methods: ["Order of operations", "Step-by-step evaluation"], methodNote: "Apply multiplication before addition or subtraction unless brackets change the order.", steps: ["Identify the multiplication: " + b + " × " + d + ".", "Multiply first: " + (b * d) + ".", "Then add " + a + ".", "The answer is " + (a + b * d) + ".", "Check the order: do not add before multiplying."] };
+  }
+
   if (topic === "linear") {
     const a = pathway === "Primary" ? 1 : randomInt(2, difficulty === "challenge" ? 12 : difficulty === "independent" ? 9 : 5);
     const x = pathway === "Primary" ? randomInt(1, 10) : randomInt(difficulty === "challenge" ? -12 : difficulty === "independent" ? -8 : -4, difficulty === "challenge" ? 15 : difficulty === "independent" ? 10 : 6);
@@ -98,6 +122,10 @@ function guidanceForMethod(method: string, topic: Topic): string {
   if (method === "Logarithms") return "Take logarithms of both sides and use log laws to bring the exponent down. Check that all logarithm arguments are positive.";
   if (method === "Positive / negative cases") return "Split the absolute-value equation into two cases: the inside equals the positive value and the inside equals its negative.";
   if (method === "Reference-angle method" || method === "Unit-circle method") return "Find the reference angle, identify the quadrants with the required sign, then list every solution in the stated interval.";
+  if (method === "Order of operations") return "Evaluate brackets first, then multiplication and division, then addition and subtraction.";
+  if (method === "Fraction arithmetic") return "Use a common denominator, combine the numerators, then simplify. Convert to a decimal only when the result terminates.";
+  if (method === "Place-value alignment" || method === "Decimal arithmetic") return "Align decimal points and combine matching place values. Estimate the result before accepting it.";
+  if (method === "Number-line method") return "Represent positive and negative values as movements along a number line. Track direction and distance from zero.";
   if (method === "Balance / inverse operations") return "Undo operations in reverse order. Apply each operation to both sides so equality is preserved.";
   if (topic === "linear") return "Use equivalent operations to isolate the unknown, then substitute your result into the original equation.";
   return "Choose a valid sequence of equivalent transformations, state any restrictions, and verify your final solution in the original equation.";
@@ -286,7 +314,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
     <div className="equation-studio-controls">
       <label>Learning pathway<select value={pathway} onChange={event => {
         const nextPathway = event.target.value as Pathway;
-        const nextTopic = topics.find(item => item.id === topic && item.pathways.includes(nextPathway))?.id ?? topics.find(item => item.pathways.includes(nextPathway))!.id;
+        const nextTopic = nextPathway === "Primary" ? "arithmetic" : topics.find(item => item.id === topic && item.pathways.includes(nextPathway))?.id ?? topics.find(item => item.pathways.includes(nextPathway))!.id;
         setPathway(nextPathway);
         setTopic(nextTopic);
         const generated = createProblem(nextTopic, nextPathway, difficulty);
@@ -317,7 +345,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
       <div className="equation-studio-problem-top"><span>YOUR QUESTION</span><button type="button" onClick={() => nextProblem()}><RefreshCw size={14}/> New variant</button></div>
       <div className="equation-studio-equation" aria-live="polite">{problem.prompt}</div>
       <p className="equation-studio-domain"><strong>Domain / restrictions:</strong> {problem.domain}</p>
-      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={problem.answer.length > 1 ? "Enter both answers, separated by a comma" : "Enter your value for x"}/></label>
+      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={problem.answer.length > 1 ? "Enter both answers, separated by a comma" : topic === "arithmetic" ? "Enter your numeric answer" : "Enter your value for x"}/></label>
       <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked || savingAttempt}>{savingAttempt ? "Saving…" : "Check my answer"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
       {checked && <div className={"equation-studio-feedback " + (sameAnswers(parseAnswers(answer), problem.answer) ? "correct" : "incorrect")} role="status"><strong>{sameAnswers(parseAnswers(answer), problem.answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.answer.join(", ")}</span></div>}
