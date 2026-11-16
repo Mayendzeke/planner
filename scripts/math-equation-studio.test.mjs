@@ -21,7 +21,7 @@ test("Equation Studio covers pathway-scoped equation families", () => {
 test("Practice includes randomized variants, method selection, hints, worked steps and validation", () => {
   for (const item of ["New variant", "Choose an approach", "Get a hint", "Work through steps", "Check my answer", "quadratic formula", "extraneous roots", "Domain / restrictions"]) assert.ok(studio.toLowerCase().includes(item.toLowerCase()), "Missing feature " + item);
   assert.match(studio, /Math\.abs\(value - b\[index\]\) < 0\.011/);
-  assert.match(studio, /localStorage\.setItem\(historyKey/);
+  assert.match(studio, /localStorage\.setItem\(learnerHistoryKey/);
 });
 
 test("Equation Studio is responsive and honours reduced motion", () => {
