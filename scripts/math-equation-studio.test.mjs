@@ -36,3 +36,12 @@ test("Practice difficulty changes scaffolding and keeps primary examples positiv
   assert.ok(studio.includes('setShowHint(nextDifficulty === "guided")'));
   assert.ok(studio.includes('disabled={difficulty === "challenge" && !checked}'));
 });
+
+test("Equation Studio attempts sync into shared learner progress and Monitor with offline retry", () => {
+  assert.ok(studio.includes('from("lab_practice_attempts").upsert'));
+  assert.ok(studio.includes('status: "submitted"'));
+  assert.ok(studio.includes('mode: "practice"'));
+  assert.ok(studio.includes("pendingHistoryKey"));
+  assert.ok(studio.includes('material_snapshot->>title'));
+  assert.ok(studio.includes("teacher's Monitor"));
+});
