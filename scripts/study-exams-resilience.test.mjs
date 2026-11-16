@@ -41,6 +41,17 @@ test("Teacher homework loading failures are converted into a visible error state
   assert.match(homework, /role="alert"/);
 });
 
+test("Assessment tabs provide single-tab-stop keyboard navigation", () => {
+  assert.match(page, /tabIndex=\{selected \? 0 : -1\}/);
+  assert.match(page, /ArrowRight/);
+  assert.match(page, /ArrowLeft/);
+  assert.match(page, /ArrowDown/);
+  assert.match(page, /ArrowUp/);
+  assert.match(page, /event\.key === "Home"/);
+  assert.match(page, /event\.key === "End"/);
+  assert.match(page, /\.focus\(\)/);
+});
+
 test("Assessment workspace provides responsive, keyboard-visible tab controls", () => {
   assert.match(styles, /\.study-exams-tab:focus-visible/);
   assert.match(styles, /@media\(max-width:620px\)/);
