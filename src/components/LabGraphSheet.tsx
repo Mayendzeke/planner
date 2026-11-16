@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import "./LabGraphSheet.css";
 
@@ -45,12 +45,22 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
   numberLine?: LabNumberLineConfig;
   compact?: boolean;
 }) {
-  const initial = useMemo<View>(() => ({
-    xMin: graph?.xMin ?? (numberLine?.boundary ?? -10) - 10,
-    xMax: graph?.xMax ?? (numberLine?.boundary ?? 10) + 10,
-    yMin: graph?.yMin ?? -10,
-    yMax: graph?.yMax ?? 10,
-  }), [graph, numberLine]);
+  const initial = useMemo<View>(() => {
+    const xMin = graph?.xMin ?? (numberLine?.boundary ?? -10) - 10;
+    const xMax = graph?.xMax ?? (numberLine?.boundary ?? 10) + 10;
+    let observedMin = 0, observedMax = 0;
+    if (graph && graph.yMin === undefined && graph.yMax === undefined) {
+      for (const curve of graph.curves) for (let index = 0; index <= 240; index++) {
+        const x = xMin + (index / 240) * (xMax - xMin);
+        const y = curve.evaluate(x);
+        if (y !== null && Number.isFinite(y)) { observedMin = Math.min(observedMin, y); observedMax = Math.max(observedMax, y); }
+      }
+    }
+    const span = Math.max(2, observedMax - observedMin);
+    const padding = span * 0.12;
+    return { xMin, xMax, yMin: graph?.yMin ?? observedMin - padding, yMax: graph?.yMax ?? observedMax + padding };
+  }, [graph, numberLine]);
+  useEffect(() => { setView(initial); }, [initial]);
   const [view, setView] = useState<View>(initial);
   const [resetKey, setResetKey] = useState(0);
   const xTicks = useMemo(() => ticks(view.xMin, view.xMax), [view.xMin, view.xMax]);
