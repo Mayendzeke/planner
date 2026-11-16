@@ -34,6 +34,8 @@ jobs:
         run: node --test scripts/lab-ecosystem-contract.test.mjs
       - name: Verify the Mathematics Equation Studio
         run: node --test scripts/math-equation-studio.test.mjs
+      - name: Verify adaptive Lab spaced revision
+        run: node --test scripts/lab-spaced-review.test.mjs
       - name: Verify the complete student education pathway model
         run: node --test scripts/education-level-standard.test.mjs
       - name: Verify shared StudySpace brand tokens
