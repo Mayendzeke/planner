@@ -160,7 +160,10 @@ function parseAnswers(value: string): number[] {
   });
 }
 function answerMatches(problem: Problem, value: string) {
-  if (problem.textAnswer) return value.trim().toLowerCase().replace(/\s+/g, "") === problem.textAnswer.toLowerCase().replace(/\s+/g, "");
+  if (problem.textAnswer) {
+    const normalize = (answer: string) => answer.trim().toLowerCase().replace(/[−–]/g, "-").replace(/≤/g, "<=").replace(/≥/g, ">=").replace(/\s+/g, "");
+    return normalize(value) === normalize(problem.textAnswer);
+  }
   return sameAnswers(parseAnswers(value), problem.answer, problem.orderedAnswers);
 }
 
