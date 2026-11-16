@@ -29,3 +29,8 @@ test("Student submission preserves teacher review metadata and can display feedb
   assert.ok(practicals.includes("record?.reviewed_at"));
   assert.ok(practicals.includes("record.feedback"));
 });
+test("Teacher-reviewed practical submissions are locked against accidental overwrite", () => {
+  assert.ok(practicals.includes('workByAssignment.get("assignment:" + active.id)?.reviewed_at) return'));
+  assert.ok(practicals.includes("readOnly={Boolean(workByAssignment.get"));
+  assert.ok(practicals.includes("The reflection is locked to preserve the teacher's feedback."));
+});
