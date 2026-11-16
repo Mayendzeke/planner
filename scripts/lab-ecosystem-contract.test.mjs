@@ -69,8 +69,6 @@ test("Lab records have learner ownership, RLS and explicit authenticated grants"
   assert.match(securityMigration, /revoke all privileges on table public\.lab_generated_materials from anon, public/i);
   assert.match(securityMigration, /revoke all privileges on table public\.lab_practice_attempts from anon, public/i);
   assert.match(securityMigration, /ai_generation_usage_actor_purpose_created_idx/);
-  assert.match(databaseMigration, /revoke all privileges on table public\.lab_generated_materials from anon, public/i);
-  assert.match(databaseMigration, /revoke all privileges on table public\.lab_practice_attempts from anon, public/i);
   assert.match(databaseMigration, /grant select, insert, update, delete on public\.lab_generated_materials to authenticated/i);
   assert.match(databaseMigration, /grant select, insert, update, delete on public\.lab_practice_attempts to authenticated/i);
 });
