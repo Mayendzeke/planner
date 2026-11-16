@@ -27,5 +27,5 @@ test("Student submission preserves teacher review metadata and can display feedb
   assert.ok(practicals.includes("reviewed_at: null"));
   assert.ok(practicals.includes("reviewed_by: null"));
   assert.ok(practicals.includes("record?.reviewed_at"));
-  assert.ok(practicals.includes("record?.feedback"));
+  assert.ok(practicals.includes("record.feedback"));
 });
