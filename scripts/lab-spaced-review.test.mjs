@@ -6,10 +6,10 @@ const hub = readFileSync("src/components/LabLearningHub.tsx", "utf8");
 const style = readFileSync("src/components/LabLearningHub.css", "utf8");
 
 test("Lab review schedule is derived from submitted attempts without changing official assessment records", () => {
-  assert.match(hub, /function buildReviewQueue\(attempts: LabAttempt\[\]\)/);
-  assert.match(hub, /item\\.status === "submitted"/);
-  assert.match(hub, /nextReviewAt/);
-  assert.match(hub, /consecutiveStrong >= 3 \? 30 : score < 60 \? 1 : score < 75 \? 3 : score < 90 \? 7 : 14/);
+  assert.ok(hub.includes("function buildReviewQueue(attempts: LabAttempt[])"));
+  assert.ok(hub.includes('item.status === "submitted"'));
+  assert.ok(hub.includes("nextReviewAt"));
+  assert.ok(hub.includes("consecutiveStrong >= 3 ? 30 : score < 60 ? 1 : score < 75 ? 3 : score < 90 ? 7 : 14"));
   assert.doesNotMatch(hub, /from\("exercise_attempts"\)/);
 });
 
