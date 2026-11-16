@@ -8,7 +8,7 @@ const labs = readFileSync("src/components/SubjectLabs.tsx", "utf8");
 
 test("Math Equation Studio is mounted only inside the Mathematics Lab", () => {
   assert.match(labs, /import MathEquationStudio from "\.\/MathEquationStudio"/);
-  assert.match(labs, /activeLab\.key === "maths" && <>\s*<MathsLab\/>\s*<MathEquationStudio subjectName=/);
+  assert.match(labs, /activeLab\.key === "maths" && <>\s*<MathsLab\/>\s*<MathEquationStudio studentId=/);
   assert.doesNotMatch(labs, /activeLab\.key === "science"[^\n]*MathEquationStudio/);
 });
 
