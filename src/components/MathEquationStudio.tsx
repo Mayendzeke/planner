@@ -215,13 +215,14 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
     try {
       const client = supabase;
       if (!client) { setCloudStatus("Saved on this device. Cloud progress is not connected."); return; }
-      const { data: auth, error: authError } = await client.auth.getUser();
-      if (authError || !auth.user) { setCloudStatus("Saved on this device. Sign in again to sync progress."); return; }
+      const { data: sessionData, error: authError } = await client.auth.getSession();
+      const learner = sessionData.session?.user;
+      if (authError || !learner) { setCloudStatus("Saved on this device. Sign in again to sync progress."); return; }
       const durationSeconds = Math.max(0, Math.min(86400, Math.floor((Date.now() - startedAt) / 1000)));
       const score = correct ? 1 : 0;
       const record: PendingStudioAttempt = {
         id: attemptId,
-        learner_id: auth.user.id,
+        learner_id: learner.id,
         material_id: null,
         subject_name: subjectName.slice(0, 120),
         topic: topicTitle.slice(0, 180),
