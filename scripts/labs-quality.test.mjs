@@ -101,3 +101,10 @@ test("Every subject Lab graph uses the shared responsive graph sheet", () => {
   assert.ok(subjectLabs.includes("<LabGraphSheet graph={climateGraphs.rainfallGraph} compact/>"));
   assert.ok(subjectLabs.includes("<LabGraphSheet graph={demandSupplyGraph} compact/>"));
 });
+test("Computer Science sorting rejects empty list items instead of silently treating them as zero", () => {
+  const subjectLabs = read("src/components/SubjectLabs.tsx");
+  assert.ok(subjectLabs.includes("numberTokens.every(value => value.length > 0 && Number.isFinite(Number(value)))"));
+});
+test("Equation Studio accepts common Unicode minus and inequality symbols", () => {
+  assert.ok(studio.includes('replace(/[−–]/g, "-").replace(/≤/g, "<=").replace(/≥/g, ">=")'));
+});
