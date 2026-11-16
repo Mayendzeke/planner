@@ -163,11 +163,35 @@ function markdownFor(item: LabMaterial) {
   }
   return lines.join("\n").trim() + "\n";
 }
+function canonicalAnswer(value: unknown) {
+  const raw = String(value ?? "").normalize("NFKC").trim().toLowerCase()
+    .replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/")
+    .replace(/≤/g, "<=").replace(/≥/g, ">=").replace(/π/g, "pi");
+  const mathematical = /[<>=]/.test(raw) || /[a-z]\s*[+*/^=-]/i.test(raw)
+    || /\d\s*[+*/^=-]\s*\d/.test(raw) || /^[-+]?\d+\s*\/\s*[-+]?\d+$/.test(raw);
+  return mathematical ? raw.replace(/\s+/g, "") : norm(raw);
+}
+function numericAnswer(value: unknown): number | null {
+  const raw = String(value ?? "").trim().replace(/,/g, ".");
+  if (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw)) {
+    const result = Number(raw);
+    return Number.isFinite(result) ? result : null;
+  }
+  const fraction = raw.match(/^([-+]?\d+)\s*\/\s*([-+]?\d+)$/);
+  if (fraction && Number(fraction[2]) !== 0) return Number(fraction[1]) / Number(fraction[2]);
+  return null;
+}
 function compareAnswer(question: LabQuestion, value: string) {
-  const accepted = [question.correctAnswer, ...(question.acceptedAnswers ?? [])]
+  const answers = [question.correctAnswer, ...(question.acceptedAnswers ?? [])]
     .flatMap(answer => Array.isArray(answer) ? answer : [answer])
-    .map(norm).filter(Boolean);
-  return accepted.includes(norm(value));
+    .filter(answer => String(answer ?? "").trim());
+  const candidate = canonicalAnswer(value);
+  if (answers.some(answer => canonicalAnswer(answer) === candidate)) return true;
+  const numeric = numericAnswer(value);
+  return numeric !== null && answers.some(answer => {
+    const expected = numericAnswer(answer);
+    return expected !== null && Math.abs(expected - numeric) <= 1e-8 * Math.max(1, Math.abs(expected));
+  });
 }
 function shortAnswer(question: LabQuestion) {
   return Array.isArray(question.correctAnswer) ? question.correctAnswer.join(" / ") : question.correctAnswer;
