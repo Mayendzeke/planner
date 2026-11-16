@@ -122,6 +122,10 @@ function guidanceForMethod(method: string, topic: Topic): string {
   if (method === "Logarithms") return "Take logarithms of both sides and use log laws to bring the exponent down. Check that all logarithm arguments are positive.";
   if (method === "Positive / negative cases") return "Split the absolute-value equation into two cases: the inside equals the positive value and the inside equals its negative.";
   if (method === "Reference-angle method" || method === "Unit-circle method") return "Find the reference angle, identify the quadrants with the required sign, then list every solution in the stated interval.";
+  if (method === "Column addition") return "Align place values. Add from right to left and carry into the next column when needed.";
+  if (method === "Additive inverse") return "An additive inverse is the opposite number. Pairing a number with its opposite gives zero.";
+  if (method === "Convert to fractions") return "Write each decimal as a fraction with a power-of-ten denominator, then combine or simplify.";
+  if (method === "Step-by-step evaluation") return "Apply one operation at a time and write the intermediate result before moving to the next operation.";
   if (method === "Order of operations") return "Evaluate brackets first, then multiplication and division, then addition and subtraction.";
   if (method === "Fraction arithmetic") return "Use a common denominator, combine the numerators, then simplify. Convert to a decimal only when the result terminates.";
   if (method === "Place-value alignment" || method === "Decimal arithmetic") return "Align decimal points and combine matching place values. Estimate the result before accepting it.";
