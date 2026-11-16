@@ -153,7 +153,11 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
 }
 
 function parseAnswers(value: string): number[] {
-  return value.split(/[,;\s]+/).map(item => item.trim()).filter(Boolean).map(Number);
+  return value.split(/[,;\s]+/).map(item => item.trim()).filter(Boolean).map(item => {
+    const fraction = item.match(/^([-+]?\d+)\/([-+]?\d+)$/);
+    if (fraction && Number(fraction[2]) !== 0) return Number(fraction[1]) / Number(fraction[2]);
+    return Number(item);
+  });
 }
 function answerMatches(problem: Problem, value: string) {
   if (problem.textAnswer) return value.trim().toLowerCase().replace(/\s+/g, "") === problem.textAnswer.toLowerCase().replace(/\s+/g, "");
