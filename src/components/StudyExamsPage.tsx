@@ -53,6 +53,20 @@ export default function StudyExamsPage({ subjects }: { subjects: Subject[] }) {
   const active = tabs.find(tab => tab.id === activeTab) ?? tabs[0];
   const ActiveIcon = active.icon;
 
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, currentIndex: number) => {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (currentIndex + 1) % tabs.length;
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    setActiveTab(nextTab.id);
+    document.getElementById("study-exams-tab-" + nextTab.id)?.focus();
+  };
+
   return (
     <section className="study-exams-workspace">
       <header className="study-exams-header glass-panel">
@@ -65,7 +79,7 @@ export default function StudyExamsPage({ subjects }: { subjects: Subject[] }) {
       </header>
 
       <nav className="study-exams-tabs" role="tablist" aria-label="Assessment workspace sections">
-        {tabs.map(tab => {
+        {tabs.map((tab, index) => {
           const Icon = tab.icon;
           const selected = activeTab === tab.id;
           return (
@@ -74,10 +88,12 @@ export default function StudyExamsPage({ subjects }: { subjects: Subject[] }) {
               id={"study-exams-tab-" + tab.id}
               type="button"
               role="tab"
+              tabIndex={selected ? 0 : -1}
               aria-selected={selected}
               aria-controls="study-exams-panel"
               className={"study-exams-tab" + (selected ? " is-active" : "")}
               onClick={() => setActiveTab(tab.id)}
+              onKeyDown={event => handleTabKeyDown(event, index)}
             >
               <Icon size={17} />
               <span>{tab.label}</span>
