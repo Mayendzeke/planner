@@ -317,6 +317,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
     attempts.forEach(item => { const current = counts.get(item.topic) ?? { total: 0, correct: 0 }; current.total++; if (item.correct) current.correct++; counts.set(item.topic, current); });
     return [...counts.entries()].filter(([, value]) => value.total >= 2).sort((a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total)[0]?.[0];
   }, [attempts]);
+  const activeSteps = problem.methodSteps?.[method] ?? problem.steps;
 
   function nextProblem(nextTopic = topic) {
     const next = createProblem(nextTopic, pathway, difficulty);
@@ -353,14 +354,14 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
           subject_name: subjectName,
           topic: topicTitle,
           difficulty,
-          questions: [{ id: questionId, type: "short_answer", prompt: problem.prompt, correctAnswer: problem.textAnswer ?? problem.answer.map(String), explanation: problem.steps.join("\n"), points: 1 }],
+          questions: [{ id: questionId, type: "short_answer", prompt: problem.prompt, correctAnswer: problem.textAnswer ?? problem.answer.map(String), explanation: activeSteps.join("\n"), points: 1 }],
         },
         responses: { [questionId]: answer },
         result: {
           topic_key: problem.topic,
           method,
           domain: problem.domain,
-          items: [{ questionId, prompt: problem.prompt, given: answer, correctAnswer: problem.textAnswer ?? problem.answer.join(", "), correct, explanation: problem.steps.join("\\n"), points: 1, earnedPoints: score }],
+          items: [{ questionId, prompt: problem.prompt, given: answer, correctAnswer: problem.textAnswer ?? problem.answer.join(", "), correct, explanation: activeSteps.join("\\n"), points: 1, earnedPoints: score }],
         },
         score,
         max_score: 1,
@@ -437,9 +438,9 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
       <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked || savingAttempt}>{savingAttempt ? "Saving…" : "Check my answer"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
       {checked && <div className={"equation-studio-feedback " + (answerMatches(problem, answer) ? "correct" : "incorrect")} role="status"><strong>{answerMatches(problem, answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.textAnswer ?? problem.answer.join(", ")}</span></div>}
-      {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {problem.steps.length}</span></div><p>{problem.steps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(problem.steps.length - 1, value + 1))} disabled={stepIndex === problem.steps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
+      {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {activeSteps.length}</span></div><p>{activeSteps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(activeSteps.length - 1, value + 1))} disabled={stepIndex === activeSteps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
     </div>
-    <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{guidanceForMethod(method, topic)}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => setMethod(item)}>{item}</button>)}</div></div>
+    <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{guidanceForMethod(method, topic)}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => { setMethod(item); setStepIndex(0); setShowSteps(false); }}>{item}</button>)}</div></div>
     {difficulty === "guided" && <div className="equation-studio-guidance"><Sparkles size={15}/> Guided mode is selected. Try the hint first, then reveal one worked step at a time.</div>}
     {weakTopic && <div className="equation-studio-guidance"><Activity size={15}/> Your recent practice suggests revisiting {topics.find(item => item.id === weakTopic)?.title}. Switch to that topic for a focused refresher.</div>}
     <footer className="equation-studio-footer"><CheckCircle2 size={15}/> {cloudStatus || "Practice attempts sync to your StudySpace account when online."} Teacher-assigned marks remain separate from personal Lab practice.</footer>
