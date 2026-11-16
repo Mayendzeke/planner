@@ -170,6 +170,13 @@ function sameAnswers(actual: number[], expected: number[], ordered = false) {
   const b = ordered ? expected : [...expected].sort((x, y) => x - y);
   return a.every((value, index) => Math.abs(value - b[index]) < 0.011);
 }
+function queueStudioAttempt(key: string, record: PendingStudioAttempt) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+    const pending: PendingStudioAttempt[] = Array.isArray(parsed) ? parsed : [];
+    localStorage.setItem(key, JSON.stringify([...pending.filter(item => item.id !== record.id), record]));
+  } catch { /* Keep the current session usable if local storage is unavailable. */ }
+}
 
 function guidanceForMethod(method: string, topic: Topic): string {
   if (method === "Graph both sides" || method === "Graphing") return "Draw each side as a graph. The solution is the x-coordinate where the graphs intersect; check the intersection in the original equation.";
@@ -345,7 +352,9 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
     const next = [...attempts, { id: attemptId, topic: problem.topic, correct, created_at: now }].slice(-250);
     setAttempts(next);
     try { localStorage.setItem(learnerHistoryKey, JSON.stringify(next)); } catch { /* The current session remains usable if storage is full. */ }
+    setChecked(true);
     setSavingAttempt(true);
+    let pendingRecord: PendingStudioAttempt | null = null;
     try {
       const client = supabase;
       if (!client) { setCloudStatus("Saved on this device. Cloud progress is not connected."); return; }
@@ -387,20 +396,24 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
         created_at: now,
         submitted_at: now,
       };
+      pendingRecord = record;
+      if (!navigator.onLine) {
+        queueStudioAttempt(pendingHistoryKey, record);
+        setCloudStatus("Saved on this device. Cloud sync will resume when you are online.");
+        return;
+      }
       const { error: saveError } = await client.from("lab_practice_attempts").upsert(record, { onConflict: "id" });
       if (saveError) {
-        let pending: PendingStudioAttempt[] = [];
-        try { pending = JSON.parse(localStorage.getItem(pendingHistoryKey) || "[]"); } catch { pending = []; }
-        localStorage.setItem(pendingHistoryKey, JSON.stringify([...pending.filter(item => item.id !== attemptId), record]));
+        queueStudioAttempt(pendingHistoryKey, record);
         setCloudStatus("Saved on this device. StudySpace will retry the cloud sync when you are online.");
       } else {
         setCloudStatus("Synced to your StudySpace progress and teacher's Monitor.");
       }
     } catch {
+      if (pendingRecord) queueStudioAttempt(pendingHistoryKey, pendingRecord);
       setCloudStatus("Saved on this device. Cloud sync will retry when possible.");
     } finally {
       setSavingAttempt(false);
-      setChecked(true);
     }
   }
 
@@ -413,7 +426,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
       <article><strong>{total}</strong><span>Practice attempts</span></article><article><strong>{accuracy}%</strong><span>Accuracy</span></article><article><strong>{weakTopic ? topics.find(item => item.id === weakTopic)?.title : "Building"}</strong><span>Topic to revisit</span></article>
     </div>
     <div className="equation-studio-controls">
-      <label>Learning pathway<select value={pathway} onChange={event => {
+      <label>Learning pathway<select disabled={savingAttempt} value={pathway} onChange={event => {
         const nextPathway = event.target.value as Pathway;
         const nextTopic = nextPathway === "Primary" ? "arithmetic" : topics.find(item => item.id === topic && item.pathways.includes(nextPathway))?.id ?? topics.find(item => item.pathways.includes(nextPathway))!.id;
         setPathway(nextPathway);
@@ -427,8 +440,8 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
         setShowSteps(false);
         setStartedAt(Date.now());
       }}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
-      <label>Equation family<select value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-      <label>Practice style<select value={difficulty} onChange={event => {
+      <label>Equation family<select disabled={savingAttempt} value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+      <label>Practice style<select disabled={savingAttempt} value={difficulty} onChange={event => {
         const nextDifficulty = event.target.value as typeof difficulty;
         setDifficulty(nextDifficulty);
         const generated = createProblem(topic, pathway, nextDifficulty);
@@ -443,10 +456,10 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
     </div>
     <div className="equation-studio-topic"><div><span className="eyebrow">CURRENT SKILL</span><h3>{topics.find(item => item.id === topic)?.title}</h3><p>{topics.find(item => item.id === topic)?.description}</p></div><span className="equation-studio-pathway">{pathway}</span></div>
     <div className="equation-studio-problem">
-      <div className="equation-studio-problem-top"><span>YOUR QUESTION</span><button type="button" onClick={() => nextProblem()}><RefreshCw size={14}/> New variant</button></div>
+      <div className="equation-studio-problem-top"><span>YOUR QUESTION</span><button type="button" onClick={() => nextProblem()} disabled={savingAttempt}><RefreshCw size={14}/> New variant</button></div>
       <div className="equation-studio-equation" aria-live="polite">{problem.prompt}</div>
       <p className="equation-studio-domain"><strong>Domain / restrictions:</strong> {problem.domain}</p>
-      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={topic === "inequalities" ? "e.g. x < 4" : problem.answer.length > 1 ? "Enter all answers, separated by commas" : topic === "arithmetic" ? "Enter your numeric answer" : topic === "word-problems" ? "Enter the value of the unknown" : "Enter your value for x"}/></label>
+      <label className="equation-studio-answer">Your solution <input disabled={savingAttempt} value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={topic === "inequalities" ? "e.g. x < 4" : problem.answer.length > 1 ? "Enter all answers, separated by commas" : topic === "arithmetic" ? "Enter your numeric answer" : topic === "word-problems" ? "Enter the value of the unknown" : "Enter your value for x"}/></label>
       <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked || savingAttempt}>{savingAttempt ? "Saving…" : "Check my answer"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
       {checked && <div className={"equation-studio-feedback " + (answerMatches(problem, answer) ? "correct" : "incorrect")} role="status"><strong>{answerMatches(problem, answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.textAnswer ?? problem.answer.join(", ")}</span></div>}
