@@ -38,6 +38,7 @@ test("Inequality number-line display preserves open and closed boundaries", () =
   assert.match(studio, /numberLine: \{ boundary: root, direction: finalRelation === "<" \? "left" : "right", inclusive: false \}/);
   assert.match(graph, /numberLine\.inclusive/);
   assert.match(graph, /numberLine\.direction/);
+  assert.match(graph, /x1=\{boundaryX\} y1="82" x2=\{numberLine\.direction === "left" \? 54 : 846\}/);
 });
 
 test("Quiz answer normalization preserves mathematical operators", () => {
@@ -49,7 +50,8 @@ test("Quiz answer normalization preserves mathematical operators", () => {
 });
 
 test("Math Studio local history is isolated between signed-in learners", () => {
-  assert.match(studio, /\(!studentId \? localStorage\.getItem\(historyKey\) : null\)/);
+  assert.ok(studio.includes('const saved = localStorage.getItem(learnerHistoryKey) ?? "[]";'));
+  assert.ok(!studio.includes("localStorage.getItem(historyKey)"));
   assert.match(studio, /learnerHistoryKey = historyKey \+ ":" \+ subjectName \+ ":" \+ \(studentId \?\? "anonymous"\)/);
 });
 
