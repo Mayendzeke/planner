@@ -8,11 +8,23 @@ export default function SchoolHomeworkHelp(){
  const [question,setQuestion]=useState(""),[file,setFile]=useState<File|null>(null),[rows,setRows]=useState<HelpRow[]>([]),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const load=useCallback(async()=>{
   if(!supabase){setError("StudySpace cloud access is unavailable.");setLoading(false);return;}
-  const {data:auth,error:authError}=await supabase.auth.getUser();if(authError||!auth.user){setError("Sign in again to view homework help.");setLoading(false);return;}
-  const {data,error:queryError}=await supabase.from("homework_help_requests").select("id,question_text,image_path,status,created_at,fallback_due_at,mia_response,teacher_response").eq("learner_id",auth.user.id).order("created_at",{ascending:false}).limit(20);
-  if(queryError){setError("Your homework requests could not be loaded: "+queryError.message);setLoading(false);return;}
-  const next=await Promise.all((data||[]).map(async item=>{let image_url:string|undefined;if(item.image_path){const {data:signed}=await supabase!.storage.from(bucket).createSignedUrl(item.image_path,600);image_url=signed?.signedUrl;}return {...item,image_url} as HelpRow;}));
-  setRows(next);setError("");setLoading(false);
+  try{
+   const {data:auth,error:authError}=await supabase.auth.getUser();
+   if(authError||!auth.user)throw new Error("Sign in again to view homework help.");
+   const {data,error:queryError}=await supabase.from("homework_help_requests").select("id,question_text,image_path,status,created_at,fallback_due_at,mia_response,teacher_response").eq("learner_id",auth.user.id).order("created_at",{ascending:false}).limit(20);
+   if(queryError)throw new Error("Your homework requests could not be loaded: "+queryError.message);
+   const next=await Promise.all((data||[]).map(async item=>{
+    let image_url:string|undefined;
+    if(item.image_path){
+     try{const {data:signed}=await supabase!.storage.from(bucket).createSignedUrl(item.image_path,600);image_url=signed?.signedUrl;}
+     catch{image_url=undefined;}
+    }
+    return {...item,image_url} as HelpRow;
+   }));
+   setRows(next);setError("");
+  }catch(reason){
+   setError(reason instanceof Error?reason.message:"Your homework requests could not be loaded. Check your connection and retry.");
+  }finally{setLoading(false);}
  },[]);
  useEffect(()=>{void load();const timer=window.setInterval(()=>void load(),10000);return()=>window.clearInterval(timer);},[load]);
  const submit=async()=>{
