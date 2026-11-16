@@ -14,7 +14,7 @@ test("Math Equation Studio is mounted only inside the Mathematics Lab", () => {
 
 test("Equation Studio covers pathway-scoped equation families", () => {
   for (const pathway of ["Primary", "Secondary High", "High School", "Matric", "Tertiary"]) assert.ok(studio.includes(pathway));
-  for (const topic of ["linear", "quadratic", "systems", "rational", "radical", "exponential", "logarithmic", "absolute", "trigonometry"]) assert.ok(studio.includes('id: "' + topic + '"'), "Missing equation family " + topic);
+  for (const topic of ["arithmetic", "linear", "quadratic", "systems", "rational", "radical", "exponential", "logarithmic", "absolute", "trigonometry"]) assert.ok(studio.includes('id: "' + topic + '"'), "Missing equation family " + topic);
   assert.match(studio, /pathways: \["Primary", "Secondary High", "High School", "Matric", "Tertiary"\]/);
 });
 
