@@ -8,6 +8,7 @@ import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 import MathsLab from "./MathsLab";
 import MathEquationStudio from "./MathEquationStudio";
+import AssignedLabPracticals from "./AssignedLabPracticals";
 import LabLearningHub from "./LabLearningHub";
 import "./SubjectLabs.css";
 
@@ -220,6 +221,10 @@ export default function SubjectLabs({ subjects, studentId }: { subjects: Subject
       {activeLab ? (
         <>
           <div className="subject-labs-back"><button type="button" className="secondary-button" onClick={() => setSelected(null)}><ArrowLeft size={15}/> All available labs</button><span>{labMeta[activeLab.key].title}</span></div>
+          <AssignedLabPracticals
+            studentId={studentId ?? null}
+            areas={activeLab.key === "maths" ? ["maths"] : activeLab.key === "science" ? activeLab.scienceAreas.filter((area): area is "physics" | "chemistry" | "biology" => area !== "environment") : []}
+          />
           <LabLearningHub
             studentId={studentId ?? null}
             labTitle={labMeta[activeLab.key].title}
@@ -231,7 +236,7 @@ export default function SubjectLabs({ subjects, studentId }: { subjects: Subject
               <h3>Explore and experiment</h3>
               <p>Subject-specific simulations and tools are available alongside your shared learning workspace.</p>
             </header>
-            {activeLab.key === "maths" && <><MathsLab/><MathEquationStudio/></>}
+            {activeLab.key === "maths" && <><MathsLab/><MathEquationStudio studentId={studentId ?? null} subjectName={activeLab.subjects[0] ?? activeLab.modules[0] ?? "Mathematics"}/></>}
             {activeLab.key === "science" && <ScienceLab areas={activeLab.scienceAreas.length ? activeLab.scienceAreas : ["physics", "chemistry", "biology"]}/>}
             {activeLab.key === "geography" && <GeographyLab/>}
             {activeLab.key === "business" && <BusinessLab/>}
