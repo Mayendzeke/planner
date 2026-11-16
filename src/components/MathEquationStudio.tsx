@@ -70,7 +70,7 @@ function createProblem(topic: Topic, pathway: Pathway): Problem {
 }
 
 function parseAnswers(value: string): number[] {
-  return value.split(/[,;\s]+/).map(item => Number(item.trim())).filter((item, index, all) => item !== 0 || all[index] === "0");
+  return value.split(/[,;\\s]+/).map(item => item.trim()).filter(Boolean).map(Number);
 }
 function sameAnswers(actual: number[], expected: number[]) {
   if (actual.length !== expected.length || actual.some(value => !Number.isFinite(value))) return false;
@@ -97,7 +97,16 @@ export default function MathEquationStudio() {
   useEffect(() => {
     if (!topics.find(item => item.id === topic)?.pathways.includes(pathway)) {
       const next = topics.find(item => item.pathways.includes(pathway));
-      if (next) setTopic(next.id);
+      if (next) {
+        setTopic(next.id);
+        const generated = createProblem(next.id, pathway);
+        setProblem(generated);
+        setMethod(generated.methods[0]);
+        setAnswer("");
+        setChecked(false);
+        setShowHint(false);
+        setShowSteps(false);
+      }
     }
   }, [pathway, topic]);
 
@@ -132,7 +141,7 @@ export default function MathEquationStudio() {
       <article><strong>{total}</strong><span>Practice attempts</span></article><article><strong>{accuracy}%</strong><span>Accuracy</span></article><article><strong>{weakTopic ? topics.find(item => item.id === weakTopic)?.title : "Building"}</strong><span>Topic to revisit</span></article>
     </div>
     <div className="equation-studio-controls">
-      <label>Learning pathway<select value={pathway} onChange={event => { const next = event.target.value as Pathway; setPathway(next); const first = topics.find(item => item.pathways.includes(next)); if (first) nextProblem(first.id); }}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
+      <label>Learning pathway<select value={pathway} onChange={event => setPathway(event.target.value as Pathway)}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
       <label>Equation family<select value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
       <label>Practice style<select value={difficulty} onChange={event => setDifficulty(event.target.value as typeof difficulty)}><option value="guided">Guided · show hints</option><option value="independent">Independent · fewer prompts</option><option value="challenge">Challenge · solve first</option></select></label>
     </div>
