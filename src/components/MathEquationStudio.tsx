@@ -143,7 +143,13 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     { fn: "tan", value: "1", roots: [45, 225], quadrants: "I and III" },
   ];
   const selected = trigOptions[randomInt(0, trigOptions.length - 1)], roots = selected.roots;
-  return { topic, pathway, prompt: "Solve " + selected.fn + "(θ) = " + selected.value + " for 0° ≤ θ < 360°.", answer: roots, hint: "Find the reference angle, then use the sign of " + selected.fn + " to identify the correct quadrants.", domain: "0° ≤ θ < 360°", methods: ["Reference-angle method", "Unit-circle method", "Graphing"], methodNote: selected.fn + " has the required sign in quadrants " + selected.quadrants + ".", steps: ["Find the reference angle for the given " + selected.fn + " value.", "Locate the quadrants where " + selected.fn + " has the required sign: " + selected.quadrants + ".", "The solutions in this interval are " + roots[0] + "° and " + roots[1] + "°.", "Check both angles on the unit circle."] };
+  const target = selected.value === "√3/2" ? Math.sqrt(3) / 2 : selected.value === "−1/2" ? -.5 : Number(selected.value);
+  const trigFn = (degrees: number) => {
+    const radians = degrees * Math.PI / 180;
+    const value = selected.fn === "sin" ? Math.sin(radians) : selected.fn === "cos" ? Math.cos(radians) : Math.tan(radians);
+    return selected.fn === "tan" && (Math.abs(Math.cos(radians)) < .035 || Math.abs(value) > 5) ? null : value;
+  };
+  return { topic, pathway, prompt: "Solve " + selected.fn + "(θ) = " + selected.value + " for 0° ≤ θ < 360°.", answer: roots, hint: "Find the reference angle, then use the sign of " + selected.fn + " to identify the correct quadrants.", domain: "0° ≤ θ < 360°", methods: ["Reference-angle method", "Unit-circle method", "Graphing"], methodNote: selected.fn + " has the required sign in quadrants " + selected.quadrants + ".", steps: ["Find the reference angle for the given " + selected.fn + " value.", "Locate the quadrants where " + selected.fn + " has the required sign: " + selected.quadrants + ".", "The solutions in this interval are " + roots[0] + "° and " + roots[1] + "°.", "Check both angles on the unit circle."], graph: { title: "Circular-function equation (degrees)", xMin: 0, xMax: 360, yMin: selected.fn === "tan" ? -5 : -1.5, yMax: selected.fn === "tan" ? 5 : 1.5, xLabel: "θ (degrees)", yLabel: "y", unitNote: "Angles are measured in degrees. Tangent breaks at its vertical asymptotes.", curves: [{ label: selected.fn + "(θ)", evaluate: trigFn }, { label: "Target value", evaluate: () => target }] } };
 }
 
 function parseAnswers(value: string): number[] {
@@ -442,6 +448,8 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
       {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {activeSteps.length}</span></div><p>{activeSteps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(activeSteps.length - 1, value + 1))} disabled={stepIndex === activeSteps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
     </div>
     <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{guidanceForMethod(method, topic)}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => { setMethod(item); setStepIndex(0); setShowSteps(false); }}>{item}</button>)}</div></div>
+    {problem.graph && (method === "Graph both sides" || method === "Graphing") && <LabGraphSheet graph={problem.graph} />}
+    {problem.numberLine && method === "Number-line solution" && <LabGraphSheet numberLine={problem.numberLine} />}
     {difficulty === "guided" && <div className="equation-studio-guidance"><Sparkles size={15}/> Guided mode is selected. Try the hint first, then reveal one worked step at a time.</div>}
     {weakTopic && <div className="equation-studio-guidance"><Activity size={15}/> Your recent practice suggests revisiting {topics.find(item => item.id === weakTopic)?.title}. Switch to that topic for a focused refresher.</div>}
     <footer className="equation-studio-footer"><CheckCircle2 size={15}/> {cloudStatus || "Practice attempts sync to your StudySpace account when online."} Teacher-assigned marks remain separate from personal Lab practice.</footer>
