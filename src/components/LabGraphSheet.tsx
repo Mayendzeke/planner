@@ -54,7 +54,8 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
     if (graph && graph.yMin === undefined && graph.yMax === undefined) {
       for (const curve of graph.curves) for (let index = 0; index <= 240; index++) {
         const x = xMin + (index / 240) * (xMax - xMin);
-        const y = curve.evaluate(x);
+        let y: number | null = null;
+        try { y = curve.evaluate(x); } catch { y = null; }
         if (y !== null && Number.isFinite(y)) { observedMin = Math.min(observedMin, y); observedMax = Math.max(observedMax, y); }
       }
     }
@@ -62,10 +63,10 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
     const padding = span * 0.12;
     return { xMin, xMax, yMin: graph?.yMin ?? observedMin - padding, yMax: graph?.yMax ?? observedMax + padding };
   }, [graph, numberLine]);
-  useEffect(() => { setView(initial); }, [initial]);
   const graphId = useId().replace(/:/g, "");
   const [view, setView] = useState<View>(initial);
   const [resetKey, setResetKey] = useState(0);
+  useEffect(() => { setView(initial); }, [initial]);
   const xTicks = useMemo(() => ticks(view.xMin, view.xMax), [view.xMin, view.xMax]);
   const yTicks = useMemo(() => ticks(view.yMin, view.yMax), [view.yMin, view.yMax]);
   const px = (x: number) => MARGIN.left + ((x - view.xMin) / (view.xMax - view.xMin)) * plotWidth;
