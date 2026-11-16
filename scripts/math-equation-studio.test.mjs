@@ -45,3 +45,9 @@ test("Equation Studio attempts sync into shared learner progress and Monitor wit
   assert.ok(studio.includes('material_snapshot->>title'));
   assert.ok(studio.includes("teacher's Monitor"));
 });
+test("Equation Studio follows the learner's saved academic pathway and isolates local history", () => {
+  assert.ok(studio.includes('from("profiles").select("education_level")'));
+  assert.ok(studio.includes('raw === "secondary high"'));
+  assert.ok(studio.includes('matched === "Primary" ? "arithmetic"'));
+  assert.ok(studio.includes('(studentId ?? "anonymous")'));
+});
