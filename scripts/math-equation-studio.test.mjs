@@ -74,3 +74,14 @@ test("Selected quadratic and simultaneous methods show method-matched worked ste
   assert.ok(studio.includes("const activeSteps = problem.methodSteps?.[method] ?? problem.steps"));
   assert.ok(studio.includes("activeSteps[stepIndex]"));
 });
+test("Graphing methods render interactive graph sheets with solution markers", () => {
+  assert.ok(studio.includes('from "./LabGraphSheet"'));
+  assert.ok(studio.includes("<LabGraphSheet graph={problem.graph} />"));
+  assert.ok(studio.includes("<LabGraphSheet numberLine={problem.numberLine} />"));
+  assert.ok(studio.includes('title: "Circular-function equation (degrees)"'));
+  assert.ok(studio.includes('title: "Rational equation and excluded value"'));
+});
+test("Simultaneous equation answer marking preserves x/y/z variable order", () => {
+  assert.ok(studio.includes("orderedAnswers: true"));
+  assert.ok(studio.includes("sameAnswers(parseAnswers(value), problem.answer, problem.orderedAnswers)"));
+});
