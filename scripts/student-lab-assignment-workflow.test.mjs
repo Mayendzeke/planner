@@ -26,6 +26,6 @@ test("Learners submit a written reflection into the existing teacher-review note
 test("Student submission preserves teacher review metadata and can display feedback status", () => {
   assert.ok(practicals.includes("reviewed_at: null"));
   assert.ok(practicals.includes("reviewed_by: null"));
-  assert.ok(practicals.includes("record.reviewed_at"));
-  assert.ok(practicals.includes("record.feedback"));
+  assert.ok(practicals.includes("record?.reviewed_at"));
+  assert.ok(practicals.includes("record?.feedback"));
 });
