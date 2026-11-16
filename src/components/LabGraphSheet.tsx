@@ -93,7 +93,6 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
   const reset = () => { setView(initial); setResetKey(value => value + 1); };
 
   if (numberLine) {
-    const range = Math.max(10, Math.abs(numberLine.boundary) * 0.5 + 8);
     const min = view.xMin, max = view.xMax;
     const map = (value: number) => 54 + ((value - min) / (max - min)) * 792;
     const boundaryX = map(numberLine.boundary);
