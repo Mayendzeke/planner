@@ -136,7 +136,12 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
 function parseAnswers(value: string): number[] {
   return value.split(/[,;\s]+/).map(item => item.trim()).filter(Boolean).map(Number);
 }
-function answerMatches(problem: Problem, value: string) {\n  if (problem.textAnswer) return value.trim().toLowerCase().replace(/\\s+/g, "") === problem.textAnswer.toLowerCase().replace(/\\s+/g, "");\n  return sameAnswers(parseAnswers(value), problem.answer);\n}\n\nfunction sameAnswers(actual: number[], expected: number[]) {
+function answerMatches(problem: Problem, value: string) {
+  if (problem.textAnswer) return value.trim().toLowerCase().replace(/\s+/g, "") === problem.textAnswer.toLowerCase().replace(/\s+/g, "");
+  return sameAnswers(parseAnswers(value), problem.answer);
+}
+
+function sameAnswers(actual: number[], expected: number[]) {
   if (actual.length !== expected.length || actual.some(value => !Number.isFinite(value))) return false;
   const a = [...actual].sort((x, y) => x - y), b = [...expected].sort((x, y) => x - y);
   return a.every((value, index) => Math.abs(value - b[index]) < 0.011);
