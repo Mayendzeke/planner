@@ -23,25 +23,25 @@ const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max 
 const signed = (value: number) => value < 0 ? " − " + Math.abs(value) : " + " + value;
 const multiply = (a: number, variable: string) => a === 1 ? variable : a === -1 ? "−" + variable : a + variable;
 
-function createProblem(topic: Topic, pathway: Pathway): Problem {
+function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "independent" | "challenge" = "guided"): Problem {
   if (topic === "linear") {
-    const a = pathway === "Primary" ? 1 : randomInt(2, 9);
-    const x = randomInt(-6, 12);
-    const b = randomInt(-10, 12);
+    const a = pathway === "Primary" ? 1 : randomInt(2, difficulty === "challenge" ? 12 : difficulty === "independent" ? 9 : 5);
+    const x = pathway === "Primary" ? randomInt(1, 10) : randomInt(difficulty === "challenge" ? -12 : difficulty === "independent" ? -8 : -4, difficulty === "challenge" ? 15 : difficulty === "independent" ? 10 : 6);
+    const b = pathway === "Primary" ? randomInt(1, 10) : randomInt(difficulty === "challenge" ? -20 : difficulty === "independent" ? -12 : -6, difficulty === "challenge" ? 20 : difficulty === "independent" ? 15 : 8);
     const c = a * x + b;
     return { topic, pathway, prompt: multiply(a, "x") + signed(b) + " = " + c, answer: [x], hint: "Undo the addition or subtraction first. Whatever you do to one side, do to the other.", domain: "All real numbers", methods: ["Balance / inverse operations", "Graph both sides"], methodNote: "The balance method keeps the two sides equivalent at every step.", steps: ["Start with " + multiply(a, "x") + signed(b) + " = " + c + ".", "Subtract " + b + " from both sides: " + multiply(a, "x") + " = " + (c - b) + ".", "Divide both sides by " + a + ".", "Therefore x = " + x + ".", "Check: substitute x = " + x + " into the original equation."] };
   }
   if (topic === "quadratic") {
-    let r1 = randomInt(-6, 6), r2 = randomInt(-6, 6);
+    let r1 = randomInt(difficulty === "challenge" ? -9 : difficulty === "independent" ? -6 : -4, difficulty === "challenge" ? 9 : difficulty === "independent" ? 6 : 4), r2 = randomInt(difficulty === "challenge" ? -9 : difficulty === "independent" ? -6 : -4, difficulty === "challenge" ? 9 : difficulty === "independent" ? 6 : 4);
     while (r1 === r2) r2 = randomInt(-6, 6);
     const b = -(r1 + r2), c = r1 * r2;
     const factor = "(x " + (r1 < 0 ? "+ " + Math.abs(r1) : "− " + r1) + ")(x " + (r2 < 0 ? "+ " + Math.abs(r2) : "− " + r2) + ") = 0";
     return { topic, pathway, prompt: "x²" + signed(b) + signed(c) + " = 0", answer: [r1, r2], hint: "Look for two numbers whose product is the constant term and whose sum is the coefficient of x.", domain: "All real numbers", methods: ["Factorisation", "Quadratic formula", "Graphing"], methodNote: "Factorisation is efficient when integer factors are visible. The quadratic formula works for every quadratic with a ≠ 0.", steps: ["Write the equation in standard form ax² + bx + c = 0.", "Find two numbers with product " + c + " and sum " + b + ".", "Factor: " + factor + ".", "Use the zero-product rule: x " + (r1 < 0 ? "+ " + Math.abs(r1) : "− " + r1) + " = 0 or x " + (r2 < 0 ? "+ " + Math.abs(r2) : "− " + r2) + " = 0.", "Solutions: x = " + r1 + " and x = " + r2 + ".", "Substitute both roots into the original equation to verify."] };
   }
   if (topic === "systems") {
-    let a = randomInt(1, 5), b = randomInt(1, 5), d = randomInt(1, 5), e = randomInt(1, 5);
+    let a = randomInt(1, difficulty === "challenge" ? 9 : 5), b = randomInt(1, difficulty === "challenge" ? 9 : 5), d = randomInt(1, difficulty === "challenge" ? 9 : 5), e = randomInt(1, difficulty === "challenge" ? 9 : 5);
     while (a * e - b * d === 0) { d = randomInt(1, 5); e = randomInt(1, 5); }
-    const x = randomInt(-4, 5), y = randomInt(-4, 5), c = a * x + b * y, f = d * x + e * y;
+    const x = randomInt(difficulty === "challenge" ? -8 : -4, difficulty === "challenge" ? 8 : 5), y = randomInt(difficulty === "challenge" ? -8 : -4, difficulty === "challenge" ? 8 : 5), c = a * x + b * y, f = d * x + e * y;
     return { topic, pathway, prompt: a + "x + " + b + "y = " + c + "     and     " + d + "x + " + e + "y = " + f, answer: [x, y], hint: "Choose elimination or substitution. Elimination removes one variable so you can solve for the other.", domain: "One unique solution (non-zero determinant)", methods: ["Elimination", "Substitution", "Graphing"], methodNote: "Elimination is often efficient when coefficients can be matched. Substitution is useful when one variable is already isolated.", steps: ["Label the equations (1) and (2).", "Multiply one or both equations so the coefficients of y (or x) are opposites.", "Add the equations to eliminate that variable.", "Solve the resulting one-variable equation.", "Substitute that value into either original equation.", "Solution: x = " + x + ", y = " + y + ". Check both original equations."] };
   }
   if (topic === "rational") {
@@ -116,7 +116,7 @@ export default function MathEquationStudio() {
       const next = topics.find(item => item.pathways.includes(pathway));
       if (next) {
         setTopic(next.id);
-        const generated = createProblem(next.id, pathway);
+        const generated = createProblem(next.id, pathway, difficulty);
         setProblem(generated);
         setMethod(generated.methods[0]);
         setAnswer("");
@@ -137,8 +137,8 @@ export default function MathEquationStudio() {
   }, [attempts]);
 
   function nextProblem(nextTopic = topic) {
-    const next = createProblem(nextTopic, pathway);
-    setProblem(next); setMethod(next.methods[0]); setAnswer(""); setChecked(false); setShowHint(false); setShowSteps(false); setStepIndex(0);
+    const next = createProblem(nextTopic, pathway, difficulty);
+    setProblem(next); setMethod(next.methods[0]); setAnswer(""); setChecked(false); setShowHint(difficulty === "guided"); setShowSteps(false); setStepIndex(0);
   }
   function checkAnswer() {
     if (!answer.trim()) return;
@@ -163,7 +163,7 @@ export default function MathEquationStudio() {
         const nextTopic = topics.find(item => item.id === topic && item.pathways.includes(nextPathway))?.id ?? topics.find(item => item.pathways.includes(nextPathway))!.id;
         setPathway(nextPathway);
         setTopic(nextTopic);
-        const generated = createProblem(nextTopic, nextPathway);
+        const generated = createProblem(nextTopic, nextPathway, difficulty);
         setProblem(generated);
         setMethod(generated.methods[0]);
         setAnswer("");
@@ -172,7 +172,17 @@ export default function MathEquationStudio() {
         setShowSteps(false);
       }}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
       <label>Equation family<select value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-      <label>Practice style<select value={difficulty} onChange={event => setDifficulty(event.target.value as typeof difficulty)}><option value="guided">Guided · show hints</option><option value="independent">Independent · fewer prompts</option><option value="challenge">Challenge · solve first</option></select></label>
+      <label>Practice style<select value={difficulty} onChange={event => {
+        const nextDifficulty = event.target.value as typeof difficulty;
+        setDifficulty(nextDifficulty);
+        const generated = createProblem(topic, pathway, nextDifficulty);
+        setProblem(generated);
+        setMethod(generated.methods[0]);
+        setAnswer("");
+        setChecked(false);
+        setShowHint(nextDifficulty === "guided");
+        setShowSteps(false);
+      }}><option value="guided">Guided · show hints</option><option value="independent">Independent · fewer prompts</option><option value="challenge">Challenge · solve first</option></select></label>
     </div>
     <div className="equation-studio-topic"><div><span className="eyebrow">CURRENT SKILL</span><h3>{topics.find(item => item.id === topic)?.title}</h3><p>{topics.find(item => item.id === topic)?.description}</p></div><span className="equation-studio-pathway">{pathway}</span></div>
     <div className="equation-studio-problem">
@@ -180,7 +190,7 @@ export default function MathEquationStudio() {
       <div className="equation-studio-equation" aria-live="polite">{problem.prompt}</div>
       <p className="equation-studio-domain"><strong>Domain / restrictions:</strong> {problem.domain}</p>
       <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={problem.answer.length > 1 ? "Enter both answers, separated by a comma" : "Enter your value for x"}/></label>
-      <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked}>Check my answer</button><button type="button" onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
+      <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked}>Check my answer</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
       {checked && <div className={"equation-studio-feedback " + (sameAnswers(parseAnswers(answer), problem.answer) ? "correct" : "incorrect")} role="status"><strong>{sameAnswers(parseAnswers(answer), problem.answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.answer.join(", ")}</span></div>}
       {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {problem.steps.length}</span></div><p>{problem.steps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(problem.steps.length - 1, value + 1))} disabled={stepIndex === problem.steps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
