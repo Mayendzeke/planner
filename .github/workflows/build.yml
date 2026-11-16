@@ -30,6 +30,8 @@ jobs:
         run: node --test scripts/free-trial-duration.test.mjs
       - name: Verify subject and assigned-module lab eligibility
         run: node --test scripts/subject-labs-eligibility.test.mjs
+      - name: Verify the shared Labs learning ecosystem
+        run: node --test scripts/lab-ecosystem-contract.test.mjs
       - name: Verify the complete student education pathway model
         run: node --test scripts/education-level-standard.test.mjs
       - name: Verify shared StudySpace brand tokens

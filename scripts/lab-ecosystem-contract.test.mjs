@@ -6,7 +6,7 @@ const read = (path) => readFileSync(path, "utf8");
 const hub = read("src/components/LabLearningHub.tsx");
 const subjectLabs = read("src/components/SubjectLabs.tsx");
 const databaseMigration = read("supabase/migrations/20261115192917_studyspace_complete_lab_learning_ecosystem.sql");
-const securityMigration = read("supabase/migrations/20261115195000_studyspace_harden_lab_data_security.sql");
+const securityMigration = read("supabase/migrations/20261115194857_studyspace_harden_lab_data_security.sql");
 const edge = read("supabase/functions/lab-learning-engine/index.ts");
 const style = read("src/components/LabLearningHub.css");
 

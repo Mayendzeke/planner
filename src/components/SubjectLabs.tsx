@@ -7,6 +7,7 @@ import {
 import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 import MathsLab from "./MathsLab";
+import LabLearningHub from "./LabLearningHub";
 import "./SubjectLabs.css";
 
 type LabKey = "maths" | "science" | "geography" | "business" | "accounting" | "computing" | "agriculture" | "engineering" | "languages" | "hospitality" | "design";
@@ -218,17 +219,29 @@ export default function SubjectLabs({ subjects, studentId }: { subjects: Subject
       {activeLab ? (
         <>
           <div className="subject-labs-back"><button type="button" className="secondary-button" onClick={() => setSelected(null)}><ArrowLeft size={15}/> All available labs</button><span>{labMeta[activeLab.key].title}</span></div>
-          {activeLab.key === "maths" && <MathsLab/>}
-          {activeLab.key === "science" && <ScienceLab areas={activeLab.scienceAreas.length ? activeLab.scienceAreas : ["physics", "chemistry", "biology"]}/>}
-          {activeLab.key === "geography" && <GeographyLab/>}
-          {activeLab.key === "business" && <BusinessLab/>}
-          {activeLab.key === "accounting" && <AccountingLab/>}
-          {activeLab.key === "computing" && <ComputingLab/>}
-          {activeLab.key === "agriculture" && <AgricultureLab/>}
-          {activeLab.key === "engineering" && <EngineeringLab/>}
-          {activeLab.key === "languages" && <LanguageLab/>}
-          {activeLab.key === "hospitality" && <HospitalityLab/>}
-          {activeLab.key === "design" && <DesignLab/>}
+          <LabLearningHub
+            studentId={studentId ?? null}
+            labTitle={labMeta[activeLab.key].title}
+            subjectOptions={[...activeLab.subjects, ...activeLab.modules]}
+          />
+          <section className="lab-subject-tools">
+            <header className="lab-subject-tools-heading">
+              <span className="eyebrow">INTERACTIVE SUBJECT TOOLS</span>
+              <h3>Explore and experiment</h3>
+              <p>Subject-specific simulations and tools are available alongside your shared learning workspace.</p>
+            </header>
+            {activeLab.key === "maths" && <MathsLab/>}
+            {activeLab.key === "science" && <ScienceLab areas={activeLab.scienceAreas.length ? activeLab.scienceAreas : ["physics", "chemistry", "biology"]}/>}
+            {activeLab.key === "geography" && <GeographyLab/>}
+            {activeLab.key === "business" && <BusinessLab/>}
+            {activeLab.key === "accounting" && <AccountingLab/>}
+            {activeLab.key === "computing" && <ComputingLab/>}
+            {activeLab.key === "agriculture" && <AgricultureLab/>}
+            {activeLab.key === "engineering" && <EngineeringLab/>}
+            {activeLab.key === "languages" && <LanguageLab/>}
+            {activeLab.key === "hospitality" && <HospitalityLab/>}
+            {activeLab.key === "design" && <DesignLab/>}
+          </section>
         </>
       ) : (
         <>
