@@ -4,8 +4,8 @@ import { Activity, BookOpenCheck, CheckCircle2, ChevronRight, Lightbulb, Refresh
 import "./MathEquationStudio.css";
 
 type Pathway = "Primary" | "Secondary High" | "High School" | "Matric" | "Tertiary";
-type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "word-problems" | "trigonometry";
-type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; steps: string[]; hint: string; domain: string; methods: string[]; methodNote: string };
+type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "word-problems" | "inequalities" | "systems3" | "polynomial" | "trigonometry";
+type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; textAnswer?: string; steps: string[]; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
 type PendingStudioAttempt = {
@@ -26,6 +26,9 @@ const topics: TopicMeta[] = [
   { id: "logarithmic", title: "Logarithmic equations", description: "Log definitions, laws and domain checks", pathways: ["Matric", "Tertiary"] },
   { id: "absolute", title: "Absolute-value equations", description: "Split into positive and negative cases", pathways: ["High School", "Matric", "Tertiary"] },
   { id: "word-problems", title: "Equation word problems", description: "Translate real-world scenarios into equations", pathways: ["Secondary High", "High School", "Matric", "Tertiary"] },
+  { id: "inequalities", title: "Linear inequalities", description: "Solve inequalities and preserve the solution region", pathways: ["Secondary High", "High School", "Matric", "Tertiary"] },
+  { id: "systems3", title: "Three-variable systems", description: "Solve 3×3 linear systems with elimination", pathways: ["Matric", "Tertiary"] },
+  { id: "polynomial", title: "Polynomial equations", description: "Factor cubic expressions and use the zero-product rule", pathways: ["High School", "Matric", "Tertiary"] },
   { id: "trigonometry", title: "Basic trigonometric equations", description: "Circular functions and solutions in a stated interval", pathways: ["Matric", "Tertiary"] },
 ];
 const historyKey = "studyspace:math-equation-studio:v1";
@@ -63,6 +66,28 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const b = pathway === "Primary" ? randomInt(1, 10) : randomInt(difficulty === "challenge" ? -20 : difficulty === "independent" ? -12 : -6, difficulty === "challenge" ? 20 : difficulty === "independent" ? 15 : 8);
     const c = a * x + b;
     return { topic, pathway, prompt: multiply(a, "x") + signed(b) + " = " + c, answer: [x], hint: "Undo the addition or subtraction first. Whatever you do to one side, do to the other.", domain: "All real numbers", methods: ["Balance / inverse operations", "Graph both sides"], methodNote: "The balance method keeps the two sides equivalent at every step.", steps: ["Start with " + multiply(a, "x") + signed(b) + " = " + c + ".", "Subtract " + b + " from both sides: " + multiply(a, "x") + " = " + (c - b) + ".", "Divide both sides by " + a + ".", "Therefore x = " + x + ".", "Check: substitute x = " + x + " into the original equation."] };
+  }
+  if (topic === "inequalities") {
+    const a = randomInt(2, 8) * (Math.random() < 0.5 ? 1 : -1), root = randomInt(-8, 10), b = randomInt(-10, 10);
+    const relation = Math.random() < 0.5 ? "<" : ">";
+    const c = a * root + b;
+    const finalRelation = a < 0 ? (relation === "<" ? ">" : "<") : relation;
+    const expression = multiply(a, "x") + signed(b) + " " + relation + " " + c;
+    const textAnswer = "x " + finalRelation + " " + root;
+    return { topic, pathway, prompt: expression, answer: [root], textAnswer, hint: "Isolate the x-term using the same operation on both sides. If you divide by a negative number, reverse the inequality sign.", domain: "All real numbers", methods: ["Inequality balance method", "Number-line solution"], methodNote: "Use equivalent operations on both sides. Multiplying or dividing by a negative number reverses the inequality sign.", steps: ["Start with " + expression + ".", "Subtract " + b + " from both sides to isolate the x-term.", "Divide both sides by " + a + ".", a < 0 ? "Because you divided by a negative number, reverse the inequality sign." : "The inequality sign stays in the same direction because you divided by a positive number.", "Solution: " + textAnswer + ".", "Check a test value from the solution region in the original inequality."] };
+  }
+  if (topic === "systems3") {
+    const x = randomInt(-4, 5), y = randomInt(-4, 5), z = randomInt(-4, 5);
+    const c = x + y + z, f = 2 * x - y + z, g = x + 2 * y - z;
+    return { topic, pathway, prompt: "x + y + z = " + c + "     2x − y + z = " + f + "     x + 2y − z = " + g, answer: [x, y, z], hint: "Use elimination to remove x from two equations, then eliminate y to solve for z. Back-substitute to find x and y.", domain: "One unique solution", methods: ["Gaussian elimination", "Elimination"], methodNote: "Use row operations or elimination to reduce the three equations to one variable, then back-substitute.", steps: ["Label the equations (1), (2) and (3).", "Subtract 2 × (1) from (2): −3y − z = " + (f - 2 * c) + ".", "Subtract (1) from (3): y − 2z = " + (g - c) + ".", "Add 3 × the second reduced equation to the first reduced equation: −7z = " + (f + 3 * g - 5 * c) + ".", "Solve z = " + z + ".", "Back-substitute to get y = " + y + " and x = " + x + ".", "Check all three values in the original equations."] };
+  }
+  if (topic === "polynomial") {
+    let r1 = randomInt(-4, 4), r2 = randomInt(-4, 4), r3 = randomInt(-4, 4);
+    while (r2 === r1) r2 = randomInt(-4, 4);
+    while (r3 === r1 || r3 === r2) r3 = randomInt(-4, 4);
+    const a = -(r1 + r2 + r3), b = r1 * r2 + r1 * r3 + r2 * r3, d = -(r1 * r2 * r3);
+    const factors = "(x " + (r1 < 0 ? "+ " + Math.abs(r1) : "− " + r1) + ")(x " + (r2 < 0 ? "+ " + Math.abs(r2) : "− " + r2) + ")(x " + (r3 < 0 ? "+ " + Math.abs(r3) : "− " + r3) + ") = 0";
+    return { topic, pathway, prompt: "x³" + signed(a) + "x²" + signed(b) + "x" + signed(d) + " = 0", answer: [r1, r2, r3], hint: "Look for integer roots using factors of the constant term, then use the factor theorem and zero-product rule.", domain: "All real numbers", methods: ["Factor theorem", "Factorisation"], methodNote: "A root r gives a factor (x − r). Factor the cubic, then set each factor equal to zero.", steps: ["Write the cubic in standard form.", "Use the factor theorem to identify integer roots.", "Factor the expression: " + factors + ".", "Set each factor equal to zero.", "The three roots are " + [r1, r2, r3].join(", ") + ".", "Substitute each root into the original polynomial to verify."] };
   }
   if (topic === "word-problems") {
     const rate = randomInt(25, difficulty === "challenge" ? 120 : 80);
@@ -111,7 +136,7 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
 function parseAnswers(value: string): number[] {
   return value.split(/[,;\s]+/).map(item => item.trim()).filter(Boolean).map(Number);
 }
-function sameAnswers(actual: number[], expected: number[]) {
+function answerMatches(problem: Problem, value: string) {\n  if (problem.textAnswer) return value.trim().toLowerCase().replace(/\\s+/g, "") === problem.textAnswer.toLowerCase().replace(/\\s+/g, "");\n  return sameAnswers(parseAnswers(value), problem.answer);\n}\n\nfunction sameAnswers(actual: number[], expected: number[]) {
   if (actual.length !== expected.length || actual.some(value => !Number.isFinite(value))) return false;
   const a = [...actual].sort((x, y) => x - y), b = [...expected].sort((x, y) => x - y);
   return a.every((value, index) => Math.abs(value - b[index]) < 0.011);
@@ -129,6 +154,10 @@ function guidanceForMethod(method: string, topic: Topic): string {
   if (method === "Logarithms") return "Take logarithms of both sides and use log laws to bring the exponent down. Check that all logarithm arguments are positive.";
   if (method === "Positive / negative cases") return "Split the absolute-value equation into two cases: the inside equals the positive value and the inside equals its negative.";
   if (method === "Reference-angle method" || method === "Unit-circle method") return "Find the reference angle, identify the quadrants with the required sign, then list every solution in the stated interval.";
+  if (method === "Inequality balance method") return "Isolate the variable using equivalent operations. Reverse the inequality sign only when multiplying or dividing by a negative number.";
+  if (method === "Number-line solution") return "Mark the boundary value, then shade or describe the side that satisfies the inequality. Use an open circle for a strict inequality.";
+  if (method === "Gaussian elimination") return "Write the coefficients as an augmented matrix. Use row operations to create zeros below the pivots, then back-substitute.";
+  if (method === "Factor theorem") return "Test possible integer roots from factors of the constant term. Each valid root gives a linear factor.";
   if (method === "Define a variable") return "Name the unknown with a variable and write down its unit. Identify the known quantities before forming an equation.";
   if (method === "Form and solve an equation") return "Translate the relationship in the story into an equation, solve it with equivalent operations, then check the result in context.";
   if (method === "Unit analysis") return "Keep units attached to each quantity. Check that the final unit answers the question being asked.";
@@ -278,7 +307,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
   }
   async function checkAnswer() {
     if (!answer.trim() || savingAttempt) return;
-    const correct = sameAnswers(parseAnswers(answer), problem.answer);
+    const correct = answerMatches(problem, answer);
     const now = new Date().toISOString();
     const attemptId = crypto.randomUUID();
     const questionId = crypto.randomUUID();
@@ -307,14 +336,14 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
           subject_name: subjectName,
           topic: topicTitle,
           difficulty,
-          questions: [{ id: questionId, type: "short_answer", prompt: problem.prompt, correctAnswer: problem.answer.map(String), explanation: problem.steps.join("\n"), points: 1 }],
+          questions: [{ id: questionId, type: "short_answer", prompt: problem.prompt, correctAnswer: problem.textAnswer ?? problem.answer.map(String), explanation: problem.steps.join("\n"), points: 1 }],
         },
         responses: { [questionId]: answer },
         result: {
           topic_key: problem.topic,
           method,
           domain: problem.domain,
-          items: [{ questionId, prompt: problem.prompt, given: answer, correctAnswer: problem.answer.join(", "), correct, explanation: problem.steps.join("\\n"), points: 1, earnedPoints: score }],
+          items: [{ questionId, prompt: problem.prompt, given: answer, correctAnswer: problem.textAnswer ?? problem.answer.join(", "), correct, explanation: problem.steps.join("\\n"), points: 1, earnedPoints: score }],
         },
         score,
         max_score: 1,
@@ -387,10 +416,10 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
       <div className="equation-studio-problem-top"><span>YOUR QUESTION</span><button type="button" onClick={() => nextProblem()}><RefreshCw size={14}/> New variant</button></div>
       <div className="equation-studio-equation" aria-live="polite">{problem.prompt}</div>
       <p className="equation-studio-domain"><strong>Domain / restrictions:</strong> {problem.domain}</p>
-      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={problem.answer.length > 1 ? "Enter both answers, separated by a comma" : topic === "arithmetic" ? "Enter your numeric answer" : topic === "word-problems" ? "Enter the value of the unknown" : "Enter your value for x"}/></label>
+      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={topic === "inequalities" ? "e.g. x < 4" : problem.answer.length > 1 ? "Enter all answers, separated by commas" : topic === "arithmetic" ? "Enter your numeric answer" : topic === "word-problems" ? "Enter the value of the unknown" : "Enter your value for x"}/></label>
       <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked || savingAttempt}>{savingAttempt ? "Saving…" : "Check my answer"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
-      {checked && <div className={"equation-studio-feedback " + (sameAnswers(parseAnswers(answer), problem.answer) ? "correct" : "incorrect")} role="status"><strong>{sameAnswers(parseAnswers(answer), problem.answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.answer.join(", ")}</span></div>}
+      {checked && <div className={"equation-studio-feedback " + (answerMatches(problem, answer) ? "correct" : "incorrect")} role="status"><strong>{sameAnswers(parseAnswers(answer), problem.answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.textAnswer ?? problem.answer.join(", ")}</span></div>}
       {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {problem.steps.length}</span></div><p>{problem.steps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(problem.steps.length - 1, value + 1))} disabled={stepIndex === problem.steps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
     </div>
     <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{guidanceForMethod(method, topic)}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => setMethod(item)}>{item}</button>)}</div></div>
