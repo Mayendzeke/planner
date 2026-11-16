@@ -172,3 +172,26 @@ test('student personal cloud storage is visible and cloud uploads reserve quota 
   assert.ok(sync.includes('release_studyspace_personal_storage_reservation'));
   assert.ok(sync.includes('studyspace-storage-updated'));
 });
+
+test('PDF document centre exposes navigation, annotation, form fill and export controls', () => {
+  assert.ok(library.includes('resourceKey='));
+  assert.ok(p.includes('pdf-lib'));
+  assert.ok(p.includes('pdf-reader-thumbnails'));
+  assert.ok(p.includes('highlight'));
+  assert.ok(p.includes('signature'));
+  assert.ok(p.includes('export'));
+  assert.ok(p.includes('search'));
+});
+
+test('DOCX and XLSX viewers render structured Office content with mobile navigation', () => {
+  const docx = read('src/components/DocxViewer.tsx');
+  const sheet = read('src/components/SpreadsheetViewer.tsx');
+  assert.ok(library.includes('lazy(() => import("./DocxViewer"))'));
+  assert.ok(library.includes('lazy(() => import("./SpreadsheetViewer"))'));
+  assert.ok(docx.includes('renderAsync'));
+  assert.ok(sheet.includes('formula'));
+  assert.ok(sheet.includes('search'));
+  assert.ok(sheet.includes('studyspace-sheet-tabs'));
+  assert.ok(styles.includes('.studyspace-docx-viewer'));
+  assert.ok(styles.includes('.studyspace-sheet-viewer'));
+});
