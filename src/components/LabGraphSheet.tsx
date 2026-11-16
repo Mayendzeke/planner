@@ -104,7 +104,7 @@ export default function LabGraphSheet({ graph, numberLine, compact = false }: {
       <div className="lab-graph-canvas"><svg viewBox="0 0 900 180" role="img" aria-label={numberLine.direction === "left" ? "Solution extends left from the boundary" : "Solution extends right from the boundary"}>
         <defs><marker id={graphId + "-number-arrow-" + resetKey} markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" className="lab-graph-arrow"/></marker></defs>
         <line x1="54" y1="82" x2="846" y2="82" className="lab-graph-axis"/>
-        <line x1={numberLine.direction === "left" ? boundaryX : 54} y1="82" x2={numberLine.direction === "left" ? 54 : boundaryX} y2="82" className="lab-graph-solution" markerEnd={"url(#" + graphId + "-number-arrow-" + resetKey + ")"} />
+        <line x1={boundaryX} y1="82" x2={numberLine.direction === "left" ? 54 : 846} y2="82" className="lab-graph-solution" markerEnd={"url(#" + graphId + "-number-arrow-" + resetKey + ")"} />
         {ticks(min, max).map(value => <g key={value}><line x1={map(value)} y1="73" x2={map(value)} y2="91" className="lab-graph-tick"/><text x={map(value)} y="112" className="lab-graph-tick-label" textAnchor="middle">{label(value)}</text></g>)}
         <circle cx={boundaryX} cy="82" r="8" className={numberLine.inclusive ? "lab-graph-closed-point" : "lab-graph-open-point"}/>
         <text x={boundaryX} y="48" className="lab-graph-axis-label" textAnchor="middle">{label(numberLine.boundary)} {numberLine.inclusive ? "included" : "excluded"}</text>
