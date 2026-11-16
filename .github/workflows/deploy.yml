@@ -37,6 +37,8 @@ jobs:
         run: node --test scripts/change-student-password-auth.test.mjs
       - name: Verify subject and assigned-module lab eligibility
         run: node --test scripts/subject-labs-eligibility.test.mjs
+      - name: Verify assigned Lab practical submissions
+        run: node --test scripts/student-lab-assignment-workflow.test.mjs
       - name: Verify the shared Labs learning ecosystem
         run: node --test scripts/lab-ecosystem-contract.test.mjs
       - name: Verify the Mathematics Equation Studio
