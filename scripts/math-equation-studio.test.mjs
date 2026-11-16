@@ -61,3 +61,9 @@ test("Equation Studio supports inequalities, 3-variable systems and cubic polyno
   assert.ok(studio.includes("problem.textAnswer"));
   assert.ok(studio.includes("{answerMatches(problem, answer) ? \"Correct — well reasoned.\""));
 });
+test("Trigonometry practice includes sine, cosine and tangent in a full rotation", () => {
+  assert.ok(studio.includes('fn: "sin"'));
+  assert.ok(studio.includes('fn: "cos"'));
+  assert.ok(studio.includes('fn: "tan"'));
+  assert.ok(studio.includes("0° ≤ θ < 360°"));
+});
