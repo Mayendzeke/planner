@@ -174,13 +174,14 @@ test('student personal cloud storage is visible and cloud uploads reserve quota 
 });
 
 test('PDF document centre exposes navigation, annotation, form fill and export controls', () => {
+  const pdfSource = read('src/components/PdfViewer.tsx');
   assert.ok(library.includes('resourceKey='));
-  assert.ok(p.includes('pdf-lib'));
-  assert.ok(p.includes('pdf-reader-thumbnails'));
-  assert.ok(p.includes('highlight'));
-  assert.ok(p.includes('signature'));
-  assert.ok(p.includes('export'));
-  assert.ok(p.includes('search'));
+  assert.ok(pdfSource.includes('pdf-lib'));
+  assert.ok(pdfSource.includes('pdf-reader-thumbnails'));
+  assert.ok(pdfSource.includes('highlight'));
+  assert.ok(pdfSource.includes('signature'));
+  assert.ok(pdfSource.includes('export'));
+  assert.ok(pdfSource.includes('search'));
 });
 
 test('DOCX and XLSX viewers render structured Office content with mobile navigation', () => {
