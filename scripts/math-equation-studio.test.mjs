@@ -58,6 +58,7 @@ test("Equation Studio supports inequalities, 3-variable systems and cubic polyno
   assert.ok(studio.includes('topic === "polynomial"'));
   assert.ok(studio.includes("Gaussian elimination"));
   assert.ok(studio.includes("Factor theorem"));
+  assert.ok(studio.includes("Inequality balance method"));
   assert.ok(studio.includes("problem.textAnswer"));
   assert.ok(studio.includes("{answerMatches(problem, answer) ? \"Correct — well reasoned.\""));
 });
