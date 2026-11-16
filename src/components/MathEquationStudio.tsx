@@ -8,7 +8,7 @@ type Topic = "linear" | "quadratic" | "systems" | "rational" | "radical" | "expo
 type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; steps: string[]; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
-type PendingStudioAttempt = Record<string, unknown> & { id: string; learner_id: string };
+type PendingStudioAttempt = { id: string; learner_id: string; [key: string]: any };
 
 const topics: TopicMeta[] = [
   { id: "linear", title: "Linear equations", description: "Inverse operations and the balance principle", pathways: ["Primary", "Secondary High", "High School", "Matric", "Tertiary"] },
@@ -143,6 +143,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
           .select("id,topic,percentage,created_at,result")
           .eq("learner_id", auth.user.id)
           .eq("subject_name", subjectName.slice(0, 120))
+          .eq("material_snapshot->>title", "Math Equation Studio")
           .order("created_at", { ascending: false })
           .limit(250);
         if (error || !active) return;
@@ -182,9 +183,10 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
         setChecked(false);
         setShowHint(false);
         setShowSteps(false);
+        setStartedAt(Date.now());
       }
     }
-  }, [pathway, topic]);
+  }, [pathway, topic, difficulty]);
 
   const availableTopics = useMemo(() => topics.filter(item => item.pathways.includes(pathway)), [pathway]);
   const total = attempts.length;
@@ -229,7 +231,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
           subject_name: subjectName,
           topic: topicTitle,
           difficulty,
-          questions: [{ id: questionId, type: "short_answer", prompt: problem.prompt, correctAnswer: problem.answer.map(String), explanation: problem.steps.join("\\n"), points: 1 }],
+          questions: [{ id: questionId, type: "short_answer", prompt: problem.prompt, correctAnswer: problem.answer.map(String), explanation: problem.steps.join("\n"), points: 1 }],
         },
         responses: { [questionId]: answer },
         result: {
@@ -288,6 +290,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
         setChecked(false);
         setShowHint(false);
         setShowSteps(false);
+        setStartedAt(Date.now());
       }}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
       <label>Equation family<select value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
       <label>Practice style<select value={difficulty} onChange={event => {
@@ -300,6 +303,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics" }: { su
         setChecked(false);
         setShowHint(nextDifficulty === "guided");
         setShowSteps(false);
+        setStartedAt(Date.now());
       }}><option value="guided">Guided · show hints</option><option value="independent">Independent · fewer prompts</option><option value="challenge">Challenge · solve first</option></select></label>
     </div>
     <div className="equation-studio-topic"><div><span className="eyebrow">CURRENT SKILL</span><h3>{topics.find(item => item.id === topic)?.title}</h3><p>{topics.find(item => item.id === topic)?.description}</p></div><span className="equation-studio-pathway">{pathway}</span></div>
