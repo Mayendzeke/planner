@@ -4,7 +4,7 @@ import { Activity, BookOpenCheck, CheckCircle2, ChevronRight, Lightbulb, Refresh
 import "./MathEquationStudio.css";
 
 type Pathway = "Primary" | "Secondary High" | "High School" | "Matric" | "Tertiary";
-type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "trigonometry";
+type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "word-problems" | "trigonometry";
 type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; steps: string[]; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
@@ -25,6 +25,7 @@ const topics: TopicMeta[] = [
   { id: "exponential", title: "Exponential equations", description: "Rewrite both sides with a common base", pathways: ["Matric", "Tertiary"] },
   { id: "logarithmic", title: "Logarithmic equations", description: "Log definitions, laws and domain checks", pathways: ["Matric", "Tertiary"] },
   { id: "absolute", title: "Absolute-value equations", description: "Split into positive and negative cases", pathways: ["High School", "Matric", "Tertiary"] },
+  { id: "word-problems", title: "Equation word problems", description: "Translate real-world scenarios into equations", pathways: ["Secondary High", "High School", "Matric", "Tertiary"] },
   { id: "trigonometry", title: "Basic trigonometric equations", description: "Circular functions and solutions in a stated interval", pathways: ["Matric", "Tertiary"] },
 ];
 const historyKey = "studyspace:math-equation-studio:v1";
@@ -62,6 +63,12 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const b = pathway === "Primary" ? randomInt(1, 10) : randomInt(difficulty === "challenge" ? -20 : difficulty === "independent" ? -12 : -6, difficulty === "challenge" ? 20 : difficulty === "independent" ? 15 : 8);
     const c = a * x + b;
     return { topic, pathway, prompt: multiply(a, "x") + signed(b) + " = " + c, answer: [x], hint: "Undo the addition or subtraction first. Whatever you do to one side, do to the other.", domain: "All real numbers", methods: ["Balance / inverse operations", "Graph both sides"], methodNote: "The balance method keeps the two sides equivalent at every step.", steps: ["Start with " + multiply(a, "x") + signed(b) + " = " + c + ".", "Subtract " + b + " from both sides: " + multiply(a, "x") + " = " + (c - b) + ".", "Divide both sides by " + a + ".", "Therefore x = " + x + ".", "Check: substitute x = " + x + " into the original equation."] };
+  }
+  if (topic === "word-problems") {
+    const rate = randomInt(25, difficulty === "challenge" ? 120 : 80);
+    const time = randomInt(2, difficulty === "challenge" ? 12 : 8);
+    const distance = rate * time;
+    return { topic, pathway, prompt: "A minibus travels at a steady " + rate + " km/h and covers " + distance + " km. How many hours does the journey take?", answer: [time], hint: "Use distance = speed × time. Let t represent the time, then rearrange to make t the subject.", domain: "Time must be positive", methods: ["Define a variable", "Form and solve an equation", "Unit analysis"], methodNote: "Translate the known quantities into an equation, define the unknown, then solve and check the units.", steps: ["Let t be the journey time in hours.", "Use distance = speed × time: " + distance + " = " + rate + " × t.", "Divide both sides by " + rate + ".", "t = " + distance + " ÷ " + rate + " = " + time + ".", "Check: " + rate + " × " + time + " = " + distance + " km.", "The journey takes " + time + " hours."] };
   }
   if (topic === "quadratic") {
     let r1 = randomInt(difficulty === "challenge" ? -9 : difficulty === "independent" ? -6 : -4, difficulty === "challenge" ? 9 : difficulty === "independent" ? 6 : 4), r2 = randomInt(difficulty === "challenge" ? -9 : difficulty === "independent" ? -6 : -4, difficulty === "challenge" ? 9 : difficulty === "independent" ? 6 : 4);
@@ -122,6 +129,9 @@ function guidanceForMethod(method: string, topic: Topic): string {
   if (method === "Logarithms") return "Take logarithms of both sides and use log laws to bring the exponent down. Check that all logarithm arguments are positive.";
   if (method === "Positive / negative cases") return "Split the absolute-value equation into two cases: the inside equals the positive value and the inside equals its negative.";
   if (method === "Reference-angle method" || method === "Unit-circle method") return "Find the reference angle, identify the quadrants with the required sign, then list every solution in the stated interval.";
+  if (method === "Define a variable") return "Name the unknown with a variable and write down its unit. Identify the known quantities before forming an equation.";
+  if (method === "Form and solve an equation") return "Translate the relationship in the story into an equation, solve it with equivalent operations, then check the result in context.";
+  if (method === "Unit analysis") return "Keep units attached to each quantity. Check that the final unit answers the question being asked.";
   if (method === "Column addition") return "Align place values. Add from right to left and carry into the next column when needed.";
   if (method === "Additive inverse") return "An additive inverse is the opposite number. Pairing a number with its opposite gives zero.";
   if (method === "Convert to fractions") return "Write each decimal as a fraction with a power-of-ten denominator, then combine or simplify.";
@@ -377,7 +387,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
       <div className="equation-studio-problem-top"><span>YOUR QUESTION</span><button type="button" onClick={() => nextProblem()}><RefreshCw size={14}/> New variant</button></div>
       <div className="equation-studio-equation" aria-live="polite">{problem.prompt}</div>
       <p className="equation-studio-domain"><strong>Domain / restrictions:</strong> {problem.domain}</p>
-      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={problem.answer.length > 1 ? "Enter both answers, separated by a comma" : topic === "arithmetic" ? "Enter your numeric answer" : "Enter your value for x"}/></label>
+      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={problem.answer.length > 1 ? "Enter both answers, separated by a comma" : topic === "arithmetic" ? "Enter your numeric answer" : topic === "word-problems" ? "Enter the value of the unknown" : "Enter your value for x"}/></label>
       <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked || savingAttempt}>{savingAttempt ? "Saving…" : "Check my answer"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
       {checked && <div className={"equation-studio-feedback " + (sameAnswers(parseAnswers(answer), problem.answer) ? "correct" : "incorrect")} role="status"><strong>{sameAnswers(parseAnswers(answer), problem.answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.answer.join(", ")}</span></div>}
