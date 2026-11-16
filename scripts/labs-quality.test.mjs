@@ -65,6 +65,6 @@ test("AI Lab generation uses bounded model timeouts and a request-sized output b
   assert.match(engine, /maxTokens:Math\.min\(2800,1200\+requested\*100\)/);
 });
 test("Negative numbers remain distinct and Math Studio accepts fraction input", () => {
-  assert.match(hub, /\^\[-\+\]\?\(\?:\\d\+\\\.?\\d\*\|\\\.\\d\+\)\?\$/);
-  assert.match(studio, /item\.match\(\/\^\(\[-\+\]\?\\d\+\)\\\/\(\[-\+\]\?\\d\+\)\$\//);
+  assert.ok(hub.includes(String.raw`const mathematical = /^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(raw)`));
+  assert.ok(studio.includes(String.raw`const fraction = item.match(/^([-+]?\\d+)\\/([-+]?\\d+)$/);`));
 });
