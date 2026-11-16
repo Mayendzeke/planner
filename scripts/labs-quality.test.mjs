@@ -21,7 +21,9 @@ test("Every equation method advertised as graph-based renders a real graph sheet
     "Exponential equation: compare both sides",
     "Logarithmic equation and horizontal line",
     "Absolute-value V graph",
-    "Circular-function equation (degrees)",\n    "Cubic polynomial and its roots",\n    "Distance and travel time",
+    "Circular-function equation (degrees)",
+    "Cubic polynomial and its roots",
+    "Distance and travel time",
   ]) assert.ok(studio.includes(title), "Missing graph: " + title);
 });
 
