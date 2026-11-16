@@ -236,7 +236,7 @@ export default function SubjectLabs({ subjects, studentId }: { subjects: Subject
               <h3>Explore and experiment</h3>
               <p>Subject-specific simulations and tools are available alongside your shared learning workspace.</p>
             </header>
-            {activeLab.key === "maths" && <><MathsLab/><MathEquationStudio/></>}
+            {activeLab.key === "maths" && <><MathsLab/><MathEquationStudio subjectName={activeLab.subjects[0] ?? activeLab.modules[0] ?? "Mathematics"}/></>}
             {activeLab.key === "science" && <ScienceLab areas={activeLab.scienceAreas.length ? activeLab.scienceAreas : ["physics", "chemistry", "biology"]}/>}
             {activeLab.key === "geography" && <GeographyLab/>}
             {activeLab.key === "business" && <BusinessLab/>}
