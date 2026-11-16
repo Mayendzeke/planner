@@ -7,6 +7,7 @@ import {
 import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 import MathsLab from "./MathsLab";
+import MathEquationStudio from "./MathEquationStudio";
 import LabLearningHub from "./LabLearningHub";
 import "./SubjectLabs.css";
 
@@ -230,7 +231,7 @@ export default function SubjectLabs({ subjects, studentId }: { subjects: Subject
               <h3>Explore and experiment</h3>
               <p>Subject-specific simulations and tools are available alongside your shared learning workspace.</p>
             </header>
-            {activeLab.key === "maths" && <MathsLab/>}
+            {activeLab.key === "maths" && <><MathsLab/><MathEquationStudio/></>}
             {activeLab.key === "science" && <ScienceLab areas={activeLab.scienceAreas.length ? activeLab.scienceAreas : ["physics", "chemistry", "biology"]}/>}
             {activeLab.key === "geography" && <GeographyLab/>}
             {activeLab.key === "business" && <BusinessLab/>}
