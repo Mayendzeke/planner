@@ -29,3 +29,10 @@ test("Equation Studio is responsive and honours reduced motion", () => {
   assert.match(styles, /@media\(max-width:420px\)/);
   assert.match(styles, /prefers-reduced-motion:reduce/);
 });
+
+test("Practice difficulty changes scaffolding and keeps primary examples positive", () => {
+  assert.ok(studio.includes('pathway === "Primary" ? randomInt(1, 10)'));
+  assert.ok(studio.includes('difficulty === "challenge" ? -12'));
+  assert.ok(studio.includes('setShowHint(nextDifficulty === "guided")'));
+  assert.ok(studio.includes('disabled={difficulty === "challenge" && !checked}'));
+});
