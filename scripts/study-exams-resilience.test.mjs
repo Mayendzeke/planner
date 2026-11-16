@@ -37,7 +37,7 @@ test("Teacher assignments are mounted once, not duplicated inside the practice p
 
 test("Teacher homework loading failures are converted into a visible error state", () => {
   assert.match(homework, /catch\(reason\)/);
-  assert.match(homework, /finally\{setLoading\(false\)\}/);
+  assert.match(homework, /finally\{setLoading\(false\);?\}/);
   assert.match(homework, /role="alert"/);
 });
 
