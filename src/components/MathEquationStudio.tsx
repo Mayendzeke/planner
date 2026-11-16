@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { Activity, BookOpenCheck, CheckCircle2, ChevronRight, Lightbulb, RefreshCw, Sigma, Sparkles } from "lucide-react";
 import "./MathEquationStudio.css";
+import LabGraphSheet, { type LabGraphConfig, type LabNumberLineConfig } from "./LabGraphSheet";
 
 type Pathway = "Primary" | "Secondary High" | "High School" | "Matric" | "Tertiary";
 type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "word-problems" | "inequalities" | "systems3" | "polynomial" | "trigonometry";
-type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; textAnswer?: string; steps: string[]; methodSteps?: Record<string, string[]>; hint: string; domain: string; methods: string[]; methodNote: string };
+type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; textAnswer?: string; steps: string[]; methodSteps?: Record<string, string[]>; graph?: LabGraphConfig; numberLine?: LabNumberLineConfig; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
 type PendingStudioAttempt = {
