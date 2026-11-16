@@ -222,6 +222,8 @@ export default function LabLearningHub({
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const attemptRef = useRef<LabAttempt | null>(null);
   const submitRef = useRef<((auto?: boolean) => Promise<void>) | null>(null);
+  const saveTimersRef = useRef(new Map<string, number>());
+  const saveQueuesRef = useRef(new Map<string, Promise<void>>());
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const [form, setForm] = useState<CreateForm>({
@@ -337,7 +339,7 @@ export default function LabLearningHub({
     });
   }, [studentId, storageKey]);
 
-  const persistAttempt = useCallback(async (item: LabAttempt) => {
+  const persistAttempt = useCallback(async (item: LabAttempt, immediate = false) => {
     const localItem = { ...item, syncStatus: "local" as const };
     setAttempts(current => {
       const next = [localItem, ...current.filter(value => value.id !== item.id)].sort((a,b) => b.created_at.localeCompare(a.created_at));
@@ -345,13 +347,34 @@ export default function LabLearningHub({
       return next;
     });
     if (!supabase || !studentId || !navigator.onLine) return;
-    const { error: saveError } = await supabase.from("lab_practice_attempts").upsert(toAttemptPayload(item));
-    if (saveError) return;
-    setAttempts(current => {
-      const next = current.map(value => value.id === item.id ? { ...item, syncStatus: "synced" as const } : value);
-      saveLocal(storageKey + ":attempts", next);
-      return next;
-    });
+    const sync = async () => {
+      const previous = saveQueuesRef.current.get(item.id) ?? Promise.resolve();
+      const queued = previous.catch(() => undefined).then(async () => {
+        const { error: saveError } = await supabase.from("lab_practice_attempts").upsert(toAttemptPayload(item));
+        if (saveError) return;
+        setAttempts(current => {
+          const next = current.map(value => value.id === item.id
+            ? { ...value, syncStatus: value.status === item.status && JSON.stringify(value.responses) === JSON.stringify(item.responses) ? "synced" as const : "local" as const }
+            : value);
+          saveLocal(storageKey + ":attempts", next);
+          return next;
+        });
+      });
+      const safeQueued = queued.catch(() => undefined);
+      saveQueuesRef.current.set(item.id, safeQueued);
+      await safeQueued;
+    };
+    const existing = saveTimersRef.current.get(item.id);
+    if (existing !== undefined) { window.clearTimeout(existing); saveTimersRef.current.delete(item.id); }
+    if (!immediate) {
+      const timer = window.setTimeout(() => {
+        saveTimersRef.current.delete(item.id);
+        void sync();
+      }, 450);
+      saveTimersRef.current.set(item.id, timer);
+      return;
+    }
+    await sync();
   }, [studentId, storageKey]);
 
   const generate = async (override?: Partial<CreateForm>) => {
@@ -443,7 +466,7 @@ export default function LabLearningHub({
     setFlagged([]);
     setActiveAttempt(attempt);
     setStartedAt(Date.now());
-    await persistAttempt(attempt);
+    await persistAttempt(attempt, true);
     setTab("practice");
     setMessage("");
     setError("");
@@ -484,7 +507,7 @@ export default function LabLearningHub({
     };
     attemptRef.current = completed;
     setActiveAttempt(completed);
-    await persistAttempt(completed);
+    await persistAttempt(completed, true);
     setStartedAt(null);
     setMessage(auto ? "Time is up. Your attempt was submitted automatically." : "Attempt submitted. Review each explanation, then choose how to practise again.");
   };
