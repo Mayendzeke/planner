@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Calculator, CheckCircle2, Compass, Grid3X3, Shapes, Sigma } from "lucide-react";
+import LabGraphSheet, { type LabGraphConfig } from "./LabGraphSheet";
 
 type Tool = "Fractions" | "Algebra balance" | "Coordinate graph" | "Geometry";
 
@@ -28,11 +29,13 @@ export default function MathsLab() {
   const reducedBy = gcd(numerator, denominator);
   const simplified = numerator / reducedBy + "/" + denominator / reducedBy;
   const fractionPercent = Math.round((numerator / denominator) * 100);
-  const graphLine = useMemo(() => Array.from({ length: 25 }, (_, index) => {
-    const x = -6 + index * 0.5;
-    const y = slope * x + intercept;
-    return (200 + x * 25) + "," + (150 - y * 18);
-  }).join(" "), [slope, intercept]);
+  const coordinateGraph: LabGraphConfig = {
+    title: "Straight-line graph: y = mx + c",
+    xMin: -8, xMax: 8, yMin: -12, yMax: 12,
+    xLabel: "x", yLabel: "y",
+    curves: [{ label: "y = " + slope + "x " + (intercept < 0 ? "− " + Math.abs(intercept) : "+ " + intercept), evaluate: value => slope * value + intercept }],
+    points: [{ x: 0, y: intercept, label: "Y-intercept" }],
+  };
 
   const tools: { label: Tool; description: string; icon: typeof Calculator }[] = [
     { label: "Fractions", description: "Build and compare fractions", icon: Grid3X3 },
@@ -87,16 +90,7 @@ export default function MathsLab() {
         <div className="maths-lab-card">
           <span className="eyebrow">STRAIGHT-LINE GRAPH</span><h2>Explore y = mx + c</h2>
           <p>Adjust the gradient and y-intercept. Watch the line change on the coordinate plane.</p>
-          <div className="maths-graph-wrap">
-            <svg viewBox="0 0 400 300" role="img" aria-label={"Graph of y equals " + slope + "x plus " + intercept}>
-              <defs><clipPath id="maths-graph-clip"><rect x="45" y="20" width="310" height="250"/></clipPath></defs>
-              {Array.from({length:13},(_,i)=><line key={"v"+i} x1={50+i*25} y1="25" x2={50+i*25} y2="275" className="maths-grid-line"/>)}
-              {Array.from({length:11},(_,i)=><line key={"h"+i} x1="50" y1={35+i*24} x2="350" y2={35+i*24} className="maths-grid-line"/>)}
-              <line x1="50" y1="155" x2="350" y2="155" className="maths-axis"/><line x1="200" y1="25" x2="200" y2="275" className="maths-axis"/>
-              <g className="maths-axis-labels"><text x="355" y="169">x</text><text x="210" y="22">y</text><text x="205" y="169">0</text></g>
-              <g clipPath="url(#maths-graph-clip)"><polyline points={graphLine} className="maths-graph-line"/><circle cx="200" cy={155-intercept*18} r="5" className="maths-graph-point"/></g>
-            </svg>
-          </div>
+          <LabGraphSheet graph={coordinateGraph} compact/>
           <div className="maths-lab-control"><label htmlFor="graph-slope">Gradient (m) <strong>{slope}</strong></label><input id="graph-slope" type="range" min="-3" max="3" step="1" value={slope} onChange={event => setSlope(Number(event.target.value))}/></div>
           <div className="maths-lab-control"><label htmlFor="graph-intercept">Y-intercept (c) <strong>{intercept}</strong></label><input id="graph-intercept" type="range" min="-5" max="5" step="1" value={intercept} onChange={event => setIntercept(Number(event.target.value))}/></div>
         </div>

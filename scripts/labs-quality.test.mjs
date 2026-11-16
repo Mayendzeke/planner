@@ -1,0 +1,103 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const read = path => readFileSync(path, "utf8");
+const graph = read("src/components/LabGraphSheet.tsx");
+const graphStyles = read("src/components/LabGraphSheet.css");
+const studio = read("src/components/MathEquationStudio.tsx");
+const hub = read("src/components/LabLearningHub.tsx");
+const assignments = read("src/components/AssignedLabPracticals.tsx");
+
+test("Every equation method advertised as graph-based renders a real graph sheet", () => {
+  assert.match(studio, /<LabGraphSheet graph=\{problem\.graph\} \/>/);
+  assert.match(studio, /<LabGraphSheet numberLine=\{problem\.numberLine\} \/>/);
+  for (const title of [
+    "Compare both sides of the linear equation",
+    "Quadratic curve and its roots",
+    "Intersection of simultaneous equations",
+    "Rational equation and excluded value",
+    "Radical equation and horizontal line",
+    "Exponential equation: compare both sides",
+    "Logarithmic equation and horizontal line",
+    "Absolute-value V graph",
+    "Circular-function equation (degrees)",
+    "Cubic polynomial and its roots",
+    "Distance and travel time",
+  ]) assert.ok(studio.includes(title), "Missing graph: " + title);
+});
+
+test("Graph sheet provides zoom, pan, reset, labelled axes and solution markers", () => {
+  for (const item of ["ZoomIn", "ZoomOut", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "RotateCcw", "viewBox", "clipPath", "useId", "graph.points"]) assert.ok(graph.includes(item), "Missing graph capability: " + item);
+  assert.match(graphStyles, /@media\(max-width:620px\)/);
+  assert.match(graphStyles, /:focus-visible/);
+  assert.match(graphStyles, /lab-graph-solution-point/);
+});
+
+test("Inequality number-line display preserves open and closed boundaries", () => {
+  assert.match(studio, /numberLine: \{ boundary: root, direction: finalRelation === "<" \? "left" : "right", inclusive: false \}/);
+  assert.match(graph, /numberLine\.inclusive/);
+  assert.match(graph, /numberLine\.direction/);
+  assert.match(graph, /x1=\{boundaryX\} y1="82" x2=\{numberLine\.direction === "left" \? 54 : 846\}/);
+});
+
+test("Quiz answer normalization preserves mathematical operators", () => {
+  assert.match(hub, /replace\(\/≤\/g, "<="\)/);
+  assert.match(hub, /replace\(\/≥\/g, ">="\)/);
+  assert.match(hub, /function canonicalAnswer/);
+  assert.match(hub, /function numericAnswer/);
+  assert.match(hub, /Math\.abs\(expected - numeric\)/);
+});
+
+test("Math Studio local history is isolated between signed-in learners", () => {
+  assert.ok(studio.includes('const saved = localStorage.getItem(learnerHistoryKey) ?? "[]";'));
+  assert.ok(!studio.includes("localStorage.getItem(historyKey)"));
+  assert.match(studio, /learnerHistoryKey = historyKey \+ ":" \+ subjectName \+ ":" \+ \(studentId \?\? "anonymous"\)/);
+});
+
+test("Teacher practical submissions remain linked to the assigned learner and reviewed work is locked", () => {
+  assert.match(assignments, /onConflict: "learner_id,lab_area,activity_key"/);
+  assert.match(assignments, /reviewed_at\) return/);
+  assert.match(assignments, /submission_type: "learner_reflection"/);
+});
+test("AI Lab generation uses bounded model timeouts and a request-sized output budget", () => {
+  const provider = read("supabase/functions/lab-learning-engine/provider.ts");
+  const engine = read("supabase/functions/lab-learning-engine/index.ts");
+  assert.match(provider, /model === GEMMA_MODEL \? 20000 : 22000/);
+  assert.match(provider, /AbortSignal\.timeout\(timeoutMs\)/);
+  assert.doesNotMatch(provider, /AbortSignal\.timeout\(35000\)/);
+  assert.match(engine, /maxTokens:Math\.min\(2800,1200\+requested\*100\)/);
+});
+test("Negative numbers remain distinct and Math Studio accepts fraction input", () => {
+  assert.ok(hub.includes(String.raw`const mathematical = /^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw)`));
+  assert.ok(studio.includes(String.raw`const fraction = item.match(/^([-+]?\d+)\/([-+]?\d+)$/);`));
+});
+test("Generated Lab content must satisfy the selected material type", () => {
+  const engine = read("supabase/functions/lab-learning-engine/index.ts");
+  for (const guard of [
+    'materialType==="flashcards"&&flashcards.length<6',
+    'materialType==="worked_examples"&&workedExamples.length<2',
+    'materialType==="glossary"&&keyTerms.length<4',
+    'materialType==="study_plan"&&studyPlan.length<3',
+    'sections.length<2',
+  ]) assert.ok(engine.includes(guard), "Missing material validation: " + guard);
+  assert.ok(engine.includes("const usedIds=new Set<string>()"));
+  assert.ok(engine.includes("new Map(cleanList(row.options,5,180).map(option=>[norm(option),option]))"));
+});
+test("Practice autosaves are debounced, serialized and flushed on page hide", () => {
+  assert.ok(hub.includes("saveTimersRef"));
+  assert.ok(hub.includes("saveQueuesRef"));
+  assert.ok(hub.includes("}, 450)"));
+  assert.ok(hub.includes('window.addEventListener("pagehide", flush)'));
+  assert.ok(hub.includes("persistAttempt(completed, true)"));
+});
+test("Every subject Lab graph uses the shared responsive graph sheet", () => {
+  const mathsLab = read("src/components/MathsLab.tsx");
+  const subjectLabs = read("src/components/SubjectLabs.tsx");
+  assert.ok(mathsLab.includes('from "./LabGraphSheet"'));
+  assert.ok(mathsLab.includes("<LabGraphSheet graph={coordinateGraph} compact/>"));
+  assert.ok(!mathsLab.includes("<svg"));
+  assert.ok(subjectLabs.includes("<LabGraphSheet graph={climateGraphs.temperatureGraph} compact/>"));
+  assert.ok(subjectLabs.includes("<LabGraphSheet graph={climateGraphs.rainfallGraph} compact/>"));
+  assert.ok(subjectLabs.includes("<LabGraphSheet graph={demandSupplyGraph} compact/>"));
+});

@@ -163,11 +163,35 @@ function markdownFor(item: LabMaterial) {
   }
   return lines.join("\n").trim() + "\n";
 }
+function canonicalAnswer(value: unknown) {
+  const raw = String(value ?? "").normalize("NFKC").trim().toLowerCase()
+    .replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/")
+    .replace(/≤/g, "<=").replace(/≥/g, ">=").replace(/π/g, "pi");
+  const mathematical = /^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw) || /[<>=]/.test(raw) || /[a-z]\s*[+*/^=-]/i.test(raw)
+    || /\d\s*[+*/^=-]\s*\d/.test(raw) || /^[-+]?\d+\s*\/\s*[-+]?\d+$/.test(raw);
+  return mathematical ? raw.replace(/\s+/g, "") : norm(raw);
+}
+function numericAnswer(value: unknown): number | null {
+  const raw = String(value ?? "").trim().replace(/,/g, ".");
+  if (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw)) {
+    const result = Number(raw);
+    return Number.isFinite(result) ? result : null;
+  }
+  const fraction = raw.match(/^([-+]?\d+)\s*\/\s*([-+]?\d+)$/);
+  if (fraction && Number(fraction[2]) !== 0) return Number(fraction[1]) / Number(fraction[2]);
+  return null;
+}
 function compareAnswer(question: LabQuestion, value: string) {
-  const accepted = [question.correctAnswer, ...(question.acceptedAnswers ?? [])]
+  const answers = [question.correctAnswer, ...(question.acceptedAnswers ?? [])]
     .flatMap(answer => Array.isArray(answer) ? answer : [answer])
-    .map(norm).filter(Boolean);
-  return accepted.includes(norm(value));
+    .filter(answer => String(answer ?? "").trim());
+  const candidate = canonicalAnswer(value);
+  if (answers.some(answer => canonicalAnswer(answer) === candidate)) return true;
+  const numeric = numericAnswer(value);
+  return numeric !== null && answers.some(answer => {
+    const expected = numericAnswer(answer);
+    return expected !== null && Math.abs(expected - numeric) <= 1e-8 * Math.max(1, Math.abs(expected));
+  });
 }
 function shortAnswer(question: LabQuestion) {
   return Array.isArray(question.correctAnswer) ? question.correctAnswer.join(" / ") : question.correctAnswer;
@@ -198,6 +222,8 @@ export default function LabLearningHub({
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const attemptRef = useRef<LabAttempt | null>(null);
   const submitRef = useRef<((auto?: boolean) => Promise<void>) | null>(null);
+  const saveTimersRef = useRef(new Map<string, number>());
+  const saveQueuesRef = useRef(new Map<string, Promise<void>>());
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const [form, setForm] = useState<CreateForm>({
@@ -313,22 +339,59 @@ export default function LabLearningHub({
     });
   }, [studentId, storageKey]);
 
-  const persistAttempt = useCallback(async (item: LabAttempt) => {
+  const persistAttempt = useCallback(async (item: LabAttempt, immediate = false) => {
     const localItem = { ...item, syncStatus: "local" as const };
     setAttempts(current => {
       const next = [localItem, ...current.filter(value => value.id !== item.id)].sort((a,b) => b.created_at.localeCompare(a.created_at));
       saveLocal(storageKey + ":attempts", next);
       return next;
     });
-    if (!supabase || !studentId || !navigator.onLine) return;
-    const { error: saveError } = await supabase.from("lab_practice_attempts").upsert(toAttemptPayload(item));
-    if (saveError) return;
-    setAttempts(current => {
-      const next = current.map(value => value.id === item.id ? { ...item, syncStatus: "synced" as const } : value);
-      saveLocal(storageKey + ":attempts", next);
-      return next;
-    });
+    const client = supabase;
+    if (!client || !studentId || !navigator.onLine) return;
+    const sync = async () => {
+      const previous = saveQueuesRef.current.get(item.id) ?? Promise.resolve();
+      const queued = previous.catch(() => undefined).then(async () => {
+        const { error: saveError } = await client.from("lab_practice_attempts").upsert(toAttemptPayload(item));
+        if (saveError) return;
+        setAttempts(current => {
+          const next = current.map(value => value.id === item.id
+            ? { ...value, syncStatus: value.status === item.status && JSON.stringify(value.responses) === JSON.stringify(item.responses) ? "synced" as const : "local" as const }
+            : value);
+          saveLocal(storageKey + ":attempts", next);
+          return next;
+        });
+      });
+      const safeQueued = queued.catch(() => undefined);
+      saveQueuesRef.current.set(item.id, safeQueued);
+      await safeQueued;
+    };
+    const existing = saveTimersRef.current.get(item.id);
+    if (existing !== undefined) { window.clearTimeout(existing); saveTimersRef.current.delete(item.id); }
+    if (!immediate) {
+      const timer = window.setTimeout(() => {
+        saveTimersRef.current.delete(item.id);
+        void sync();
+      }, 450);
+      saveTimersRef.current.set(item.id, timer);
+      return;
+    }
+    await sync();
   }, [studentId, storageKey]);
+
+  useEffect(() => {
+    const flush = () => {
+      const current = attemptRef.current;
+      if (current) void persistAttempt(current, true);
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      for (const timer of saveTimersRef.current.values()) window.clearTimeout(timer);
+      saveTimersRef.current.clear();
+      const current = attemptRef.current;
+      if (current?.status === "in_progress") void persistAttempt(current, true);
+    };
+  }, [persistAttempt]);
 
   const generate = async (override?: Partial<CreateForm>) => {
     if (!studentId || !supabase) { setError("Sign in to generate and save Lab materials."); return; }
@@ -375,6 +438,8 @@ export default function LabLearningHub({
       };
       await persistMaterial(material);
       setSelectedMaterial(material);
+      setFlashcardIndex(0);
+      setFlashcardFlipped(false);
       setTab("library");
       setMessage("Your " + displayType(draft.materialType).toLowerCase() + " has been created and saved to My Lab Library.");
       setForm(current => ({ ...current, sourceNotes: "" }));
@@ -419,7 +484,7 @@ export default function LabLearningHub({
     setFlagged([]);
     setActiveAttempt(attempt);
     setStartedAt(Date.now());
-    await persistAttempt(attempt);
+    await persistAttempt(attempt, true);
     setTab("practice");
     setMessage("");
     setError("");
@@ -460,7 +525,7 @@ export default function LabLearningHub({
     };
     attemptRef.current = completed;
     setActiveAttempt(completed);
-    await persistAttempt(completed);
+    await persistAttempt(completed, true);
     setStartedAt(null);
     setMessage(auto ? "Time is up. Your attempt was submitted automatically." : "Attempt submitted. Review each explanation, then choose how to practise again.");
   };
@@ -522,7 +587,10 @@ export default function LabLearningHub({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url; link.download = (item.title || "StudySpace-Lab-material").replace(/[^a-z0-9-_]+/gi,"-") + ".md";
-    link.click(); URL.revokeObjectURL(url);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1200);
   };
 
   const filteredMaterials = useMemo(() => materials.filter(item => {
@@ -631,10 +699,10 @@ export default function LabLearningHub({
         onFullRetake={()=>void startRetake(activeAttempt,"full_retake")}
         onIncorrectRetake={()=>void startRetake(activeAttempt,"incorrect_only")}
         onFreshVariant={()=>{setForm(current=>({...current,subjectName:activeAttempt.subject_name,topic:activeAttempt.topic,materialType:"practice_quiz"}));setActiveAttempt(null);setTab("create");setMessage("Create a fresh question variant for " + activeAttempt.topic + ".");}}
-        onReviewMaterial={()=>{const item=materials.find(value=>value.id===activeAttempt.material_id);if(item){setSelectedMaterial(item);setTab("library");}}}
+        onReviewMaterial={()=>{const item=materials.find(value=>value.id===activeAttempt.material_id);if(item){setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);setTab("library");}}}
       /> : <>
         <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">RETRIEVAL PRACTICE & EXAM MODE</span><h3>Choose what to practise</h3><p>Every attempt is saved separately. Retake the full set or focus on missed questions.</p></div></div>
-        {materials.filter(item=>(item.content.questions?.length ?? 0)>0).length ? <div className="lab-hub-material-grid">{materials.filter(item=>(item.content.questions?.length ?? 0)>0).map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setTab("library");}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")} onExam={()=>void startAttempt(item,"exam")}/>)}</div> : <EmptyState icon={<Target size={22}/>} title="No practice sets yet" text="Generate a practice quiz, question bank or revision pack to start practising." action="Create practice set" onClick={()=>{setTab("create");setForm(current=>({...current,materialType:"practice_quiz"}));}}/>}
+        {materials.filter(item=>(item.content.questions?.length ?? 0)>0).length ? <div className="lab-hub-material-grid">{materials.filter(item=>(item.content.questions?.length ?? 0)>0).map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);setTab("library");}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")} onExam={()=>void startAttempt(item,"exam")}/>)}</div> : <EmptyState icon={<Target size={22}/>} title="No practice sets yet" text="Generate a practice quiz, question bank or revision pack to start practising." action="Create practice set" onClick={()=>{setTab("create");setForm(current=>({...current,materialType:"practice_quiz"}));}}/>}
         {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR ATTEMPT HISTORY</span><h3>Past attempts</h3></div></div><div className="lab-hub-history-list">{attempts.map(item=><AttemptRow key={item.id} attempt={item} onReview={()=>{setActiveAttempt(item);setQuestionIndex(0);setStartedAt(item.status==="in_progress"?(Date.parse(item.created_at)||Date.now()):null);}}/>)}</div></section>}
       </>}
     </section>}

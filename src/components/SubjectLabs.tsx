@@ -10,6 +10,7 @@ import MathsLab from "./MathsLab";
 import MathEquationStudio from "./MathEquationStudio";
 import AssignedLabPracticals from "./AssignedLabPracticals";
 import LabLearningHub from "./LabLearningHub";
+import LabGraphSheet, { type LabGraphConfig } from "./LabGraphSheet";
 import "./SubjectLabs.css";
 
 type LabKey = "maths" | "science" | "geography" | "business" | "accounting" | "computing" | "agriculture" | "engineering" | "languages" | "hospitality" | "design";
@@ -98,6 +99,12 @@ function classifyAssignedModule(value: string): { keys: LabKey[]; scienceAreas: 
   return { keys, scienceAreas: [...new Set(areas)] };
 }
 
+function interpolateMonthly(values: number[], month: number): number | null {
+  if (month < 1 || month > 12 || values.length !== 12) return null;
+  const index = Math.min(10, Math.floor(month) - 1);
+  const fraction = month - (index + 1);
+  return values[index] + (values[index + 1] - values[index]) * fraction;
+}
 function readQuestionTopic(content: unknown): string {
   if (!content || typeof content !== "object" || Array.isArray(content)) return "";
   const topic = (content as Record<string, unknown>).topic;
@@ -419,8 +426,29 @@ function GeographyLab() {
   const [scale, setScale] = useState(50000);
   const [population, setPopulation] = useState(120000);
   const [area, setArea] = useState(80);
+  const climateGraphs = useMemo(() => {
+    const temperatureOffsets = [3.5, 3.5, 2.5, .5, -2.5, -4.5, -4.5, -3.5, -1.5, .5, 2.5, 3.5];
+    const rainfallFactors = [1.45, 1.35, 1.2, .9, .65, .4, .35, .4, .6, .9, 1.25, 1.55];
+    const factorMean = rainfallFactors.reduce((sum, value) => sum + value, 0) / 12;
+    const temperatures = temperatureOffsets.map(offset => temperature + offset);
+    const rain = rainfallFactors.map(factor => rainfall * factor / factorMean);
+    const monthNote = "Illustrative seasonal profile generated from your sliders, not observed station data. Months: 1 Jan · 2 Feb · 3 Mar · 4 Apr · 5 May · 6 Jun · 7 Jul · 8 Aug · 9 Sep · 10 Oct · 11 Nov · 12 Dec.";
+    const temperatureGraph: LabGraphConfig = {
+      title: "Monthly temperature profile",
+      xMin: 1, xMax: 12, yMin: Math.min(...temperatures) - 3, yMax: Math.max(...temperatures) + 3,
+      xLabel: "Month (1–12)", yLabel: "Temperature (°C)", unitNote: monthNote,
+      curves: [{ label: "Mean temperature", evaluate: month => interpolateMonthly(temperatures, month) }],
+    };
+    const rainfallGraph: LabGraphConfig = {
+      title: "Monthly rainfall profile",
+      xMin: 1, xMax: 12, yMin: 0, yMax: Math.max(1, ...rain) * 1.2,
+      xLabel: "Month (1–12)", yLabel: "Rainfall (mm)", unitNote: monthNote,
+      curves: [{ label: "Monthly rainfall", evaluate: month => interpolateMonthly(rain, month) }],
+    };
+    return { temperatureGraph, rainfallGraph };
+  }, [temperature, rainfall]);
   return <section className="subject-lab-workspace"><LabHeading eyebrow="SPATIAL DATA & FIELD SKILLS" title="Geography Lab" description="Practise interpreting data, map scale and human-environment patterns with adjustable examples."/><ToolTabs value={tab} onChange={setTab} options={[{value:"climate",label:"Climate graph"},{value:"scale",label:"Map scale"},{value:"population",label:"Population"}]}/>
-    {tab === "climate" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Climate data explorer</h3><p>Change the sample monthly conditions and interpret the pattern.</p><RangeField label="Mean temperature" value={temperature} min={-5} max={40} unit=" °C" onChange={setTemperature}/><RangeField label="Rainfall" value={rainfall} min={0} max={400} step={5} unit=" mm" onChange={setRainfall}/><div className="subject-lab-climate-bars"><i style={{height:(rainfall/4)+"px"}}/><i style={{height:(Math.max(0,temperature+5)*3)+"px"}}/></div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Climate snapshot" value={temperature < 10 ? "Cool" : temperature < 25 ? "Mild" : "Hot"}/><Result label="Rainfall class" value={rainfall < 30 ? "Low" : rainfall < 100 ? "Moderate" : "High"}/><p>Compare several months before deciding whether a place has a seasonal pattern.</p></aside></div>}
+    {tab === "climate" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Climate data explorer</h3><p>Adjust the average conditions. The two interactive graph sheets show a clearly labelled illustrative Southern Hemisphere seasonal profile.</p><RangeField label="Mean temperature" value={temperature} min={-5} max={40} unit=" °C" onChange={setTemperature}/><RangeField label="Mean monthly rainfall" value={rainfall} min={0} max={400} step={5} unit=" mm" onChange={setRainfall}/><LabGraphSheet graph={climateGraphs.temperatureGraph} compact/><LabGraphSheet graph={climateGraphs.rainfallGraph} compact/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Mean temperature" value={temperature+" °C"}/><Result label="Rainfall class" value={rainfall < 30 ? "Low" : rainfall < 100 ? "Moderate" : "High"}/><p>These are simulated teaching values, not local weather observations. Compare real monthly station data when answering climate-data questions.</p></aside></div>}
     {tab === "scale" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Map scale converter</h3><p>Representative fraction (1 : n) converts map distance to ground distance.</p><RangeField label="Map distance" value={mapDistance} min={1} max={20} unit=" cm" onChange={setMapDistance}/><RangeField label="Scale denominator" value={scale} min={10000} max={250000} step={10000} onChange={setScale}/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Ground distance" value={(mapDistance*scale/100000).toFixed(2)+" km"}/><Result label="Scale" value={"1 : "+scale.toLocaleString()}/></aside></div>}
     {tab === "population" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Population density</h3><p>Density = population ÷ land area.</p><RangeField label="Population" value={population} min={1000} max={1000000} step={1000} onChange={setPopulation}/><RangeField label="Land area" value={area} min={1} max={1000} unit=" km²" onChange={setArea}/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Population density" value={(population/area).toFixed(1)+" people/km²"}/><Result label="Population" value={population.toLocaleString()}/></aside></div>}
   </section>;
@@ -433,9 +461,30 @@ function BusinessLab() {
   const [quantity, setQuantity] = useState(300);
   const [marketPrice, setMarketPrice] = useState(50);
   const [marketingMix, setMarketingMix] = useState("Product");
+  const demandSupplyGraph = useMemo<LabGraphConfig>(() => {
+    const equilibriumPrice = 140 / 2.4;
+    const equilibriumQuantity = 120 - equilibriumPrice;
+    const demand = Math.max(0, 120 - marketPrice);
+    const supply = Math.max(0, marketPrice * 1.4 - 20);
+    return {
+      title: "Demand and supply curves",
+      xMin: 0, xMax: 100, yMin: 0, yMax: 125,
+      xLabel: "Price per unit (E)", yLabel: "Quantity (units)",
+      unitNote: "Illustrative classroom model, not a real market forecast.",
+      curves: [
+        { label: "Demand", evaluate: priceValue => Math.max(0, 120 - priceValue) },
+        { label: "Supply", evaluate: priceValue => Math.max(0, priceValue * 1.4 - 20) },
+      ],
+      points: [
+        { x: equilibriumPrice, y: equilibriumQuantity, label: "Equilibrium" },
+        { x: marketPrice, y: demand, label: "Demand at selected price" },
+        { x: marketPrice, y: supply, label: "Supply at selected price" },
+      ],
+    };
+  }, [marketPrice]);
   return <section className="subject-lab-workspace"><LabHeading eyebrow="DECISIONS & ENTREPRENEURSHIP" title="Business Lab" description="Model a small business, estimate break-even and explore how market price and marketing choices affect performance."/><ToolTabs value={tab} onChange={setTab} options={[{value:"breakEven",label:"Break-even"},{value:"demand",label:"Demand & supply"},{value:"marketing",label:"Marketing mix"}]}/>
     {tab === "breakEven" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Mini business simulator</h3><p>Adjust price and costs to model a simple product.</p><RangeField label="Selling price per unit" value={price} min={5} max={150} unit=" E" onChange={setPrice}/><RangeField label="Variable cost per unit" value={variableCost} min={1} max={100} unit=" E" onChange={setVariableCost}/><RangeField label="Fixed costs" value={fixedCost} min={500} max={30000} step={500} unit=" E" onChange={setFixedCost}/><RangeField label="Units sold" value={quantity} min={0} max={2000} step={10} onChange={setQuantity}/></section><aside className="subject-lab-panel subject-lab-results"><Result label="Break-even units" value={price>variableCost?Math.ceil(fixedCost/(price-variableCost)).toLocaleString():"Not reachable"} /><Result label="Revenue" value={"E"+(price*quantity).toLocaleString()}/><Result label="Estimated profit" value={"E"+(price*quantity-variableCost*quantity-fixedCost).toLocaleString()}/><Result label="Contribution per unit" value={"E"+(price-variableCost).toFixed(2)}/></aside></div>}
-    {tab === "demand" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Price and quantity model</h3><p>Illustrative demand typically falls as price rises; this is a simple classroom model.</p><RangeField label="Market price" value={marketPrice} min={5} max={100} unit=" E" onChange={setMarketPrice}/><div className="subject-lab-demand"><span>Demand estimate</span><strong>{Math.max(0,120-marketPrice).toFixed(0)} units</strong><span>Supply estimate</span><strong>{Math.max(0,marketPrice*1.4-20).toFixed(0)} units</strong></div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Market position" value={Math.max(0,120-marketPrice)>Math.max(0,marketPrice*1.4-20)?"Shortage pressure":Math.max(0,120-marketPrice)<Math.max(0,marketPrice*1.4-20)?"Surplus pressure":"Approx. balance"}/><Result label="Price" value={"E"+marketPrice}/></aside></div>}
+    {tab === "demand" && <><div className="subject-lab-grid"><section className="subject-lab-panel"><h3>Price and quantity model</h3><p>Illustrative demand typically falls as price rises; this is a simple classroom model.</p><RangeField label="Market price" value={marketPrice} min={5} max={100} unit=" E" onChange={setMarketPrice}/><div className="subject-lab-demand"><span>Demand estimate</span><strong>{Math.max(0,120-marketPrice).toFixed(0)} units</strong><span>Supply estimate</span><strong>{Math.max(0,marketPrice*1.4-20).toFixed(0)} units</strong></div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Market position" value={Math.max(0,120-marketPrice)>Math.max(0,marketPrice*1.4-20)?"Shortage pressure":Math.max(0,marketPrice*1.4-20) > Math.max(0,120-marketPrice)?"Surplus pressure":"Approx. balance"}/><Result label="Price" value={"E"+marketPrice}/></aside></div><LabGraphSheet graph={demandSupplyGraph} compact/></>}
     {tab === "marketing" && <div className="subject-lab-grid"><section className="subject-lab-panel"><h3>The 4 Ps of marketing</h3><p>Select a marketing decision to explore its planning questions.</p><ToolTabs value={marketingMix} onChange={setMarketingMix} options={["Product","Price","Place","Promotion"].map(value=>({value,label:value}))}/><div className="subject-lab-explainer"><strong>{marketingMix}</strong><p>{marketingMix==="Product"?"What customer need does the product solve? Consider quality, features, design and packaging.":marketingMix==="Price"?"How does the price compare with costs, customer value and competitors?":marketingMix==="Place"?"Where and how will customers find, buy and receive the product?":"Which message and channel will reach the intended customer at the right time?"}</p></div></section><aside className="subject-lab-panel subject-lab-results"><Result label="Marketing framework" value="4 Ps"/><Result label="Planning prompt" value={marketingMix}/></aside></div>}
   </section>;
 }

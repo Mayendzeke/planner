@@ -49,12 +49,13 @@ async function callModel(model: string, messages: ProviderMessage[], options: Re
   const { accountId, apiToken } = cloudflareCredentials();
   if (!accountId || !apiToken) throw new Error("Cloudflare Workers AI credentials are not configured.");
   const apiMessages = messages.map(item => ({ role: item.role === "model" ? "assistant" : item.role, content: item.content }));
+  const timeoutMs = model === GEMMA_MODEL ? 20000 : 22000;
   let response: Response;
   try {
     response = await fetch("https://api.cloudflare.com/client/v4/accounts/" + encodeURIComponent(accountId) + "/ai/v1/chat/completions", {
       method: "POST",
       headers: { "Authorization": "Bearer " + apiToken, "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
         model,
         messages: apiMessages,
@@ -67,7 +68,7 @@ async function callModel(model: string, messages: ProviderMessage[], options: Re
       }),
     });
   } catch (error) {
-    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) throw new Error(model + " timed out after 35 seconds.");
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) throw new Error(model + " timed out after " + Math.round(timeoutMs / 1000) + " seconds.");
     throw new Error(model + " could not be reached.");
   }
   const raw = await response.text();

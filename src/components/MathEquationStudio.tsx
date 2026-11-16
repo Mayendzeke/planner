@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { Activity, BookOpenCheck, CheckCircle2, ChevronRight, Lightbulb, RefreshCw, Sigma, Sparkles } from "lucide-react";
 import "./MathEquationStudio.css";
+import LabGraphSheet, { type LabGraphConfig, type LabNumberLineConfig } from "./LabGraphSheet";
 
 type Pathway = "Primary" | "Secondary High" | "High School" | "Matric" | "Tertiary";
 type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "word-problems" | "inequalities" | "systems3" | "polynomial" | "trigonometry";
-type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; textAnswer?: string; steps: string[]; methodSteps?: Record<string, string[]>; hint: string; domain: string; methods: string[]; methodNote: string };
+type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; textAnswer?: string; steps: string[]; methodSteps?: Record<string, string[]>; graph?: LabGraphConfig; numberLine?: LabNumberLineConfig; orderedAnswers?: boolean; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
 type PendingStudioAttempt = {
@@ -65,7 +66,7 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const x = pathway === "Primary" ? randomInt(1, 10) : randomInt(difficulty === "challenge" ? -12 : difficulty === "independent" ? -8 : -4, difficulty === "challenge" ? 15 : difficulty === "independent" ? 10 : 6);
     const b = pathway === "Primary" ? randomInt(1, 10) : randomInt(difficulty === "challenge" ? -20 : difficulty === "independent" ? -12 : -6, difficulty === "challenge" ? 20 : difficulty === "independent" ? 15 : 8);
     const c = a * x + b;
-    return { topic, pathway, prompt: multiply(a, "x") + signed(b) + " = " + c, answer: [x], hint: "Undo the addition or subtraction first. Whatever you do to one side, do to the other.", domain: "All real numbers", methods: ["Balance / inverse operations", "Graph both sides"], methodNote: "The balance method keeps the two sides equivalent at every step.", steps: ["Start with " + multiply(a, "x") + signed(b) + " = " + c + ".", "Subtract " + b + " from both sides: " + multiply(a, "x") + " = " + (c - b) + ".", "Divide both sides by " + a + ".", "Therefore x = " + x + ".", "Check: substitute x = " + x + " into the original equation."] };
+    return { topic, pathway, prompt: multiply(a, "x") + signed(b) + " = " + c, answer: [x], hint: "Undo the addition or subtraction first. Whatever you do to one side, do to the other.", domain: "All real numbers", methods: ["Balance / inverse operations", "Graph both sides"], methodNote: "The balance method keeps the two sides equivalent at every step.", steps: ["Start with " + multiply(a, "x") + signed(b) + " = " + c + ".", "Subtract " + b + " from both sides: " + multiply(a, "x") + " = " + (c - b) + ".", "Divide both sides by " + a + ".", "Therefore x = " + x + ".", "Check: substitute x = " + x + " into the original equation."], graph: { title: "Compare both sides of the linear equation", points: [{ x, y: c, label: "Solution (" + x + ", " + c + ")" }], xMin: x - 7, xMax: x + 7, xLabel: "x", yLabel: "y", curves: [{ label: "Left side", evaluate: value => a * value + b }, { label: "Right side", evaluate: () => c }] } };
   }
   if (topic === "inequalities") {
     const a = randomInt(2, 8) * (Math.random() < 0.5 ? 1 : -1), root = randomInt(-8, 10), b = randomInt(-10, 10);
@@ -74,12 +75,12 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const finalRelation = a < 0 ? (relation === "<" ? ">" : "<") : relation;
     const expression = multiply(a, "x") + signed(b) + " " + relation + " " + c;
     const textAnswer = "x " + finalRelation + " " + root;
-    return { topic, pathway, prompt: expression, answer: [root], textAnswer, hint: "Isolate the x-term using the same operation on both sides. If you divide by a negative number, reverse the inequality sign.", domain: "All real numbers", methods: ["Inequality balance method", "Number-line solution"], methodNote: "Use equivalent operations on both sides. Multiplying or dividing by a negative number reverses the inequality sign.", steps: ["Start with " + expression + ".", "Subtract " + b + " from both sides to isolate the x-term.", "Divide both sides by " + a + ".", a < 0 ? "Because you divided by a negative number, reverse the inequality sign." : "The inequality sign stays in the same direction because you divided by a positive number.", "Solution: " + textAnswer + ".", "Check a test value from the solution region in the original inequality."] };
+    return { topic, pathway, prompt: expression, answer: [root], textAnswer, hint: "Isolate the x-term using the same operation on both sides. If you divide by a negative number, reverse the inequality sign.", domain: "All real numbers", methods: ["Inequality balance method", "Number-line solution"], methodNote: "Use equivalent operations on both sides. Multiplying or dividing by a negative number reverses the inequality sign.", steps: ["Start with " + expression + ".", "Subtract " + b + " from both sides to isolate the x-term.", "Divide both sides by " + a + ".", a < 0 ? "Because you divided by a negative number, reverse the inequality sign." : "The inequality sign stays in the same direction because you divided by a positive number.", "Solution: " + textAnswer + ".", "Check a test value from the solution region in the original inequality."], numberLine: { boundary: root, direction: finalRelation === "<" ? "left" : "right", inclusive: false } };
   }
   if (topic === "systems3") {
     const x = randomInt(-4, 5), y = randomInt(-4, 5), z = randomInt(-4, 5);
     const c = x + y + z, f = 2 * x - y + z, g = x + 2 * y - z;
-    return { topic, pathway, prompt: "x + y + z = " + c + "     2x − y + z = " + f + "     x + 2y − z = " + g, answer: [x, y, z], hint: "Use elimination to remove x from two equations, then eliminate y to solve for z. Back-substitute to find x and y.", domain: "One unique solution", methods: ["Gaussian elimination", "Elimination"], methodNote: "Use row operations or elimination to reduce the three equations to one variable, then back-substitute.", steps: ["Label the equations (1), (2) and (3).", "Subtract 2 × (1) from (2): −3y − z = " + (f - 2 * c) + ".", "Subtract (1) from (3): y − 2z = " + (g - c) + ".", "Add 3 × the second reduced equation to the first reduced equation: −7z = " + (f + 3 * g - 5 * c) + ".", "Solve z = " + z + ".", "Back-substitute to get y = " + y + " and x = " + x + ".", "Check all three values in the original equations."] };
+    return { topic, pathway, prompt: "x + y + z = " + c + "     2x − y + z = " + f + "     x + 2y − z = " + g, answer: [x, y, z], hint: "Use elimination to remove x from two equations, then eliminate y to solve for z. Back-substitute to find x and y.", domain: "One unique solution", orderedAnswers: true, methods: ["Gaussian elimination", "Elimination"], methodNote: "Use row operations or elimination to reduce the three equations to one variable, then back-substitute.", steps: ["Label the equations (1), (2) and (3).", "Subtract 2 × (1) from (2): −3y − z = " + (f - 2 * c) + ".", "Subtract (1) from (3): y − 2z = " + (g - c) + ".", "Add 3 × the second reduced equation to the first reduced equation: −7z = " + (f + 3 * g - 5 * c) + ".", "Solve z = " + z + ".", "Back-substitute to get y = " + y + " and x = " + x + ".", "Check all three values in the original equations."] };
   }
   if (topic === "polynomial") {
     let r1 = randomInt(-4, 4), r2 = randomInt(-4, 4), r3 = randomInt(-4, 4);
@@ -87,13 +88,13 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     while (r3 === r1 || r3 === r2) r3 = randomInt(-4, 4);
     const a = -(r1 + r2 + r3), b = r1 * r2 + r1 * r3 + r2 * r3, d = -(r1 * r2 * r3);
     const factors = "(x " + (r1 < 0 ? "+ " + Math.abs(r1) : "− " + r1) + ")(x " + (r2 < 0 ? "+ " + Math.abs(r2) : "− " + r2) + ")(x " + (r3 < 0 ? "+ " + Math.abs(r3) : "− " + r3) + ") = 0";
-    return { topic, pathway, prompt: "x³" + signed(a) + "x²" + signed(b) + "x" + signed(d) + " = 0", answer: [r1, r2, r3], hint: "Look for integer roots using factors of the constant term, then use the factor theorem and zero-product rule.", domain: "All real numbers", methods: ["Factor theorem", "Factorisation"], methodNote: "A root r gives a factor (x − r). Factor the cubic, then set each factor equal to zero.", steps: ["Write the cubic in standard form.", "Use the factor theorem to identify integer roots.", "Factor the expression: " + factors + ".", "Set each factor equal to zero.", "The three roots are " + [r1, r2, r3].join(", ") + ".", "Substitute each root into the original polynomial to verify."] };
+    return { topic, pathway, prompt: "x³" + signed(a) + "x²" + signed(b) + "x" + signed(d) + " = 0", answer: [r1, r2, r3], hint: "Look for integer roots using factors of the constant term, then use the factor theorem and zero-product rule.", domain: "All real numbers", methods: ["Factor theorem", "Factorisation", "Graphing"], methodNote: "A root r gives a factor (x − r). Factor the cubic, then set each factor equal to zero. The graph also shows where the curve crosses the x-axis.", steps: ["Write the cubic in standard form.", "Use the factor theorem to identify integer roots.", "Factor the expression: " + factors + ".", "Set each factor equal to zero.", "The three roots are " + [r1, r2, r3].join(", ") + ".", "Substitute each root into the original polynomial to verify."], graph: { title: "Cubic polynomial and its roots", points: [r1, r2, r3].map(value => ({ x: value, y: 0, label: "x = " + value })), xMin: Math.min(r1, r2, r3) - 3, xMax: Math.max(r1, r2, r3) + 3, xLabel: "x", yLabel: "y", curves: [{ label: "Cubic polynomial", evaluate: value => (value - r1) * (value - r2) * (value - r3) }, { label: "x-axis", evaluate: () => 0 }] } };
   }
   if (topic === "word-problems") {
     const rate = randomInt(25, difficulty === "challenge" ? 120 : 80);
     const time = randomInt(2, difficulty === "challenge" ? 12 : 8);
     const distance = rate * time;
-    return { topic, pathway, prompt: "A minibus travels at a steady " + rate + " km/h and covers " + distance + " km. How many hours does the journey take?", answer: [time], hint: "Use distance = speed × time. Let t represent the time, then rearrange to make t the subject.", domain: "Time must be positive", methods: ["Define a variable", "Form and solve an equation", "Unit analysis"], methodNote: "Translate the known quantities into an equation, define the unknown, then solve and check the units.", steps: ["Let t be the journey time in hours.", "Use distance = speed × time: " + distance + " = " + rate + " × t.", "Divide both sides by " + rate + ".", "t = " + distance + " ÷ " + rate + " = " + time + ".", "Check: " + rate + " × " + time + " = " + distance + " km.", "The journey takes " + time + " hours."] };
+    return { topic, pathway, prompt: "A minibus travels at a steady " + rate + " km/h and covers " + distance + " km. How many hours does the journey take?", answer: [time], hint: "Use distance = speed × time. Let t represent the time, then rearrange to make t the subject.", domain: "Time must be positive", methods: ["Define a variable", "Form and solve an equation", "Unit analysis", "Graph both sides"], methodNote: "Translate the known quantities into an equation, define the unknown, then solve and check the units. A distance-time graph shows where the journey reaches the stated distance.", steps: ["Let t be the journey time in hours.", "Use distance = speed × time: " + distance + " = " + rate + " × t.", "Divide both sides by " + rate + ".", "t = " + distance + " ÷ " + rate + " = " + time + ".", "Check: " + rate + " × " + time + " = " + distance + " km.", "The journey takes " + time + " hours."], graph: { title: "Distance and travel time", points: [{ x: time, y: distance, label: "Journey point" }], xMin: 0, xMax: Math.max(10, time * 2), yMin: 0, yMax: distance * 1.25, xLabel: "Time (hours)", yLabel: "Distance (km)", curves: [{ label: "Distance travelled", evaluate: value => rate * value }, { label: "Target distance", evaluate: () => distance }] } };
   }
   if (topic === "quadratic") {
     let r1 = randomInt(difficulty === "challenge" ? -9 : difficulty === "independent" ? -6 : -4, difficulty === "challenge" ? 9 : difficulty === "independent" ? 6 : 4), r2 = randomInt(difficulty === "challenge" ? -9 : difficulty === "independent" ? -6 : -4, difficulty === "challenge" ? 9 : difficulty === "independent" ? 6 : 4);
@@ -103,7 +104,7 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const discriminant = b * b - 4 * c;
     const formulaSteps = ["Write the equation in standard form: x²" + signed(b) + signed(c) + " = 0.", "Identify a = 1, b = " + b + " and c = " + c + ".", "Calculate the discriminant: D = b² − 4ac = " + discriminant + ".", "Substitute into x = (−b ± √D) / 2a.", "Evaluate both roots: x = " + r1 + " and x = " + r2 + ".", "Substitute both roots into the original equation to verify."];
     const graphSteps = ["Graph y = x²" + signed(b) + signed(c) + " and the x-axis.", "The solutions are the x-intercepts where the curve crosses y = 0.", "Read the intercepts: x = " + r1 + " and x = " + r2 + ".", "Substitute both values into the original equation to verify."];
-        return { topic, pathway, prompt: "x²" + signed(b) + signed(c) + " = 0", answer: [r1, r2], hint: "Look for two numbers whose product is the constant term and whose sum is the coefficient of x.", domain: "All real numbers", methods: ["Factorisation", "Quadratic formula", "Graphing"], methodNote: "Factorisation is efficient when integer factors are visible. The quadratic formula works for every quadratic with a ≠ 0.", steps: ["Write the equation in standard form ax² + bx + c = 0.", "Find two numbers with product " + c + " and sum " + b + ".", "Factor: " + factor + ".", "Use the zero-product rule: x " + (r1 < 0 ? "+ " + Math.abs(r1) : "− " + r1) + " = 0 or x " + (r2 < 0 ? "+ " + Math.abs(r2) : "− " + r2) + " = 0.", "Solutions: x = " + r1 + " and x = " + r2 + ".", "Substitute both roots into the original equation to verify."], methodSteps: { "Quadratic formula": formulaSteps, "Graphing": graphSteps } };
+        return { topic, pathway, prompt: "x²" + signed(b) + signed(c) + " = 0", answer: [r1, r2], hint: "Look for two numbers whose product is the constant term and whose sum is the coefficient of x.", domain: "All real numbers", methods: ["Factorisation", "Quadratic formula", "Graphing"], methodNote: "Factorisation is efficient when integer factors are visible. The quadratic formula works for every quadratic with a ≠ 0.", steps: ["Write the equation in standard form ax² + bx + c = 0.", "Find two numbers with product " + c + " and sum " + b + ".", "Factor: " + factor + ".", "Use the zero-product rule: x " + (r1 < 0 ? "+ " + Math.abs(r1) : "− " + r1) + " = 0 or x " + (r2 < 0 ? "+ " + Math.abs(r2) : "− " + r2) + " = 0.", "Solutions: x = " + r1 + " and x = " + r2 + ".", "Substitute both roots into the original equation to verify."], methodSteps: { "Quadratic formula": formulaSteps, "Graphing": graphSteps }, graph: { title: "Quadratic curve and its roots", points: [{ x: r1, y: 0, label: "x = " + r1 }, { x: r2, y: 0, label: "x = " + r2 }], xMin: Math.min(r1, r2) - 5, xMax: Math.max(r1, r2) + 5, xLabel: "x", yLabel: "y", curves: [{ label: "y = x² + bx + c", evaluate: value => value * value + b * value + c }, { label: "x-axis", evaluate: () => 0 }] } };
   }
   if (topic === "systems") {
     let a = randomInt(1, difficulty === "challenge" ? 9 : 5), b = randomInt(1, difficulty === "challenge" ? 9 : 5), d = randomInt(1, difficulty === "challenge" ? 9 : 5), e = randomInt(1, difficulty === "challenge" ? 9 : 5);
@@ -111,27 +112,27 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const x = randomInt(difficulty === "challenge" ? -8 : -4, difficulty === "challenge" ? 8 : 5), y = randomInt(difficulty === "challenge" ? -8 : -4, difficulty === "challenge" ? 8 : 5), c = a * x + b * y, f = d * x + e * y;
     const substitutionSteps = ["Rearrange equation (1): x = (" + c + " − " + b + "y) / " + a + ".", "Substitute into equation (2): " + d + "((" + c + " − " + b + "y) / " + a + ") + " + e + "y = " + f + ".", "Solve the resulting equation for y: y = " + y + ".", "Substitute y = " + y + " into equation (1): x = " + x + ".", "Solution: x = " + x + ", y = " + y + ".", "Check both values in both original equations."];
     const graphSteps = ["Graph both linear equations on the same coordinate plane.", "The solution is the intersection point of the two lines.", "The intersection is (" + x + ", " + y + ").", "Substitute the point into both equations to verify."];
-        return { topic, pathway, prompt: a + "x + " + b + "y = " + c + "     and     " + d + "x + " + e + "y = " + f, answer: [x, y], hint: "Choose elimination or substitution. Elimination removes one variable so you can solve for the other.", domain: "One unique solution (non-zero determinant)", methods: ["Elimination", "Substitution", "Graphing"], methodNote: "Elimination is often efficient when coefficients can be matched. Substitution is useful when one variable is already isolated.", steps: ["Label the equations (1) and (2).", "Multiply one or both equations so the coefficients of y (or x) are opposites.", "Add the equations to eliminate that variable.", "Solve the resulting one-variable equation.", "Substitute that value into either original equation.", "Solution: x = " + x + ", y = " + y + ". Check both original equations."], methodSteps: { "Substitution": substitutionSteps, "Graphing": graphSteps } };
+        return { topic, pathway, prompt: a + "x + " + b + "y = " + c + "     and     " + d + "x + " + e + "y = " + f, answer: [x, y], hint: "Choose elimination or substitution. Elimination removes one variable so you can solve for the other.", domain: "One unique solution (non-zero determinant)", orderedAnswers: true, methods: ["Elimination", "Substitution", "Graphing"], methodNote: "Elimination is often efficient when coefficients can be matched. Substitution is useful when one variable is already isolated.", steps: ["Label the equations (1) and (2).", "Multiply one or both equations so the coefficients of y (or x) are opposites.", "Add the equations to eliminate that variable.", "Solve the resulting one-variable equation.", "Substitute that value into either original equation.", "Solution: x = " + x + ", y = " + y + ". Check both original equations."], methodSteps: { "Substitution": substitutionSteps, "Graphing": graphSteps }, graph: { title: "Intersection of simultaneous equations", points: [{ x, y, label: "(" + x + ", " + y + ")" }], xMin: x - 8, xMax: x + 8, xLabel: "x", yLabel: "y", curves: [{ label: "Equation 1", evaluate: value => (c - a * value) / b }, { label: "Equation 2", evaluate: value => (f - d * value) / e }] } };
   }
   if (topic === "rational") {
     const h = randomInt(-5, 5), m = randomInt(1, 5), q = randomInt(1, 5), k = m * q, x = h + q;
-    return { topic, pathway, prompt: k + " / (x " + (h < 0 ? "+ " + Math.abs(h) : "− " + h) + ") = " + m, answer: [x], hint: "First state which value makes the denominator zero. Then multiply both sides by the denominator.", domain: "x ≠ " + h, methods: ["Clear the denominator", "Equivalent multiplication"], methodNote: "Multiplying by a variable expression is valid only while its denominator is non-zero.", steps: ["Domain restriction: x ≠ " + h + ".", "Multiply both sides by (x " + (h < 0 ? "+ " + Math.abs(h) : "− " + h) + ").", "This gives " + k + " = " + m + "(x " + (h < 0 ? "+ " + Math.abs(h) : "− " + h) + ").", "Divide by " + m + ", then isolate x.", "Candidate solution: x = " + x + ".", "Check x = " + x + " in the original equation. It is allowed because it is not " + h + "."] };
+    return { topic, pathway, prompt: k + " / (x " + (h < 0 ? "+ " + Math.abs(h) : "− " + h) + ") = " + m, answer: [x], hint: "First state which value makes the denominator zero. Then multiply both sides by the denominator.", domain: "x ≠ " + h, methods: ["Clear the denominator", "Equivalent multiplication", "Graph both sides"], methodNote: "Multiplying by a variable expression is valid only while its denominator is non-zero.", steps: ["Domain restriction: x ≠ " + h + ".", "Multiply both sides by (x " + (h < 0 ? "+ " + Math.abs(h) : "− " + h) + ").", "This gives " + k + " = " + m + "(x " + (h < 0 ? "+ " + Math.abs(h) : "− " + h) + ").", "Divide by " + m + ", then isolate x.", "Candidate solution: x = " + x + ".", "Check x = " + x + " in the original equation. It is allowed because it is not " + h + "."], graph: { title: "Rational equation and excluded value", points: [{ x, y: m, label: "Solution x = " + x }], xMin: h - 8, xMax: h + 8, yMin: -10, yMax: 10, xLabel: "x", yLabel: "y", curves: [{ label: "Left side", evaluate: value => Math.abs(value - h) < .08 ? null : k / (value - h) }, { label: "Right side", evaluate: () => m }] } };
   }
   if (topic === "radical") {
     const a = randomInt(-6, 8), root = randomInt(2, 8), x = root * root - a;
-    return { topic, pathway, prompt: "√(x " + (a < 0 ? "− " + Math.abs(a) : "+ " + a) + ") = " + root, answer: [x], hint: "Isolate the square root, square both sides, then substitute your candidate into the original equation.", domain: "x " + (a < 0 ? "≥ " + Math.abs(a) : "≥ " + -a), methods: ["Isolate and square", "Graph both sides"], methodNote: "Squaring is not a reversible operation in every context. Always check for extraneous roots.", steps: ["The square root is already isolated.", "Square both sides: x " + (a < 0 ? "− " + Math.abs(a) : "+ " + a) + " = " + (root * root) + ".", "Isolate x: x = " + x + ".", "Check the domain and substitute x = " + x + " into the original equation.", "The left side is √" + (x + a) + " = " + root + ", so the candidate is valid."] };
+    return { topic, pathway, prompt: "√(x " + (a < 0 ? "− " + Math.abs(a) : "+ " + a) + ") = " + root, answer: [x], hint: "Isolate the square root, square both sides, then substitute your candidate into the original equation.", domain: "x " + (a < 0 ? "≥ " + Math.abs(a) : "≥ " + -a), methods: ["Isolate and square", "Graph both sides"], methodNote: "Squaring is not a reversible operation in every context. Always check for extraneous roots.", steps: ["The square root is already isolated.", "Square both sides: x " + (a < 0 ? "− " + Math.abs(a) : "+ " + a) + " = " + (root * root) + ".", "Isolate x: x = " + x + ".", "Check the domain and substitute x = " + x + " into the original equation.", "The left side is √" + (x + a) + " = " + root + ", so the candidate is valid."], graph: { title: "Radical equation and horizontal line", points: [{ x, y: root, label: "Solution x = " + x }], xMin: -a - 3, xMax: x + 5, xLabel: "x", yLabel: "y", curves: [{ label: "Square-root curve", evaluate: value => value + a < 0 ? null : Math.sqrt(value + a) }, { label: "Right side", evaluate: () => root }] } };
   }
   if (topic === "exponential") {
     const base = randomInt(2, 4), shift = randomInt(-4, 5), power = randomInt(1, 5), x = power - shift;
-    return { topic, pathway, prompt: base + "^(x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + ") = " + base + "^" + power, answer: [x], hint: "Both sides already have the same base. Equate the exponents, provided the base is positive and not 1.", domain: "All real x (base " + base + " is positive and not 1)", methods: ["Common-base method", "Logarithms"], methodNote: "When equal positive bases (not 1) are on both sides, their exponents must be equal.", steps: ["The bases are equal: " + base + ".", "Equate exponents: x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + " = " + power + ".", "Undo the shift on both sides.", "Therefore x = " + x + ".", "Substitute the value to confirm both powers match."] };
+    return { topic, pathway, prompt: base + "^(x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + ") = " + base + "^" + power, answer: [x], hint: "Both sides already have the same base. Equate the exponents, provided the base is positive and not 1.", domain: "All real x (base " + base + " is positive and not 1)", methods: ["Common-base method", "Logarithms", "Graph both sides"], methodNote: "When equal positive bases (not 1) are on both sides, their exponents must be equal.", steps: ["The bases are equal: " + base + ".", "Equate exponents: x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + " = " + power + ".", "Undo the shift on both sides.", "Therefore x = " + x + ".", "Substitute the value to confirm both powers match."], graph: { title: "Exponential equation: compare both sides", points: [{ x, y: Math.pow(base, power), label: "Solution x = " + x }], xMin: x - 2.5, xMax: x + 2.5, yMin: 0, yMax: Math.pow(base, power + 2), xLabel: "x", yLabel: "y", curves: [{ label: "Exponential side", evaluate: value => Math.pow(base, value + shift) }, { label: "Constant side", evaluate: () => Math.pow(base, power) }] } };
   }
   if (topic === "logarithmic") {
     const base = randomInt(2, 5), power = randomInt(1, 4), shift = randomInt(-5, 5), x = Math.pow(base, power) - shift;
-    return { topic, pathway, prompt: "log" + base + "(x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + ") = " + power, answer: [x], hint: "Convert the logarithm to exponential form: log_b(A) = n means A = bⁿ.", domain: "The logarithm argument must be greater than 0", methods: ["Convert to exponential form", "Use logarithm laws"], methodNote: "A logarithm is defined only when its argument is positive and its base is positive and not 1.", steps: ["Convert to exponential form: x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + " = " + base + "^" + power + ".", "Evaluate the power: " + Math.pow(base, power) + ".", "Isolate x: x = " + x + ".", "Domain check: x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + " = " + Math.pow(base, power) + " > 0.", "The solution is valid."] };
+    return { topic, pathway, prompt: "log" + base + "(x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + ") = " + power, answer: [x], hint: "Convert the logarithm to exponential form: log_b(A) = n means A = bⁿ.", domain: "The logarithm argument must be greater than 0", methods: ["Convert to exponential form", "Use logarithm laws", "Graph both sides"], methodNote: "A logarithm is defined only when its argument is positive and its base is positive and not 1.", steps: ["Convert to exponential form: x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + " = " + base + "^" + power + ".", "Evaluate the power: " + Math.pow(base, power) + ".", "Isolate x: x = " + x + ".", "Domain check: x " + (shift < 0 ? "− " + Math.abs(shift) : "+ " + shift) + " = " + Math.pow(base, power) + " > 0.", "The solution is valid."], graph: { title: "Logarithmic equation and horizontal line", points: [{ x, y: power, label: "Solution x = " + x }], xMin: -shift + .05, xMax: x + Math.max(5, x * .2), yMin: -3, yMax: power + 3, xLabel: "x", yLabel: "y", curves: [{ label: "Logarithmic side", evaluate: value => value + shift <= 0 ? null : Math.log(value + shift) / Math.log(base) }, { label: "Right side", evaluate: () => power }] } };
   }
   if (topic === "absolute") {
     const centre = randomInt(-8, 8), distance = randomInt(1, 7);
-    return { topic, pathway, prompt: "|x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + "| = " + distance, answer: [centre - distance, centre + distance], hint: "An absolute value measures distance. There are usually two cases: the inside is positive or negative.", domain: "All real numbers", methods: ["Positive / negative cases", "Graphing"], methodNote: "For |u| = k with k > 0, solve u = k and u = −k.", steps: ["Split into two cases: x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + " = " + distance + " OR x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + " = −" + distance + ".", "Solve the first case: x = " + (centre + distance) + ".", "Solve the second case: x = " + (centre - distance) + ".", "Both values are valid because each is exactly " + distance + " units from " + centre + "."] };
+    return { topic, pathway, prompt: "|x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + "| = " + distance, answer: [centre - distance, centre + distance], hint: "An absolute value measures distance. There are usually two cases: the inside is positive or negative.", domain: "All real numbers", methods: ["Positive / negative cases", "Graphing"], methodNote: "For |u| = k with k > 0, solve u = k and u = −k.", steps: ["Split into two cases: x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + " = " + distance + " OR x " + (centre < 0 ? "+ " + Math.abs(centre) : "− " + centre) + " = −" + distance + ".", "Solve the first case: x = " + (centre + distance) + ".", "Solve the second case: x = " + (centre - distance) + ".", "Both values are valid because each is exactly " + distance + " units from " + centre + "."], graph: { title: "Absolute-value V graph", points: [{ x: centre - distance, y: distance, label: "x = " + (centre - distance) }, { x: centre + distance, y: distance, label: "x = " + (centre + distance) }], xMin: centre - distance - 6, xMax: centre + distance + 6, xLabel: "x", yLabel: "y", curves: [{ label: "Absolute-value curve", evaluate: value => Math.abs(value - centre) }, { label: "Constant side", evaluate: () => distance }] } };
   }
   const trigOptions = [
     { fn: "sin", value: "1/2", roots: [30, 150], quadrants: "I and II" },
@@ -142,21 +143,39 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     { fn: "tan", value: "1", roots: [45, 225], quadrants: "I and III" },
   ];
   const selected = trigOptions[randomInt(0, trigOptions.length - 1)], roots = selected.roots;
-  return { topic, pathway, prompt: "Solve " + selected.fn + "(θ) = " + selected.value + " for 0° ≤ θ < 360°.", answer: roots, hint: "Find the reference angle, then use the sign of " + selected.fn + " to identify the correct quadrants.", domain: "0° ≤ θ < 360°", methods: ["Reference-angle method", "Unit-circle method", "Graphing"], methodNote: selected.fn + " has the required sign in quadrants " + selected.quadrants + ".", steps: ["Find the reference angle for the given " + selected.fn + " value.", "Locate the quadrants where " + selected.fn + " has the required sign: " + selected.quadrants + ".", "The solutions in this interval are " + roots[0] + "° and " + roots[1] + "°.", "Check both angles on the unit circle."] };
+  const target = selected.value === "√3/2" ? Math.sqrt(3) / 2 : selected.value === "−1/2" ? -.5 : Number(selected.value);
+  const trigFn = (degrees: number) => {
+    const radians = degrees * Math.PI / 180;
+    const value = selected.fn === "sin" ? Math.sin(radians) : selected.fn === "cos" ? Math.cos(radians) : Math.tan(radians);
+    return selected.fn === "tan" && (Math.abs(Math.cos(radians)) < .035 || Math.abs(value) > 5) ? null : value;
+  };
+  return { topic, pathway, prompt: "Solve " + selected.fn + "(θ) = " + selected.value + " for 0° ≤ θ < 360°.", answer: roots, hint: "Find the reference angle, then use the sign of " + selected.fn + " to identify the correct quadrants.", domain: "0° ≤ θ < 360°", methods: ["Reference-angle method", "Unit-circle method", "Graphing"], methodNote: selected.fn + " has the required sign in quadrants " + selected.quadrants + ".", steps: ["Find the reference angle for the given " + selected.fn + " value.", "Locate the quadrants where " + selected.fn + " has the required sign: " + selected.quadrants + ".", "The solutions in this interval are " + roots[0] + "° and " + roots[1] + "°.", "Check both angles on the unit circle."], graph: { title: "Circular-function equation (degrees)", points: roots.map(value => ({ x: value, y: target, label: value + "°" })), xMin: 0, xMax: 360, yMin: selected.fn === "tan" ? -5 : -1.5, yMax: selected.fn === "tan" ? 5 : 1.5, xLabel: "θ (degrees)", yLabel: "y", unitNote: "Angles are measured in degrees. Tangent breaks at its vertical asymptotes.", curves: [{ label: selected.fn + "(θ)", evaluate: trigFn }, { label: "Target value", evaluate: () => target }] } };
 }
 
 function parseAnswers(value: string): number[] {
-  return value.split(/[,;\s]+/).map(item => item.trim()).filter(Boolean).map(Number);
+  return value.split(/[,;\s]+/).map(item => item.trim()).filter(Boolean).map(item => {
+    const fraction = item.match(/^([-+]?\d+)\/([-+]?\d+)$/);
+    if (fraction && Number(fraction[2]) !== 0) return Number(fraction[1]) / Number(fraction[2]);
+    return Number(item);
+  });
 }
 function answerMatches(problem: Problem, value: string) {
   if (problem.textAnswer) return value.trim().toLowerCase().replace(/\s+/g, "") === problem.textAnswer.toLowerCase().replace(/\s+/g, "");
-  return sameAnswers(parseAnswers(value), problem.answer);
+  return sameAnswers(parseAnswers(value), problem.answer, problem.orderedAnswers);
 }
 
-function sameAnswers(actual: number[], expected: number[]) {
+function sameAnswers(actual: number[], expected: number[], ordered = false) {
   if (actual.length !== expected.length || actual.some(value => !Number.isFinite(value))) return false;
-  const a = [...actual].sort((x, y) => x - y), b = [...expected].sort((x, y) => x - y);
+  const a = ordered ? actual : [...actual].sort((x, y) => x - y);
+  const b = ordered ? expected : [...expected].sort((x, y) => x - y);
   return a.every((value, index) => Math.abs(value - b[index]) < 0.011);
+}
+function queueStudioAttempt(key: string, record: PendingStudioAttempt) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+    const pending: PendingStudioAttempt[] = Array.isArray(parsed) ? parsed : [];
+    localStorage.setItem(key, JSON.stringify([...pending.filter(item => item.id !== record.id), record]));
+  } catch { /* Keep the current session usable if local storage is unavailable. */ }
 }
 
 function guidanceForMethod(method: string, topic: Topic): string {
@@ -212,7 +231,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
   useEffect(() => {
     let active = true;
     try {
-      const saved = localStorage.getItem(learnerHistoryKey) ?? localStorage.getItem(historyKey) ?? "[]";
+      const saved = localStorage.getItem(learnerHistoryKey) ?? "[]";
       setAttempts(JSON.parse(saved));
     } catch { setAttempts([]); }
     const sync = async () => {
@@ -333,7 +352,9 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
     const next = [...attempts, { id: attemptId, topic: problem.topic, correct, created_at: now }].slice(-250);
     setAttempts(next);
     try { localStorage.setItem(learnerHistoryKey, JSON.stringify(next)); } catch { /* The current session remains usable if storage is full. */ }
+    setChecked(true);
     setSavingAttempt(true);
+    let pendingRecord: PendingStudioAttempt | null = null;
     try {
       const client = supabase;
       if (!client) { setCloudStatus("Saved on this device. Cloud progress is not connected."); return; }
@@ -375,20 +396,24 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
         created_at: now,
         submitted_at: now,
       };
+      pendingRecord = record;
+      if (!navigator.onLine) {
+        queueStudioAttempt(pendingHistoryKey, record);
+        setCloudStatus("Saved on this device. Cloud sync will resume when you are online.");
+        return;
+      }
       const { error: saveError } = await client.from("lab_practice_attempts").upsert(record, { onConflict: "id" });
       if (saveError) {
-        let pending: PendingStudioAttempt[] = [];
-        try { pending = JSON.parse(localStorage.getItem(pendingHistoryKey) || "[]"); } catch { pending = []; }
-        localStorage.setItem(pendingHistoryKey, JSON.stringify([...pending.filter(item => item.id !== attemptId), record]));
+        queueStudioAttempt(pendingHistoryKey, record);
         setCloudStatus("Saved on this device. StudySpace will retry the cloud sync when you are online.");
       } else {
         setCloudStatus("Synced to your StudySpace progress and teacher's Monitor.");
       }
     } catch {
+      if (pendingRecord) queueStudioAttempt(pendingHistoryKey, pendingRecord);
       setCloudStatus("Saved on this device. Cloud sync will retry when possible.");
     } finally {
       setSavingAttempt(false);
-      setChecked(true);
     }
   }
 
@@ -401,7 +426,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
       <article><strong>{total}</strong><span>Practice attempts</span></article><article><strong>{accuracy}%</strong><span>Accuracy</span></article><article><strong>{weakTopic ? topics.find(item => item.id === weakTopic)?.title : "Building"}</strong><span>Topic to revisit</span></article>
     </div>
     <div className="equation-studio-controls">
-      <label>Learning pathway<select value={pathway} onChange={event => {
+      <label>Learning pathway<select disabled={savingAttempt} value={pathway} onChange={event => {
         const nextPathway = event.target.value as Pathway;
         const nextTopic = nextPathway === "Primary" ? "arithmetic" : topics.find(item => item.id === topic && item.pathways.includes(nextPathway))?.id ?? topics.find(item => item.pathways.includes(nextPathway))!.id;
         setPathway(nextPathway);
@@ -415,8 +440,8 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
         setShowSteps(false);
         setStartedAt(Date.now());
       }}><option>Primary</option><option>Secondary High</option><option>High School</option><option>Matric</option><option>Tertiary</option></select></label>
-      <label>Equation family<select value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-      <label>Practice style<select value={difficulty} onChange={event => {
+      <label>Equation family<select disabled={savingAttempt} value={topic} onChange={event => { const next = event.target.value as Topic; setTopic(next); nextProblem(next); }} >{availableTopics.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+      <label>Practice style<select disabled={savingAttempt} value={difficulty} onChange={event => {
         const nextDifficulty = event.target.value as typeof difficulty;
         setDifficulty(nextDifficulty);
         const generated = createProblem(topic, pathway, nextDifficulty);
@@ -431,16 +456,18 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
     </div>
     <div className="equation-studio-topic"><div><span className="eyebrow">CURRENT SKILL</span><h3>{topics.find(item => item.id === topic)?.title}</h3><p>{topics.find(item => item.id === topic)?.description}</p></div><span className="equation-studio-pathway">{pathway}</span></div>
     <div className="equation-studio-problem">
-      <div className="equation-studio-problem-top"><span>YOUR QUESTION</span><button type="button" onClick={() => nextProblem()}><RefreshCw size={14}/> New variant</button></div>
+      <div className="equation-studio-problem-top"><span>YOUR QUESTION</span><button type="button" onClick={() => nextProblem()} disabled={savingAttempt}><RefreshCw size={14}/> New variant</button></div>
       <div className="equation-studio-equation" aria-live="polite">{problem.prompt}</div>
       <p className="equation-studio-domain"><strong>Domain / restrictions:</strong> {problem.domain}</p>
-      <label className="equation-studio-answer">Your solution <input value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={topic === "inequalities" ? "e.g. x < 4" : problem.answer.length > 1 ? "Enter all answers, separated by commas" : topic === "arithmetic" ? "Enter your numeric answer" : topic === "word-problems" ? "Enter the value of the unknown" : "Enter your value for x"}/></label>
+      <label className="equation-studio-answer">Your solution <input disabled={savingAttempt} value={answer} onChange={event => { setAnswer(event.target.value); setChecked(false); }} onKeyDown={event => { if (event.key === "Enter") checkAnswer(); }} placeholder={topic === "inequalities" ? "e.g. x < 4" : problem.answer.length > 1 ? "Enter all answers, separated by commas" : topic === "arithmetic" ? "Enter your numeric answer" : topic === "word-problems" ? "Enter the value of the unknown" : "Enter your value for x"}/></label>
       <div className="equation-studio-actions"><button type="button" className="equation-studio-primary" onClick={checkAnswer} disabled={!answer.trim() || checked || savingAttempt}>{savingAttempt ? "Saving…" : "Check my answer"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => setShowHint(value => !value)}><Lightbulb size={15}/> {showHint ? "Hide hint" : "Get a hint"}</button><button type="button" disabled={difficulty === "challenge" && !checked} onClick={() => { setShowSteps(value => !value); setStepIndex(0); }}><BookOpenCheck size={15}/> {showSteps ? "Hide solution" : "Work through steps"}</button></div>
       {showHint && <div className="equation-studio-hint"><Lightbulb size={16}/><span>{problem.hint}</span></div>}
       {checked && <div className={"equation-studio-feedback " + (answerMatches(problem, answer) ? "correct" : "incorrect")} role="status"><strong>{answerMatches(problem, answer) ? "Correct — well reasoned." : "Not quite. Use the hint or compare the worked method."}</strong><span>Expected solution: {problem.textAnswer ?? problem.answer.join(", ")}</span></div>}
       {showSteps && <div className="equation-studio-steps"><div className="equation-studio-steps-head"><strong>Worked solution</strong><span>Step {stepIndex + 1} of {activeSteps.length}</span></div><p>{activeSteps[stepIndex]}</p><div className="equation-studio-step-actions"><button type="button" onClick={() => setStepIndex(value => Math.max(0, value - 1))} disabled={stepIndex === 0}>Previous</button><button type="button" onClick={() => setStepIndex(value => Math.min(activeSteps.length - 1, value + 1))} disabled={stepIndex === activeSteps.length - 1}>Next step <ChevronRight size={14}/></button></div></div>}
     </div>
     <div className="equation-studio-method"><div><span className="eyebrow">METHOD SELECTION</span><h3>Choose an approach</h3><p>{guidanceForMethod(method, topic)}</p></div><div className="equation-studio-method-options">{problem.methods.map(item => <button type="button" key={item} className={method === item ? "active" : ""} onClick={() => { setMethod(item); setStepIndex(0); setShowSteps(false); }}>{item}</button>)}</div></div>
+    {problem.graph && (method === "Graph both sides" || method === "Graphing") && <LabGraphSheet graph={problem.graph} />}
+    {problem.numberLine && method === "Number-line solution" && <LabGraphSheet numberLine={problem.numberLine} />}
     {difficulty === "guided" && <div className="equation-studio-guidance"><Sparkles size={15}/> Guided mode is selected. Try the hint first, then reveal one worked step at a time.</div>}
     {weakTopic && <div className="equation-studio-guidance"><Activity size={15}/> Your recent practice suggests revisiting {topics.find(item => item.id === weakTopic)?.title}. Switch to that topic for a focused refresher.</div>}
     <footer className="equation-studio-footer"><CheckCircle2 size={15}/> {cloudStatus || "Practice attempts sync to your StudySpace account when online."} Teacher-assigned marks remain separate from personal Lab practice.</footer>
