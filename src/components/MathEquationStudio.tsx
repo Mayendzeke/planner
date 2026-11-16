@@ -150,7 +150,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
   const [savingAttempt, setSavingAttempt] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("");
   const [startedAt, setStartedAt] = useState(() => Date.now());
-  const learnerHistoryKey = historyKey + ":" + subjectName;
+  const learnerHistoryKey = historyKey + ":" + subjectName + ":" + (studentId ?? "anonymous");
   const pendingHistoryKey = learnerHistoryKey + ":pending";
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export default function MathEquationStudio({ subjectName = "Mathematics", studen
     const onOnline = () => { void sync(); };
     window.addEventListener("online", onOnline);
     return () => { active = false; window.removeEventListener("online", onOnline); };
-  }, [learnerHistoryKey, pendingHistoryKey, subjectName]);
+  }, [learnerHistoryKey, pendingHistoryKey, subjectName, studentId]);
   useEffect(() => {
     if (!studentId || !supabase) return;
     let active = true;
