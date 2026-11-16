@@ -167,7 +167,7 @@ function canonicalAnswer(value: unknown) {
   const raw = String(value ?? "").normalize("NFKC").trim().toLowerCase()
     .replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/")
     .replace(/≤/g, "<=").replace(/≥/g, ">=").replace(/π/g, "pi");
-  const mathematical = /[<>=]/.test(raw) || /[a-z]\s*[+*/^=-]/i.test(raw)
+  const mathematical = /^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(raw) || /[<>=]/.test(raw) || /[a-z]\s*[+*/^=-]/i.test(raw)
     || /\d\s*[+*/^=-]\s*\d/.test(raw) || /^[-+]?\d+\s*\/\s*[-+]?\d+$/.test(raw);
   return mathematical ? raw.replace(/\s+/g, "") : norm(raw);
 }
