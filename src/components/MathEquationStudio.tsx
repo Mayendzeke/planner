@@ -6,7 +6,7 @@ import LabGraphSheet, { type LabGraphConfig, type LabNumberLineConfig } from "./
 
 type Pathway = "Primary" | "Secondary High" | "High School" | "Matric" | "Tertiary";
 type Topic = "arithmetic" | "linear" | "quadratic" | "systems" | "rational" | "radical" | "exponential" | "logarithmic" | "absolute" | "word-problems" | "inequalities" | "systems3" | "polynomial" | "trigonometry";
-type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; textAnswer?: string; steps: string[]; methodSteps?: Record<string, string[]>; graph?: LabGraphConfig; numberLine?: LabNumberLineConfig; hint: string; domain: string; methods: string[]; methodNote: string };
+type Problem = { topic: Topic; pathway: Pathway; prompt: string; answer: number[]; textAnswer?: string; steps: string[]; methodSteps?: Record<string, string[]>; graph?: LabGraphConfig; numberLine?: LabNumberLineConfig; orderedAnswers?: boolean; hint: string; domain: string; methods: string[]; methodNote: string };
 type TopicMeta = { id: Topic; title: string; description: string; pathways: Pathway[] };
 type StudioHistoryAttempt = { id?: string; topic: Topic; correct: boolean; created_at?: string };
 type PendingStudioAttempt = {
@@ -80,7 +80,7 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
   if (topic === "systems3") {
     const x = randomInt(-4, 5), y = randomInt(-4, 5), z = randomInt(-4, 5);
     const c = x + y + z, f = 2 * x - y + z, g = x + 2 * y - z;
-    return { topic, pathway, prompt: "x + y + z = " + c + "     2x − y + z = " + f + "     x + 2y − z = " + g, answer: [x, y, z], hint: "Use elimination to remove x from two equations, then eliminate y to solve for z. Back-substitute to find x and y.", domain: "One unique solution", methods: ["Gaussian elimination", "Elimination"], methodNote: "Use row operations or elimination to reduce the three equations to one variable, then back-substitute.", steps: ["Label the equations (1), (2) and (3).", "Subtract 2 × (1) from (2): −3y − z = " + (f - 2 * c) + ".", "Subtract (1) from (3): y − 2z = " + (g - c) + ".", "Add 3 × the second reduced equation to the first reduced equation: −7z = " + (f + 3 * g - 5 * c) + ".", "Solve z = " + z + ".", "Back-substitute to get y = " + y + " and x = " + x + ".", "Check all three values in the original equations."] };
+    return { topic, pathway, prompt: "x + y + z = " + c + "     2x − y + z = " + f + "     x + 2y − z = " + g, answer: [x, y, z], hint: "Use elimination to remove x from two equations, then eliminate y to solve for z. Back-substitute to find x and y.", domain: "One unique solution", orderedAnswers: true, methods: ["Gaussian elimination", "Elimination"], methodNote: "Use row operations or elimination to reduce the three equations to one variable, then back-substitute.", steps: ["Label the equations (1), (2) and (3).", "Subtract 2 × (1) from (2): −3y − z = " + (f - 2 * c) + ".", "Subtract (1) from (3): y − 2z = " + (g - c) + ".", "Add 3 × the second reduced equation to the first reduced equation: −7z = " + (f + 3 * g - 5 * c) + ".", "Solve z = " + z + ".", "Back-substitute to get y = " + y + " and x = " + x + ".", "Check all three values in the original equations."] };
   }
   if (topic === "polynomial") {
     let r1 = randomInt(-4, 4), r2 = randomInt(-4, 4), r3 = randomInt(-4, 4);
@@ -112,7 +112,7 @@ function createProblem(topic: Topic, pathway: Pathway, difficulty: "guided" | "i
     const x = randomInt(difficulty === "challenge" ? -8 : -4, difficulty === "challenge" ? 8 : 5), y = randomInt(difficulty === "challenge" ? -8 : -4, difficulty === "challenge" ? 8 : 5), c = a * x + b * y, f = d * x + e * y;
     const substitutionSteps = ["Rearrange equation (1): x = (" + c + " − " + b + "y) / " + a + ".", "Substitute into equation (2): " + d + "((" + c + " − " + b + "y) / " + a + ") + " + e + "y = " + f + ".", "Solve the resulting equation for y: y = " + y + ".", "Substitute y = " + y + " into equation (1): x = " + x + ".", "Solution: x = " + x + ", y = " + y + ".", "Check both values in both original equations."];
     const graphSteps = ["Graph both linear equations on the same coordinate plane.", "The solution is the intersection point of the two lines.", "The intersection is (" + x + ", " + y + ").", "Substitute the point into both equations to verify."];
-        return { topic, pathway, prompt: a + "x + " + b + "y = " + c + "     and     " + d + "x + " + e + "y = " + f, answer: [x, y], hint: "Choose elimination or substitution. Elimination removes one variable so you can solve for the other.", domain: "One unique solution (non-zero determinant)", methods: ["Elimination", "Substitution", "Graphing"], methodNote: "Elimination is often efficient when coefficients can be matched. Substitution is useful when one variable is already isolated.", steps: ["Label the equations (1) and (2).", "Multiply one or both equations so the coefficients of y (or x) are opposites.", "Add the equations to eliminate that variable.", "Solve the resulting one-variable equation.", "Substitute that value into either original equation.", "Solution: x = " + x + ", y = " + y + ". Check both original equations."], methodSteps: { "Substitution": substitutionSteps, "Graphing": graphSteps }, graph: { title: "Intersection of simultaneous equations", points: [{ x, y, label: "(" + x + ", " + y + ")" }], xMin: x - 8, xMax: x + 8, xLabel: "x", yLabel: "y", curves: [{ label: "Equation 1", evaluate: value => (c - a * value) / b }, { label: "Equation 2", evaluate: value => (f - d * value) / e }] } };
+        return { topic, pathway, prompt: a + "x + " + b + "y = " + c + "     and     " + d + "x + " + e + "y = " + f, answer: [x, y], hint: "Choose elimination or substitution. Elimination removes one variable so you can solve for the other.", domain: "One unique solution (non-zero determinant)", orderedAnswers: true, methods: ["Elimination", "Substitution", "Graphing"], methodNote: "Elimination is often efficient when coefficients can be matched. Substitution is useful when one variable is already isolated.", steps: ["Label the equations (1) and (2).", "Multiply one or both equations so the coefficients of y (or x) are opposites.", "Add the equations to eliminate that variable.", "Solve the resulting one-variable equation.", "Substitute that value into either original equation.", "Solution: x = " + x + ", y = " + y + ". Check both original equations."], methodSteps: { "Substitution": substitutionSteps, "Graphing": graphSteps }, graph: { title: "Intersection of simultaneous equations", points: [{ x, y, label: "(" + x + ", " + y + ")" }], xMin: x - 8, xMax: x + 8, xLabel: "x", yLabel: "y", curves: [{ label: "Equation 1", evaluate: value => (c - a * value) / b }, { label: "Equation 2", evaluate: value => (f - d * value) / e }] } };
   }
   if (topic === "rational") {
     const h = randomInt(-5, 5), m = randomInt(1, 5), q = randomInt(1, 5), k = m * q, x = h + q;
@@ -157,12 +157,13 @@ function parseAnswers(value: string): number[] {
 }
 function answerMatches(problem: Problem, value: string) {
   if (problem.textAnswer) return value.trim().toLowerCase().replace(/\s+/g, "") === problem.textAnswer.toLowerCase().replace(/\s+/g, "");
-  return sameAnswers(parseAnswers(value), problem.answer);
+  return sameAnswers(parseAnswers(value), problem.answer, problem.orderedAnswers);
 }
 
-function sameAnswers(actual: number[], expected: number[]) {
+function sameAnswers(actual: number[], expected: number[], ordered = false) {
   if (actual.length !== expected.length || actual.some(value => !Number.isFinite(value))) return false;
-  const a = [...actual].sort((x, y) => x - y), b = [...expected].sort((x, y) => x - y);
+  const a = ordered ? actual : [...actual].sort((x, y) => x - y);
+  const b = ordered ? expected : [...expected].sort((x, y) => x - y);
   return a.every((value, index) => Math.abs(value - b[index]) < 0.011);
 }
 
