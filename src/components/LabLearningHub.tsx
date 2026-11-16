@@ -437,6 +437,8 @@ export default function LabLearningHub({
       };
       await persistMaterial(material);
       setSelectedMaterial(material);
+      setFlashcardIndex(0);
+      setFlashcardFlipped(false);
       setTab("library");
       setMessage("Your " + displayType(draft.materialType).toLowerCase() + " has been created and saved to My Lab Library.");
       setForm(current => ({ ...current, sourceNotes: "" }));
@@ -584,7 +586,10 @@ export default function LabLearningHub({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url; link.download = (item.title || "StudySpace-Lab-material").replace(/[^a-z0-9-_]+/gi,"-") + ".md";
-    link.click(); URL.revokeObjectURL(url);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1200);
   };
 
   const filteredMaterials = useMemo(() => materials.filter(item => {
@@ -693,10 +698,10 @@ export default function LabLearningHub({
         onFullRetake={()=>void startRetake(activeAttempt,"full_retake")}
         onIncorrectRetake={()=>void startRetake(activeAttempt,"incorrect_only")}
         onFreshVariant={()=>{setForm(current=>({...current,subjectName:activeAttempt.subject_name,topic:activeAttempt.topic,materialType:"practice_quiz"}));setActiveAttempt(null);setTab("create");setMessage("Create a fresh question variant for " + activeAttempt.topic + ".");}}
-        onReviewMaterial={()=>{const item=materials.find(value=>value.id===activeAttempt.material_id);if(item){setSelectedMaterial(item);setTab("library");}}}
+        onReviewMaterial={()=>{const item=materials.find(value=>value.id===activeAttempt.material_id);if(item){setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);setTab("library");}}}
       /> : <>
         <div className="lab-hub-section-head"><div><span className="lab-hub-kicker">RETRIEVAL PRACTICE & EXAM MODE</span><h3>Choose what to practise</h3><p>Every attempt is saved separately. Retake the full set or focus on missed questions.</p></div></div>
-        {materials.filter(item=>(item.content.questions?.length ?? 0)>0).length ? <div className="lab-hub-material-grid">{materials.filter(item=>(item.content.questions?.length ?? 0)>0).map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setTab("library");}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")} onExam={()=>void startAttempt(item,"exam")}/>)}</div> : <EmptyState icon={<Target size={22}/>} title="No practice sets yet" text="Generate a practice quiz, question bank or revision pack to start practising." action="Create practice set" onClick={()=>{setTab("create");setForm(current=>({...current,materialType:"practice_quiz"}));}}/>}
+        {materials.filter(item=>(item.content.questions?.length ?? 0)>0).length ? <div className="lab-hub-material-grid">{materials.filter(item=>(item.content.questions?.length ?? 0)>0).map(item=><MaterialCard key={item.id} item={item} onOpen={()=>{setSelectedMaterial(item);setFlashcardIndex(0);setFlashcardFlipped(false);setTab("library");}} onPractice={()=>void startAttempt(item)} onTimed={()=>void startAttempt(item,"timed")} onExam={()=>void startAttempt(item,"exam")}/>)}</div> : <EmptyState icon={<Target size={22}/>} title="No practice sets yet" text="Generate a practice quiz, question bank or revision pack to start practising." action="Create practice set" onClick={()=>{setTab("create");setForm(current=>({...current,materialType:"practice_quiz"}));}}/>}
         {attempts.length > 0 && <section className="lab-hub-section"><div className="lab-hub-section-head"><div><span className="lab-hub-kicker">YOUR ATTEMPT HISTORY</span><h3>Past attempts</h3></div></div><div className="lab-hub-history-list">{attempts.map(item=><AttemptRow key={item.id} attempt={item} onReview={()=>{setActiveAttempt(item);setQuestionIndex(0);setStartedAt(item.status==="in_progress"?(Date.parse(item.created_at)||Date.now()):null);}}/>)}</div></section>}
       </>}
     </section>}
