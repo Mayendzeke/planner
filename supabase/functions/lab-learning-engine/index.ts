@@ -57,7 +57,7 @@ Deno.serve(async request=>{
  const usage=await admin.from("ai_generation_usage").insert({actor_id:learnerId,provider:"multi-provider",purpose:"lab_material_generation",input_characters:JSON.stringify(messages).length,output_characters:0}).select("id").single();
  if(usage.error||!usage.data)return json(503,{error:"The learning service could not record this request. Try again later."});
  try{
-  const generated=await generateWithFallback(messages,{maxTokens:2800,jsonMode:true,requiredJsonKeys:["title","summary","sections","questions","flashcards","workedExamples","keyTerms","studyPlan"]}),source=parseJson(generated.text),questions=safeQuestions(source.questions,requested);
+  const generated=await generateWithFallback(messages,{maxTokens:Math.min(2800,1200+requested*100),jsonMode:true,requiredJsonKeys:["title","summary","sections","questions","flashcards","workedExamples","keyTerms","studyPlan"]}),source=parseJson(generated.text),questions=safeQuestions(source.questions,requested);
   if(questions.length<3)throw new Error("The learning engine could not create enough valid practice questions.");
   const material={title:cleanText(source.title,180)||materialType.replace(/_/g," ")+": "+topic,summary:cleanText(source.summary,2200),sections:safeSections(source.sections),questions,flashcards:safeCards(source.flashcards),workedExamples:safeExamples(source.workedExamples),keyTerms:safeTerms(source.keyTerms),studyPlan:safePlan(source.studyPlan)};
   if(new TextEncoder().encode(JSON.stringify(material)).length>150000)throw new Error("The generated material was too large to save. Try a shorter topic or fewer questions.");
