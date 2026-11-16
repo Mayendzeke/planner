@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { AlertCircle, CalendarClock, CheckCircle2, ClipboardList, Send, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import "./AssignedLabPracticals.css";
@@ -73,7 +73,7 @@ export default function AssignedLabPracticals({ studentId, areas }: { studentId?
     setNotice("");
   };
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!active || !studentId || !supabase || saving) return;
     const text = reflection.trim();
@@ -124,7 +124,7 @@ export default function AssignedLabPracticals({ studentId, areas }: { studentId?
       const overdue = item.due_at ? Date.parse(item.due_at) < Date.now() && !submitted : false;
       return <article className="assigned-lab-card" key={item.id}>
         <div className="assigned-lab-card-copy"><div className="assigned-lab-tags"><span>{labelFor(item.lab_area)}</span><span>{item.required ? "Required" : "Practice"}</span><span className={overdue ? "is-overdue" : submitted ? "is-submitted" : ""}>{overdue ? "Overdue" : submitted ? "Submitted" : "Assigned"}</span></div><strong>{item.title}</strong><p>{item.instructions || "Explore the relevant Lab tools, record what you discover and submit a reflection."}</p><small><CalendarClock size={13}/> Due: {when(item.due_at)}</small>{record?.reviewed_at && <small><CheckCircle2 size={13}/> Teacher reviewed · {record.score == null ? "Feedback available" : "Score " + record.score + "%"}</small>}</div>
-        <button type="button" className="assigned-lab-action" onClick={() => openAssignment(item)}>{submitted ? "View submission" : "Start and submit"}</button>
+        <button type="button" className="assigned-lab-action" onClick={() => openAssignment(item)}>{submitted ? "Update submission" : "Start and submit"}</button>
       </article>;
     })}
     {active && <div className="assigned-lab-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !saving) setActive(null); }}>
