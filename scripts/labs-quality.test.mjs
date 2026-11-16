@@ -56,3 +56,15 @@ test("Teacher practical submissions remain linked to the assigned learner and re
   assert.match(assignments, /reviewed_at\) return/);
   assert.match(assignments, /submission_type: "learner_reflection"/);
 });
+test("AI Lab generation uses bounded model timeouts and a request-sized output budget", () => {
+  const provider = read("supabase/functions/lab-learning-engine/provider.ts");
+  const engine = read("supabase/functions/lab-learning-engine/index.ts");
+  assert.match(provider, /model === GEMMA_MODEL \? 20000 : 22000/);
+  assert.match(provider, /AbortSignal\.timeout\(timeoutMs\)/);
+  assert.doesNotMatch(provider, /AbortSignal\.timeout\(35000\)/);
+  assert.match(engine, /maxTokens:Math\.min\(2800,1200\+requested\*100\)/);
+});
+test("Negative numbers remain distinct and Math Studio accepts fraction input", () => {
+  assert.match(hub, /\^\[-\+\]\?\(\?:\\d\+\\\.?\\d\*\|\\\.\\d\+\)\?\$/);
+  assert.match(studio, /item\.match\(\/\^\(\[-\+\]\?\\d\+\)\\\/\(\[-\+\]\?\\d\+\)\$\//);
+});
