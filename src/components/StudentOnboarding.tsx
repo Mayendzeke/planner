@@ -204,7 +204,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     <div className="onboarding-glow onboarding-glow-one" />
     <div className="onboarding-glow onboarding-glow-two" />
     <section className="onboarding-card glass-panel">
-      <div className="onboarding-brand"><span className="onboarding-mark"><GraduationCap size={24}/></span><span>studyspace<span className="brand-dot">.</span></span></div>
+      <div className="onboarding-brand"><span className="onboarding-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="onboarding-progress"><span style={{ width: ((step + 1) / 4 * 100) + "%" }} /></div>
       <div className="onboarding-step-label"><span>GETTING STARTED</span><span>STEP {step + 1} OF 4</span></div>
       <div className="onboarding-heading"><span className="eyebrow"><Sparkles size={14}/> YOUR LEARNING JOURNEY</span>
