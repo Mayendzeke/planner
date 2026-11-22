@@ -2719,3 +2719,164 @@ select option, select optgroup {
 }
 
 
+
+
+/* Study Space premium glass experience: additive visual layer, feature-safe. */
+:root {
+  --glass-edge: rgba(201, 211, 255, .22);
+  --glass-highlight: rgba(255, 255, 255, .13);
+  --glass-depth: 0 20px 52px rgba(2, 8, 24, .22), 0 5px 14px rgba(3, 10, 26, .12), inset 0 1px 0 rgba(255,255,255,.10);
+  --glass-depth-hover: 0 26px 62px rgba(2, 8, 24, .28), 0 9px 20px rgba(3, 10, 26, .18), inset 0 1px 0 rgba(255,255,255,.16);
+  --control-depth: 0 7px 18px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.18);
+  --motion-standard: 220ms cubic-bezier(.2,.75,.25,1);
+}
+:root[data-theme="light"] {
+  --glass-edge: rgba(92, 82, 167, .17);
+  --glass-highlight: rgba(255,255,255,.78);
+  --glass-depth: 0 18px 44px rgba(68, 72, 117, .10), 0 4px 12px rgba(61, 65, 112, .07), inset 0 1px 0 rgba(255,255,255,.82);
+  --glass-depth-hover: 0 24px 54px rgba(68, 72, 117, .15), 0 8px 18px rgba(61, 65, 112, .10), inset 0 1px 0 rgba(255,255,255,.92);
+  --control-depth: 0 7px 17px rgba(76, 68, 145, .13), inset 0 1px 0 rgba(255,255,255,.9);
+}
+body {
+  background-image:
+    radial-gradient(ellipse at 12% 18%, rgba(169,154,251,.13), transparent 34%),
+    radial-gradient(ellipse at 88% 68%, rgba(112,215,182,.10), transparent 36%),
+    radial-gradient(ellipse at 52% -10%, rgba(92,133,221,.12), transparent 42%);
+  background-attachment: fixed;
+}
+.app-shell { isolation: isolate; }
+.sidebar {
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-depth);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  backdrop-filter: blur(20px) saturate(145%);
+  box-shadow: 0 8px 24px rgba(0,0,0,.045);
+}
+.glass-panel,
+.profile-card,
+.streak-card,
+.bottom-note,
+.search-box,
+.theme-toggle,
+.settings-card,
+.task-modal,
+.modal-dialog {
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-depth);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  backdrop-filter: blur(20px) saturate(145%);
+  transition: border-color var(--motion-standard), box-shadow var(--motion-standard), transform var(--motion-standard), background-color var(--motion-standard);
+}
+.stat-card,
+.subject-card,
+.focus-panel,
+.week-panel,
+.planner-panel,
+.progress-detail,
+.session-history,
+.subject-section,
+.settings-card {
+  transform-style: preserve-3d;
+}
+.primary-button,
+.secondary-button,
+.danger-button,
+.icon-button,
+.task-check,
+.filter-tabs button,
+.theme-options button,
+.nav-item,
+.add-subject-card,
+.upload-button,
+.text-button {
+  transition:
+    transform var(--motion-standard),
+    box-shadow var(--motion-standard),
+    background-color var(--motion-standard),
+    border-color var(--motion-standard),
+    color var(--motion-standard),
+    filter var(--motion-standard);
+}
+.primary-button,
+.secondary-button,
+.danger-button {
+  box-shadow: var(--control-depth);
+}
+.primary-button { border-color: color-mix(in srgb, var(--mint) 58%, transparent); }
+.secondary-button { border-color: var(--glass-edge); }
+.icon-button,
+.theme-options button,
+.filter-tabs button,
+.nav-item {
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  border-color: var(--glass-edge);
+  background-color: color-mix(in srgb, var(--panel) 82%, transparent);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.10), inset 0 1px 0 var(--glass-highlight);
+  transition: border-color var(--motion-standard), box-shadow var(--motion-standard), background-color var(--motion-standard);
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: color-mix(in srgb, var(--blue) 70%, var(--border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 16%, transparent), inset 0 1px 0 var(--glass-highlight);
+}
+.nav-item.active {
+  box-shadow: inset 3px 0 0 var(--mint), inset 0 1px 0 var(--glass-highlight), 0 7px 18px rgba(0,0,0,.08);
+}
+.modal-backdrop { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+:focus-visible { scroll-margin-block: 90px; }
+@media (hover: hover) and (pointer: fine) {
+  .glass-panel:hover,
+  .stat-card:hover,
+  .subject-card:hover {
+    transform: translateY(-3px) perspective(900px) rotateX(.35deg);
+    border-color: color-mix(in srgb, var(--blue) 30%, var(--glass-edge));
+    box-shadow: var(--glass-depth-hover);
+  }
+  .primary-button:hover,
+  .secondary-button:hover,
+  .danger-button:hover,
+  .add-subject-card:hover { transform: translateY(-2px); }
+  .icon-button:hover,
+  .task-check:hover,
+  .filter-tabs button:hover,
+  .theme-options button:hover,
+  .nav-item:hover { transform: translateY(-1px); }
+}
+.primary-button:active,
+.secondary-button:active,
+.danger-button:active,
+.icon-button:active,
+.task-check:active,
+.filter-tabs button:active,
+.theme-options button:active,
+.nav-item:active { transform: translateY(1px) scale(.985); }
+@media (max-width: 720px) {
+  .topbar { top: 0; }
+  .glass-panel,
+  .profile-card,
+  .streak-card,
+  .bottom-note { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
