@@ -1009,7 +1009,7 @@ export default function App() {
   if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
   if (!profile && expiredAccess) return <main className="onboarding-shell">
     <section className="onboarding-card glass-panel access-expired-setup-card">
-      <div className="onboarding-brand"><span className="onboarding-mark"><GraduationCap size={24}/></span><span>studyspace<span className="brand-dot">.</span></span></div>
+      <div className="onboarding-brand"><span className="onboarding-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="eyebrow"><LockKeyhole size={14}/> ACCESS PAUSED</div>
       <div className="onboarding-heading">
         <h1>Your 7-day free trial has ended.</h1>
