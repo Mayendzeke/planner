@@ -2880,3 +2880,35 @@ textarea:focus-visible {
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Seamless handoff of the pencil-drawn splash logo into student brand positions. */
+.studyspace-splash-logo,
+.app-shell .brand-mark .brand-logo-image,
+.student-access-brand .student-access-logo .brand-logo-image,
+.onboarding-brand .onboarding-mark .brand-logo-image,
+.terms-gate-brand .brand-logo-image { view-transition-name: studyspace-logo-flight; }
+.student-access-brand .student-access-logo { background:transparent; box-shadow:none; }
+.student-access-brand .student-access-logo .brand-logo-image,
+.onboarding-brand .onboarding-mark .brand-logo-image,
+.terms-gate-brand .brand-logo-image { display:block; width:100%; height:100%; object-fit:contain; border-radius:inherit; }
+.onboarding-brand .onboarding-mark { background:transparent; box-shadow:none; border-radius:0; }
+.terms-gate-brand { display:flex; align-items:center; gap:10px; margin-bottom:22px; color:var(--text); }
+.terms-gate-brand .brand-logo-image { width:42px; height:42px; flex:0 0 42px; }
+.terms-gate-brand strong { font:800 19px Manrope,sans-serif; letter-spacing:-.7px; }
+.terms-gate-brand strong span { color:var(--mint); }
+@supports (view-transition-name: studyspace-logo-flight) {
+  ::view-transition-group(studyspace-logo-flight) { animation-duration:900ms; animation-timing-function:cubic-bezier(.2,.78,.2,1); }
+  ::view-transition-old(studyspace-logo-flight),
+  ::view-transition-new(studyspace-logo-flight) { animation:none; mix-blend-mode:normal; }
+  ::view-transition-old(root) { animation:studyspace-splash-root-exit 220ms ease-out both; }
+  ::view-transition-new(root) { animation:none; }
+}
+@keyframes studyspace-splash-root-exit { to { opacity:0; } }
+@media(prefers-reduced-motion:reduce) {
+  .studyspace-splash-logo,
+  .app-shell .brand-mark .brand-logo-image,
+  .student-access-brand .student-access-logo .brand-logo-image,
+  .onboarding-brand .onboarding-mark .brand-logo-image,
+  .terms-gate-brand .brand-logo-image { view-transition-name:none; }
+}
