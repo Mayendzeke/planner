@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users, Download } from "lucide-react";
+import { BookOpen, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users, Download } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./TermsAndConditions";
 
