@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, GraduationCap, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
 import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isTertiaryLevel } from "../lib/educationPathways";
 
 export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string; timetable_kind?: "school" | "personal" };
