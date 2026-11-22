@@ -2532,16 +2532,6 @@ select option, select optgroup {
 @media(prefers-reduced-motion:reduce){.connection-status-banner,.connection-status-pulse{animation:none}}
 
 
-/* Liquid fill animation inside the Student graduation-cap mark. */
-.studyspace-cap-water-fill{opacity:0;transform:translateY(172px);animation:studyspace-cap-water-rise 2.55s cubic-bezier(.2,.76,.22,1) .65s forwards}
-.studyspace-cap-water-wave{transform-box:fill-box;transform-origin:center;animation:studyspace-cap-water-wave 2.4s ease-in-out .8s infinite}
-.studyspace-cap-water-bubbles{animation:studyspace-cap-bubbles 2.6s ease-in-out .8s infinite}
-@keyframes studyspace-cap-water-rise{0%{opacity:0;transform:translateY(172px)}12%{opacity:.94}100%{opacity:1;transform:translateY(0)}}
-@keyframes studyspace-cap-water-wave{0%,100%{transform:translateX(-3px);opacity:.4}50%{transform:translateX(4px);opacity:.82}}
-@keyframes studyspace-cap-bubbles{0%,100%{transform:translateY(2px);opacity:.45}50%{transform:translateY(-9px);opacity:.9}}
-@media(prefers-reduced-motion:reduce){.studyspace-cap-water-fill,.studyspace-cap-water-wave,.studyspace-cap-water-bubbles{opacity:1;animation:none;transform:none}}
-
-
 /* Student-facing PowerPoint viewing: diagnostics stay hidden; full-screen is a true reading canvas. */
 .library-viewer-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex:0 0 auto}
 .library-fullscreen-toggle{min-height:34px;padding:8px 11px;font-size:10px}
@@ -2879,4 +2869,36 @@ textarea:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+}
+
+
+/* Seamless handoff of the pencil-drawn splash logo into student brand positions. */
+.studyspace-splash-logo,
+.app-shell .brand-mark .brand-logo-image,
+.student-access-brand .student-access-logo .brand-logo-image,
+.onboarding-brand .onboarding-mark .brand-logo-image,
+.terms-gate-brand .brand-logo-image { view-transition-name: studyspace-logo-flight; }
+.student-access-brand .student-access-logo { background:transparent; box-shadow:none; }
+.student-access-brand .student-access-logo .brand-logo-image,
+.onboarding-brand .onboarding-mark .brand-logo-image,
+.terms-gate-brand .brand-logo-image { display:block; width:100%; height:100%; object-fit:contain; border-radius:inherit; }
+.onboarding-brand .onboarding-mark { background:transparent; box-shadow:none; border-radius:0; }
+.terms-gate-brand { display:flex; align-items:center; gap:10px; margin-bottom:22px; color:var(--text); }
+.terms-gate-brand .brand-logo-image { width:42px; height:42px; flex:0 0 42px; }
+.terms-gate-brand strong { font:800 19px Manrope,sans-serif; letter-spacing:-.7px; }
+.terms-gate-brand strong span { color:var(--mint); }
+@supports (view-transition-name: studyspace-logo-flight) {
+  ::view-transition-group(studyspace-logo-flight) { animation-duration:900ms; animation-timing-function:cubic-bezier(.2,.78,.2,1); }
+  ::view-transition-old(studyspace-logo-flight),
+  ::view-transition-new(studyspace-logo-flight) { animation:none; mix-blend-mode:normal; }
+  ::view-transition-old(root) { animation:studyspace-splash-root-exit 220ms ease-out both; }
+  ::view-transition-new(root) { animation:none; }
+}
+@keyframes studyspace-splash-root-exit { to { opacity:0; } }
+@media(prefers-reduced-motion:reduce) {
+  .studyspace-splash-logo,
+  .app-shell .brand-mark .brand-logo-image,
+  .student-access-brand .student-access-logo .brand-logo-image,
+  .onboarding-brand .onboarding-mark .brand-logo-image,
+  .terms-gate-brand .brand-logo-image { view-transition-name:none; }
 }

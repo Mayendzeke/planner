@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, GraduationCap, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
 import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isTertiaryLevel } from "../lib/educationPathways";
 
 export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string; timetable_kind?: "school" | "personal" };
@@ -204,7 +204,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     <div className="onboarding-glow onboarding-glow-one" />
     <div className="onboarding-glow onboarding-glow-two" />
     <section className="onboarding-card glass-panel">
-      <div className="onboarding-brand"><span className="onboarding-mark"><GraduationCap size={24}/></span><span>studyspace<span className="brand-dot">.</span></span></div>
+      <div className="onboarding-brand"><span className="onboarding-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="onboarding-progress"><span style={{ width: ((step + 1) / 4 * 100) + "%" }} /></div>
       <div className="onboarding-step-label"><span>GETTING STARTED</span><span>STEP {step + 1} OF 4</span></div>
       <div className="onboarding-heading"><span className="eyebrow"><Sparkles size={14}/> YOUR LEARNING JOURNEY</span>

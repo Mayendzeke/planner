@@ -40,6 +40,7 @@ import StudentSubscription from "./components/StudentSubscription";
 import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./components/TermsAndConditions";
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
+import { runLogoHandoff } from "./lib/logoTransition";
 
 type Page = "Overview" | "Today's Session" | "Labs" | "MIΛ" | "Learning Studio" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "Study Materials & Resources" | "Academic Calendar" | "Progress" | "Messages" | "Testimonials" | "Help & feedback" | "My profile" | "Settings" | "Subscription";
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
@@ -122,6 +123,7 @@ export default function App() {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [ready, setReady] = useState(false);
   const [splashElapsed, setSplashElapsed] = useState(false);
+  const [splashDelayElapsed, setSplashDelayElapsed] = useState(false);
   const [expiredAccess, setExpiredAccess] = useState(false);
   const [accessLoading, setAccessLoading] = useState(false);
   const [adminAccountDetected, setAdminAccountDetected] = useState(false);
@@ -312,9 +314,25 @@ export default function App() {
     };
   }, [cloudUserId, accessRetry]);
   useEffect(() => {
-    const timer = window.setTimeout(() => setSplashElapsed(true), 4800);
+    const timer = window.setTimeout(() => setSplashDelayElapsed(true), 4800);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const splashDestinationReady = cloudAuthReady && (
+    !cloudAuthenticated ||
+    (!accessLoading && (
+      adminAccountDetected ||
+      mustChangePassword ||
+      Boolean(accessStatusError) ||
+      termsAccepted === false ||
+      (termsAccepted === true && profileOwnerId === cloudUserId && ready)
+    ))
+  );
+
+  useEffect(() => {
+    if (!splashDelayElapsed || !splashDestinationReady || splashElapsed) return;
+    runLogoHandoff(() => setSplashElapsed(true));
+  }, [splashDelayElapsed, splashDestinationReady, splashElapsed]);
 
   const profileReady = Boolean(cloudUserId && profile && profileOwnerId === cloudUserId);
   const profileProgressReady = Boolean(profileReady && ready);
@@ -951,28 +969,28 @@ export default function App() {
 
   if (new URLSearchParams(window.location.search).has("studyspace_terms")) return <TermsReviewPage />;
   if (new URLSearchParams(window.location.search).has("guardian_consent")) return <GuardianConsentPage />;
-  if (!splashElapsed) return <SplashScreen theme={theme} displayName={profile?.preferredName || cloudUserName} />;
+  if (!splashElapsed || !splashDestinationReady) return <SplashScreen theme={theme} displayName={profile?.preferredName || cloudUserName} />;
   if (!supabase) return <StudentAccess installAvailable={Boolean(installPrompt)} onInstall={() => void installStudyspace()} />;
   if (!cloudAuthReady) return <SplashScreen theme={theme} displayName={profile?.preferredName || cloudUserName} />;
   if (!cloudAuthenticated) return <StudentAccess installAvailable={Boolean(installPrompt)} onInstall={() => void installStudyspace()} />;
   if (accessLoading) return <SplashScreen theme={theme} />;
-  if (adminAccountDetected) return <main className="terms-gate-shell"><section className="terms-gate-card">
+  if (adminAccountDetected) return <main className="terms-gate-shell"><section className="terms-gate-card"><div className="terms-gate-brand"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/><strong>studyspace<span>.</span></strong></div>
     <div className="eyebrow"><ShieldCheck size={14}/> ADMINISTRATOR ACCOUNT DETECTED</div>
     <h1>Welcome to StudySpace.</h1>
     <p>This is an administrator account, not a learner account. Administrator tools, MIΛ and Classroom Studio are available in StudySpace Monitor. You do not need to accept learner terms here.</p>
     <a className="primary-button terms-accept-button" href="https://mayendzeke.github.io/studyspace-monitor/">Open StudySpace Monitor</a>
     <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
   </section></main>;
-  if (mustChangePassword) return <main className="terms-gate-shell"><section className="terms-gate-card">
+  if (mustChangePassword) return <main className="terms-gate-shell"><section className="terms-gate-card"><div className="terms-gate-brand"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/><strong>studyspace<span>.</span></strong></div>
     <div className="eyebrow"><ShieldCheck size={14}/> SECURE YOUR ACCOUNT</div>
     <h1>Set your own password.</h1>
     <p>Your StudySpace representative has issued a temporary password. Before entering your learning space, replace it with a private password that only you know. Your Student ID will stay the same.</p>
     <StudentAccountSecurity required expectedUserId={cloudUserId ?? undefined} onPasswordChanged={() => setMustChangePassword(false)}/>
     <button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button>
   </section></main>;
-  if (accessStatusError) return <main className="terms-gate-shell"><section className="terms-gate-card"><h1>Unable to verify access</h1><p>{accessStatusError}</p><button className="primary-button" onClick={() => setAccessRetry(value => value + 1)}>Retry access check</button><button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button></section></main>;
+  if (accessStatusError) return <main className="terms-gate-shell"><section className="terms-gate-card"><div className="terms-gate-brand"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/><strong>studyspace<span>.</span></strong></div><h1>Unable to verify access</h1><p>{accessStatusError}</p><button className="primary-button" onClick={() => setAccessRetry(value => value + 1)}>Retry access check</button><button className="secondary-button" onClick={() => void signOutStudent()}>Sign out</button></section></main>;
   if (termsAccepted === null) return <SplashScreen theme={theme} />;
-  if (termsAccepted === false) return <main className="terms-gate-shell"><section className="terms-gate-card">
+  if (termsAccepted === false) return <main className="terms-gate-shell"><section className="terms-gate-card"><div className="terms-gate-brand"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/><strong>studyspace<span>.</span></strong></div>
     <div className="eyebrow"><ShieldCheck size={14}/> STUDYSPACE AGREEMENT</div>
     <h1>Before you enter your study space</h1>
     <p>Please review the Terms &amp; Conditions and Privacy Notice. Learners under 18 must have a parent or legal guardian complete this acceptance step.</p>
@@ -991,7 +1009,7 @@ export default function App() {
   if (profileOwnerId !== cloudUserId) return <SplashScreen theme={theme} />;
   if (!profile && expiredAccess) return <main className="onboarding-shell">
     <section className="onboarding-card glass-panel access-expired-setup-card">
-      <div className="onboarding-brand"><span className="onboarding-mark"><GraduationCap size={24}/></span><span>studyspace<span className="brand-dot">.</span></span></div>
+      <div className="onboarding-brand"><span className="onboarding-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="eyebrow"><LockKeyhole size={14}/> ACCESS PAUSED</div>
       <div className="onboarding-heading">
         <h1>Your 7-day free trial has ended.</h1>

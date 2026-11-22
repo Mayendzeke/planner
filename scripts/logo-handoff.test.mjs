@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const css=readFileSync(new URL("../src/styles.css",import.meta.url),"utf8");
+const app=readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+const splash=readFileSync(new URL("../src/components/SplashScreen.tsx",import.meta.url),"utf8");
+const helper=readFileSync(new URL("../src/lib/logoTransition.ts",import.meta.url),"utf8");
+test("student splash keeps the existing pencil-drawn cap animation",()=>{assert.match(splash,/studyspace-logo-cap-top/);assert.match(css,/@keyframes studyspace-cap-draw/);assert.match(css,/studyspace-logo-cap-base/);assert.doesNotMatch(css,/water-fill|water-filling/i);});
+test("student splash logo shares a transition identity with permanent brand positions",()=>{assert.match(css,/studyspace-logo-flight/);assert.match(css,/\.app-shell \.brand-mark \.brand-logo-image/);assert.match(css,/\.student-access-brand/);assert.match(css,/\.onboarding-brand/);assert.match(css,/\.terms-gate-brand/);assert.match(app,/runLogoHandoff/);assert.match(app,/splashDestinationReady/);assert.match(helper,/startViewTransition/);});
+test("student logo handoff respects reduced-motion preferences",()=>{assert.match(helper,/prefers-reduced-motion/);assert.match(css,/prefers-reduced-motion:\s*reduce/);assert.match(app,/setSplashDelayElapsed\(true\)/);});

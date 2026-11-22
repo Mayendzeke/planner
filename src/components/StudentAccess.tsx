@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users, Download } from "lucide-react";
+import { BookOpen, LockKeyhole, ShieldCheck, Sparkles, UserRound, MessageCircle, X, Users, Download } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./TermsAndConditions";
 
@@ -244,7 +244,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
   if (pendingGuardian) return <main className="student-access-shell">
     <div className="student-access-glow" />
     <section className="student-access-card">
-      <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
+      <div className="student-access-brand"><span className="student-access-logo"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
       <div className="student-access-install">
         <button type="button" className="secondary-button" onClick={() => {
           if (installAvailable && onInstall) onInstall();
@@ -276,7 +276,7 @@ export default function StudentAccess({ installAvailable = false, onInstall }: {
   return <main className="student-access-shell">
     <div className="student-access-glow" />
     <section className="student-access-card">
-      <div className="student-access-brand"><span><GraduationCap size={23}/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
+      <div className="student-access-brand"><span className="student-access-logo"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><div><strong>studyspace<span>.</span></strong><small>YOUR LEARNING COMPANION</small></div></div>
       <div className="student-access-icon"><BookOpen size={25}/></div>
       <div className="student-access-heading"><div className="eyebrow"><Sparkles size={14}/> YOUR STUDY SPACE</div><h1>{mode === "signin" ? "Welcome back." : "Join your class."}</h1><p>{mode === "signin" ? "Sign in with your Studyspace Student ID and password." : publicEnrolmentEnabled ? "Create your learner account directly. StudySpace will generate your Student ID after registration." : "Use the Student ID and one-time PIN issued by your administrator, then create your password."}</p></div>
       <div className="student-access-tabs"><button type="button" className={mode === "signin" ? "active" : ""} onClick={() => {setMode("signin");setError("");setNotice("");}}>Sign in</button><button type="button" className={mode === "enrol" ? "active" : ""} disabled={!enrolmentEnabled} onClick={() => {setMode("enrol");setError("");setNotice("");}}>{!publicEnrolmentEnabled && inviteEnrolmentEnabled ? "Redeem invitation" : "First-time enrolment"}</button></div>
