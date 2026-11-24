@@ -1,4 +1,7 @@
 import { strFromU8, unzipSync } from "fflate";
+import * as pdfjs from "pdfjs-dist";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
 export type StudyMaterialPreview =
   | { kind: "text"; text: string }
@@ -116,8 +119,32 @@ function xlsxPreview(zip: Record<string, Uint8Array>): StudyMaterialPreview {
   return { kind:"workbook", sheets };
 }
 
+async function pdfPreview(file:Blob):Promise<StudyMaterialPreview> {
+  let document:pdfjs.PDFDocumentProxy|null=null;
+  try {
+    document=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+    const pages:string[]=[];
+    const pageLimit=Math.min(document.numPages,100);
+    for(let pageNumber=1;pageNumber<=pageLimit;pageNumber++){
+      const page=await document.getPage(pageNumber);
+      const content=await page.getTextContent();
+      const text=content.items.map(item=>"str" in item?item.str:"").join(" ").replace(/\\s+/g," ").trim();
+      if(text)pages.push("--- Page "+pageNumber+" ---\\n"+text);
+      if(pages.join("\\n\\n").length>=180000)break;
+    }
+    const extracted=pages.join("\\n\\n").slice(0,180000);
+    if(extracted.trim().length<100)return {kind:"unsupported",message:"This PDF appears to be scanned or image-based, so readable text could not be extracted yet. Upload a text-based PDF or Word version to create a study pack."};
+    return {kind:"text",text:extracted};
+  } catch(reason) {
+    return {kind:"unsupported",message:reason instanceof Error?reason.message:"This PDF could not be read. Download the original file to open it in a compatible app."};
+  } finally {
+    if(document)void document.destroy();
+  }
+}
+
 export async function readStudyMaterialPreview(file: Blob, fileName: string): Promise<StudyMaterialPreview> {
   const extension = fileName.toLowerCase().slice(fileName.lastIndexOf("."));
+  if (extension === ".pdf") return await pdfPreview(file);
   if (extension === ".txt" || extension === ".rtf" || extension === ".csv") {
     const source = await file.text();
     if (extension === ".csv") return { kind: "table", sheetName: "CSV", rows: parseCsv(source) };
