@@ -10,24 +10,24 @@ const standard = readFileSync(new URL("../STUDYSPACE_DEVELOPMENT_STANDARD.md", i
 const pullRequest = readFileSync(new URL("../.github/pull_request_template.md", import.meta.url), "utf8");
 
 test("student Study Space brand control returns to the home page", () => {
-  assert.match(app, /className="brand-home-link" onClick={() => { setPage("Overview"); setMobileMenu(false); }}/);
-  assert.match(brandStyles, /.brand-home-link:focus-visible/);
+  assert.ok(app.includes('className="brand-home-link" onClick={() => { setPage("Overview"); setMobileMenu(false); }}'));
+  assert.ok(brandStyles.includes(".brand-home-link:focus-visible"));
 });
 
 test("student MIΛ opens as a full-screen workspace with an accessible navigation menu", () => {
-  assert.match(app, /app-shell-mia/);
-  assert.match(app, /onMenuClick={() => setMobileMenu(true)}/);
-  assert.match(mia, /aria-label="Open StudySpace menu"/);
-  assert.match(mia, /<Menu size={19}/>/);
-  assert.match(fullscreen, /.app-shell-mia/);
-  assert.match(fullscreen, /height: 100dvh/);
-  assert.match(fullscreen, /.sidebar.sidebar-open/);
+  assert.ok(app.includes("app-shell-mia"));
+  assert.ok(app.includes("onMenuClick={() => setMobileMenu(true)}"));
+  assert.ok(mia.includes('aria-label="Open StudySpace menu"'));
+  assert.ok(mia.includes("<Menu size={19}/>"));
+  assert.ok(fullscreen.includes(".app-shell-mia"));
+  assert.ok(fullscreen.includes("height: 100dvh"));
+  assert.ok(fullscreen.includes(".sidebar.sidebar-open"));
 });
 
 test("the uniform Study Space visual standard is part of the repository release process", () => {
-  assert.match(standard, /Mandatory design and experience rule/);
-  assert.match(standard, /Every development change, bug fix, refactor, integration, and upgrade/);
-  assert.match(pullRequest, /follows `STUDYSPACE_DEVELOPMENT_STANDARD.md`/);
-  assert.match(pullRequest, /Desktop and mobile layouts have been checked/);
-  assert.match(pullRequest, /Light and dark themes have been checked/);
+  assert.ok(standard.includes("Mandatory design and experience rule"));
+  assert.ok(standard.includes("Every development change, bug fix, refactor, integration, and upgrade"));
+  assert.ok(pullRequest.includes("STUDYSPACE_DEVELOPMENT_STANDARD.md"));
+  assert.ok(pullRequest.includes("Desktop and mobile layouts have been checked"));
+  assert.ok(pullRequest.includes("Light and dark themes have been checked"));
 });
