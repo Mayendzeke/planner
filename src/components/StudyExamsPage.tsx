@@ -116,7 +116,7 @@ export default function StudyExamsPage({ subjects }: { subjects: Subject[] }) {
         <StudyExamsErrorBoundary key={activeTab}>
           {activeTab === "programme" && <AssessmentProgramme onOpenAssignments={() => setActiveTab("assigned")} />}
           {activeTab === "practice" && <WeeklyTest subjects={subjects} />}
-          {activeTab === "assigned" && <AssignedAssessments />}
+          {activeTab === "assigned" && <AssignedAssessments assignmentType="teacher_assignment" />}
           {activeTab === "help" && <SchoolHomeworkHelp />}
         </StudyExamsErrorBoundary>
       </div>
