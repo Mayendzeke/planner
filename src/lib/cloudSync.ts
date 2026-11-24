@@ -491,6 +491,12 @@ export function prepareAssessmentProgramme():Promise<AssessmentPreparationResult
   if(assessmentPreparationPromise)return assessmentPreparationPromise;
   assessmentPreparationPromise=(async()=>{
     if(!supabase)return {data:null,error:"StudySpace cloud services are not configured."};
+    for(let batch=0;batch<12;batch++){
+      const {data,error}=await supabase.functions.invoke("assessment-scheduler",{body:{action:"process_practice_requests"}});
+      if(error)return {data:null,error:error.message||"Queued practice tests could not be prepared."};
+      if(!data?.success)return {data:null,error:String(data?.error||"Queued practice tests could not be prepared.")};
+      if(!data.hasMore)break;
+    }
     let lastData:Record<string,any>|null=null;
     for(let batch=0;batch<12;batch++){
       const {data,error}=await supabase.functions.invoke("assessment-scheduler",{body:{}});
