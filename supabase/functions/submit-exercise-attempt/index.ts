@@ -261,6 +261,7 @@ Deno.serve(async request => {
     teacher_review_required: manualReview > 0,
   }).select("id,submitted_at").single();
   if (attemptError) return json(503, { error: "Your answers could not be saved. Please try again." });
+  await admin.from("assessment_schedule_items").update({ status: "completed" }).eq("exercise_assignment_id", assignment.id);
 
   return json(200, {
     success: true,
