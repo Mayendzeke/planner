@@ -9,6 +9,8 @@ const weekly = read("src/components/WeeklyTest.tsx");
 const assigned = read("src/components/AssignedAssessments.tsx");
 const homework = read("src/components/SchoolHomeworkHelp.tsx");
 const styles = read("src/components/StudyExamsPage.css");
+const backend = read("supabase/functions/mia-assistant/index.ts");
+const provider = read("supabase/functions/mia-assistant/provider.ts");
 
 test("Study & Exams is isolated behind a recovery boundary", () => {
   assert.match(app, /StudyExamsErrorBoundary><StudyExamsPage subjects=\{subjects\}\/>/);
@@ -56,4 +58,33 @@ test("Assessment workspace provides responsive, keyboard-visible tab controls", 
   assert.match(styles, /\.study-exams-tab:focus-visible/);
   assert.match(styles, /@media\(max-width:620px\)/);
   assert.match(styles, /grid-template-columns:1fr/);
+});
+
+
+test("MIΛ topic tests support all five question formats for every registered subject", () => {
+  for (const format of ["multiple_choice", "true_false", "fill_blank", "word_puzzle", "matching"]) {
+    assert.ok(backend.includes(format), "Missing generated question format: " + format);
+  }
+  assert.match(backend, /Core concepts and key principles across the registered subject/);
+  assert.match(backend, /assessment questions on the requested subject and topic/);
+  assert.match(weekly, /question\\.question_type/);
+  assert.match(weekly, /mode === "True or false" \\? \\["True", "False"\\]/);
+  assert.match(weekly, /question\\.mode === "Word puzzle"/);
+});
+
+test("Every enrolled subject can request a weekly test or examination from MIΛ", () => {
+  assert.match(weekly, /Full subject review — weekly test/);
+  assert.match(weekly, /Full subject review — examination paper/);
+  assert.match(weekly, /generateTopicTest\\(requestedTopic\\?: string\\)/);
+});
+
+test("Completed practice tests offer same-test retakes and a new-topic path", () => {
+  assert.match(weekly, /Retake same test/);
+  assert.match(weekly, /Try another topic/);
+  assert.match(weekly, /setGeneratedQuestions\\(\\[\\]\\)/);
+});
+
+test("MIΛ structured test generation has enough output capacity for a complete mixed paper", () => {
+  assert.match(provider, /Math\\.min\\(6000/);
+  assert.match(backend, /maxTokens: 5200/);
 });
