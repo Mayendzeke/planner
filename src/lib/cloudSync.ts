@@ -497,7 +497,7 @@ export function prepareAssessmentProgramme():Promise<AssessmentPreparationResult
       if(error)return {data:lastData,error:error.message||"The assessment programme could not be prepared."};
       if(!data?.success)return {data:lastData,error:String(data?.error||"The assessment programme could not be prepared.")};
       lastData=data as Record<string,any>;
-      if(!data.hasMore||Number(data.generatedCount||0)===0)break;
+      if(!data.hasMore)break;
     }
     return {data:lastData};
   })().catch(error=>({data:null,error:error instanceof Error?error.message:"Automatic assessment preparation failed."}))
