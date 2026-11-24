@@ -43,22 +43,35 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
     setItems((data||[]) as ScheduleItem[]);
   },[learnerId]);
 
-  const runScheduler=useCallback(async(showProgress=true)=>{
-    if(!supabase||!learnerId||generating)return;
+  const runScheduler=useCallback(async(showProgress=true,learnerIdOverride?:string,timezoneOverride?:string)=>{
+    const activeLearnerId=learnerIdOverride||learnerId;
+    const activeTimezone=timezoneOverride||timezone;
+    if(!supabase||!activeLearnerId||generating)return;
     if(showProgress)setGenerating(true);
     setError("");setNotice("");
     try{
-      const {data,error:invokeError}=await supabase.functions.invoke("assessment-scheduler",{body:{timezone}});
-      if(invokeError)throw invokeError;
-      if(!data?.success)throw new Error(data?.error||"The weekly assessment programme could not be created.");
-      setProgrammeStatus(String(data.status||"planned"));
-      setConflicts(Array.isArray(data.conflicts)?data.conflicts as Conflict[]:[]);
-      if(data.weekStart)setWeekStart(String(data.weekStart));
-      if(data.scheduleRunId)await refreshItems(String(data.scheduleRunId));
-      else await refreshItems();
-      if(data.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
-      else if(data.status==="no_subjects")setNotice("Add your registered subjects before creating your weekly assessment programme.");
-      else setNotice(String(data.message||"Your weekly assessment programme is saved."));
+      let latestData:any=null;
+      let pendingCount=0;
+      let lastGeneratedCount=0;
+      for(let batch=0;batch<12;batch++){
+        const {data,error:invokeError}=await supabase.functions.invoke("assessment-scheduler",{body:{timezone:activeTimezone}});
+        if(invokeError)throw invokeError;
+        if(!data?.success)throw new Error(data?.error||"The assessment programme could not be created.");
+        latestData=data;
+        lastGeneratedCount=Number(data.generatedCount||0);
+        setProgrammeStatus(String(data.status||"planned"));
+        setConflicts(Array.isArray(data.conflicts)?data.conflicts as Conflict[]:[]);
+        if(data.weekStart)setWeekStart(String(data.weekStart));
+        if(data.scheduleRunId)await refreshItems(String(data.scheduleRunId));
+        pendingCount=Array.isArray(data.items)
+          ?data.items.filter((item:any)=>!item.exercise_assignment_id&&item.status==="scheduled").length
+          :0;
+        if(data.status==="needs_availability"||data.status==="no_subjects"||pendingCount===0||lastGeneratedCount===0)break;
+      }
+      if(latestData?.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
+      else if(latestData?.status==="no_subjects")setNotice("Add your registered subjects before creating your assessment programme.");
+      else if(pendingCount>0)setNotice("Your programme is saved. Study Space will continue preparing the remaining assessments automatically.");
+      else setNotice("Your programme and stored assessments are ready. You do not need to prepare tests manually.");
     }catch(reason){
       setError(reason instanceof Error?reason.message:"The assessment programme could not be loaded.");
     }finally{if(showProgress)setGenerating(false);}
@@ -86,24 +99,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
         }));
       }
       setLoading(false);
-      if(alive) {
-        const {data:scheduled,error:scheduleError}=await supabase.functions.invoke("assessment-scheduler",{body:{timezone:String(preferences?.timezone||"Africa/Mbabane")}});
-        if(!alive)return;
-        if(scheduleError) setError(scheduleError.message);
-        else if(scheduled?.success) {
-          setProgrammeStatus(String(scheduled.status||"planned"));
-          setConflicts(Array.isArray(scheduled.conflicts)?scheduled.conflicts as Conflict[]:[]);
-          if(scheduled.weekStart)setWeekStart(String(scheduled.weekStart));
-          if(scheduled.scheduleRunId) {
-            const {data:rows}=await supabase.from("assessment_schedule_items")
-              .select("id,subject_name,assessment_type,scheduled_at,duration_minutes,question_count,status,exercise_assignment_id,metadata")
-              .eq("schedule_run_id",scheduled.scheduleRunId).order("scheduled_at");
-            if(alive)setItems((rows||[]) as ScheduleItem[]);
-          }
-          if(scheduled.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
-          else setNotice(String(scheduled.message||"Your weekly programme is ready."));
-        }
-      }
+      if(alive)await runScheduler(true,auth.user.id,String(preferences?.timezone||"Africa/Mbabane"));
     }
     void load();
     return()=>{alive=false;};
@@ -162,7 +158,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
     {notice&&<p className="assessment-programme-notice" role="status">{notice}</p>}
 
     <section className="assessment-weekly-plan glass-panel">
-      <div className="assessment-section-heading"><div><span className="eyebrow">BALANCED MONDAY–FRIDAY PLAN</span><h3>{weekStart?"Week of "+new Date(weekStart+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"}):"Your weekly schedule"}</h3><p>{items.length} of your registered subject assessments scheduled. Each regular subject test contains {questionCount} questions.</p></div><button type="button" className="secondary-button" onClick={()=>void runScheduler(true)} disabled={generating||!learnerId}><RefreshCw size={15}/>{generating?"Preparing…":"Prepare next batch"}</button></div>
+      <div className="assessment-section-heading"><div><span className="eyebrow">BALANCED MONDAY–FRIDAY PLAN</span><h3>{weekStart?"Week of "+new Date(weekStart+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"}):"Your weekly schedule"}</h3><p>{items.length} of your registered subject assessments scheduled. Each regular subject test contains {questionCount} questions.</p></div><button type="button" className="secondary-button" onClick={()=>void runScheduler(true)} disabled={generating||!learnerId}><RefreshCw size={15}/>{generating?"Preparing…":"Refresh programme"}</button></div>
       {programmeStatus==="needs_availability"&&<div className="assessment-programme-empty"><Clock3 size={22}/><strong>Availability needed</strong><span>Choose free study windows above or mark personal timetable periods as ready for study.</span></div>}
       {items.length? <div className="assessment-week-grid">{grouped.map(day=><article className="assessment-week-day" key={day.day}>
         <header><strong>{day.label}</strong><span>{day.items.length} test{day.items.length===1?"":"s"}</span></header>
@@ -172,7 +168,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
         </div>):<p className="assessment-no-test">No test allocated</p>}
       </article>)}</div>:programmeStatus!=="needs_availability"&&<div className="assessment-programme-empty"><Sparkles size={22}/><strong>Your weekly programme is not ready yet</strong><span>Save your availability to let StudySpace balance your subjects and create stored tests.</span></div>}
       {conflicts.length>0&&<div className="assessment-conflicts"><strong>Scheduling capacity needs attention</strong>{conflicts.map((item,index)=><p key={index}>{item.reason==="daily_workload_limit_exceeded"?item.day+" exceeds your daily workload target ("+item.requiredMinutes+" minutes planned; target "+item.limitMinutes+" minutes).":(item.subjectName||"A subject")+" could not be scheduled within the available periods"+(item.requiredMinutes?" ("+item.requiredMinutes+" minutes needed)":"")+". Add more free time or adjust your availability."}</p>)}</div>}
-      {items.some(item=>!item.exercise_assignment_id)&&items.length>0&&<p className="assessment-next-batch-hint">To control generation time, StudySpace prepares up to two stored assessments per request. Select “Prepare next batch” to prepare the next subjects. Tests already published remain available without MIΛ chat.</p>}
+      {generating&&<p className="assessment-next-batch-hint">Study Space is preparing your stored assessments automatically. You can continue using the app while this runs.</p>}
       <div className="assessment-plan-footer"><span><CheckCircle2 size={15}/> Your tests are stored independently of live MIΛ chat.</span><button type="button" className="text-button" onClick={onOpenAssignments}>Open my assessments →</button></div>
     </section>
   </section>;
