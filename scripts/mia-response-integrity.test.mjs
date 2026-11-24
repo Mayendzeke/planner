@@ -20,7 +20,7 @@ test("subjects without a pre-authored local bank have a route to curriculum-awar
 });
 
 test("MIΛ responses are no longer silently cut to 1,200 or 4,000 characters", () => {
-  assert.ok(assistant.includes("maximum 6,000 characters"));
+  assert.ok(assistant.includes("up to 6,000 characters"));
   assert.ok(assistant.includes("result.reply = String(result.reply).trim()"));
   assert.ok(!assistant.includes("result.reply = String(result.reply).slice(0, 1200)"));
   assert.ok(!assistant.includes("reply.slice(0, 4000)"));
