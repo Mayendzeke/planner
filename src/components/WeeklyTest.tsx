@@ -1,555 +1,125 @@
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, CheckCircle2, ChevronRight, RotateCcw, Trophy, Puzzle, ListChecks, PenLine, ToggleLeft, FileText, Target, CalendarDays, GraduationCap, Sparkles, Upload, FolderOpen, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, BookOpenCheck, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
 import type { Subject } from "../data/db";
-import { studentStorageKey } from "../lib/studentStorage";
-import * as pdfjs from "pdfjs-dist";
 import { supabase } from "../lib/supabase";
+import { prepareAssessmentProgramme } from "../lib/cloudSync";
+import AssignedAssessments from "./AssignedAssessments";
+import "./WeeklyTest.css";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-import PdfViewer from "./PdfViewer";
-
-type Mode = "Multiple choice" | "Word puzzle" | "Fill the blanks" | "True or false" | "Matching";
-type Exercise = { prompt: string; answer: string; options?: string[]; pairs?: { left: string; right: string }[]; clue?: string; scramble?: string; explanation?: string; difficulty?: string; topic?: string; mode?: Mode };
-type Attempt = { id: string; subject: string; mode: string; score: number; total: number; completedAt: string };
-type PersonalNote = { id: number; name: string; subjectId?: number; resourceType?: string; topic?: string; file: Blob; createdAt: string };
-type TeacherNote = { id: string; title: string; description: string; subject_name: string; topic: string; resource_type: string; storage_path: string; mime_type: string; file_size: number; created_at: string };
-type NoteChoice = { key: string; name: string; topic: string; source: "personal" | "teacher"; personal?: PersonalNote; teacher?: TeacherNote };
-
-async function extractNoteText(file: Blob, name: string): Promise<string> {
-  const lower = name.toLowerCase();
-  if (lower.endsWith(".pdf")) {
-    const document = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-    try {
-      const pages: string[] = [];
-      for (let number = 1; number <= Math.min(document.numPages, 40); number += 1) {
-        const page = await document.getPage(number);
-        const content = await page.getTextContent();
-        const words = content.items.map((item: unknown) => {
-          if (!item || typeof item !== "object" || !("str" in item)) return "";
-          const value = (item as { str?: unknown }).str;
-          return typeof value === "string" ? value : "";
-        }).filter(Boolean);
-        pages.push(words.join(" "));
-        if (pages.join("\n").length >= 23000) break;
-      }
-      return pages.join("\n").slice(0, 24000).trim();
-    } finally {
-      await document.destroy();
-    }
-  }
-  const raw = await file.text();
-  if (lower.endsWith(".rtf")) {
-    return raw.replace(/\\'[0-9a-fA-F]{2}/g, " ")
-      .replace(/\\par[d]?\b/g, "\n")
-      .replace(/\\[a-zA-Z]+-?\d* ?/g, " ")
-      .replace(/[{}]/g, " ")
-      .replace(/\\([\\{}])/g, "$1")
-      .replace(/\s+/g, " ").slice(0, 24000).trim();
-  }
-  return raw.slice(0, 24000).trim();
-}
-
-async function getEdgeErrorMessage(error: unknown): Promise<string> {
-  const candidate = error as { message?: string; context?: Response };
-  if (candidate?.context instanceof Response) {
-    try {
-      const data = await candidate.context.clone().json();
-      if (typeof data?.error === "string" && data.error.trim()) return data.error;
-      if (typeof data?.message === "string" && data.message.trim()) return data.message;
-    } catch {
-      try {
-        const body = await candidate.context.clone().text();
-        if (body.trim()) return body.trim().slice(0, 500);
-      } catch { /* Use HTTP status as the fallback. */ }
-    }
-    return "The learning service returned HTTP " + candidate.context.status + ". Please try again.";
-  }
-  return typeof candidate?.message === "string" && candidate.message.trim()
-    ? candidate.message
-    : "The learning service could not complete this request. Check your connection and try again.";
-}
-
-const banks: Record<string, Record<Mode, Exercise[]>> = {
-  mathematics: {
-    "Multiple choice": [
-      { prompt: "Solve: 3x + 5 = 20.", options: ["x = 3", "x = 5", "x = 7", "x = 15"], answer: "x = 5" },
-      { prompt: "What is 15% of 200?", options: ["15", "20", "30", "45"], answer: "30" },
-      { prompt: "What is the area of a rectangle 8 cm by 5 cm?", options: ["13 cm²", "26 cm²", "40 cm²", "80 cm²"], answer: "40 cm²" },
-      { prompt: "Simplify: 4a + 3a − 2a.", options: ["5a", "7a", "9a", "a"], answer: "5a" },
-      { prompt: "What is the square root of 144?", options: ["10", "11", "12", "14"], answer: "12" }
-    ],
-    "Word puzzle": [
-      { prompt: "A number that can be divided exactly by 2.", answer: "EVEN", clue: "Number property", scramble: "NEVE" },
-      { prompt: "The result of multiplying numbers.", answer: "PRODUCT", clue: "Arithmetic vocabulary", scramble: "DURPTOC" },
-      { prompt: "The distance around a circle.", answer: "CIRCUMFERENCE", clue: "Circle measurement", scramble: "ECNEREFMUCRIC" },
-      { prompt: "A mathematical statement that two expressions are equal.", answer: "EQUATION", clue: "Algebra vocabulary", scramble: "QUTAEION" },
-      { prompt: "A polygon with three sides.", answer: "TRIANGLE", clue: "Geometry", scramble: "GRAINTLE" }
-    ],
-    "Fill the blanks": [
-      { prompt: "The sum of the angles in a triangle is ___ degrees.", answer: "180" },
-      { prompt: "A number multiplied by itself is its ___ number.", answer: "square" },
-      { prompt: "The value of pi to 2 decimal places is ___.", answer: "3.14" },
-      { prompt: "The coordinates where the axes meet are (0, ___).", answer: "0" },
-      { prompt: "An angle greater than 90° but less than 180° is ___ .", answer: "obtuse" }
-    ],
-    "True or false": [
-      { prompt: "A prime number has exactly two positive factors.", options: ["True", "False"], answer: "True" },
-      { prompt: "The square of 5 is 10.", options: ["True", "False"], answer: "False" },
-      { prompt: "A right angle measures 90 degrees.", options: ["True", "False"], answer: "True" },
-      { prompt: "Every multiple of 4 is also a multiple of 2.", options: ["True", "False"], answer: "True" },
-      { prompt: "The sum of the interior angles of a quadrilateral is 360 degrees.", options: ["True", "False"], answer: "True" }
-    ],
-    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
-      { left: "Perimeter", right: "Distance around a shape" },
-      { left: "Triangle", right: "Polygon with 3 sides" },
-      { left: "Pi (π)", right: "Approximately 3.14" },
-      { left: "Square root of 49", right: "7" }
-    ] }]
-  },
-  english: {
-    "Multiple choice": [
-      { prompt: "Which word is an adjective?", options: ["Quickly", "Beautiful", "Run", "Happiness"], answer: "Beautiful" },
-      { prompt: "Choose the correct plural of 'analysis'.", options: ["Analysises", "Analyses", "Analysis", "Analys"], answer: "Analyses" },
-      { prompt: "Which sentence uses the apostrophe correctly?", options: ["The students book's", "The student's book", "The students's book", "The student book's"], answer: "The student's book" },
-      { prompt: "A comparison using 'like' or 'as' is called a…", options: ["Metaphor", "Simile", "Hyperbole", "Irony"], answer: "Simile" },
-      { prompt: "Which is the closest synonym for 'reluctant'?", options: ["Unwilling", "Excited", "Certain", "Careless"], answer: "Unwilling" }
-    ],
-    "Word puzzle": [
-      { prompt: "A word that means the opposite of another word.", answer: "ANTONYM", clue: "Vocabulary", scramble: "NOMYANT" },
-      { prompt: "A word with a similar meaning to another word.", answer: "SYNONYM", clue: "Vocabulary", scramble: "MYNSONY" },
-      { prompt: "A person, place, thing or idea.", answer: "NOUN", clue: "Parts of speech", scramble: "UNON" },
-      { prompt: "A word that describes a noun.", answer: "ADJECTIVE", clue: "Parts of speech", scramble: "JADCEITVE" },
-      { prompt: "The central message or insight in a text.", answer: "THEME", clue: "Literature", scramble: "EMTHE" }
-    ],
-    "Fill the blanks": [
-      { prompt: "A verb expresses an action or a state of ___.", answer: "being" },
-      { prompt: "The past tense of 'write' is ___.", answer: "wrote" },
-      { prompt: "A group of lines in a poem is a ___.", answer: "stanza" },
-      { prompt: "A sentence that asks a question ends with a question ___.", answer: "mark" },
-      { prompt: "The word 'their' is a possessive ___.", answer: "pronoun" }
-    ],
-    "True or false": [
-      { prompt: "An adverb can modify a verb.", options: ["True", "False"], answer: "True" },
-      { prompt: "A metaphor always uses the words 'like' or 'as'.", options: ["True", "False"], answer: "False" },
-      { prompt: "A proper noun begins with a capital letter.", options: ["True", "False"], answer: "True" },
-      { prompt: "A paragraph should normally develop one main idea.", options: ["True", "False"], answer: "True" },
-      { prompt: "The word 'quickly' is an adjective.", options: ["True", "False"], answer: "False" }
-    ],
-    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
-      { left: "Noun", right: "Names a person, place, thing or idea" },
-      { left: "Verb", right: "Expresses an action or state" },
-      { left: "Adjective", right: "Describes a noun" },
-      { left: "Adverb", right: "Modifies a verb, adjective or adverb" }
-    ] }]
-  },
-  science: {
-    "Multiple choice": [
-      { prompt: "Which cell structure contains most of the genetic material?", options: ["Ribosome", "Nucleus", "Cell wall", "Vacuole"], answer: "Nucleus" },
-      { prompt: "What is the chemical symbol for oxygen?", options: ["Ox", "O", "Og", "Oy"], answer: "O" },
-      { prompt: "Which process do green plants use to make glucose?", options: ["Respiration", "Photosynthesis", "Digestion", "Transpiration"], answer: "Photosynthesis" },
-      { prompt: "What is the SI unit of force?", options: ["Joule", "Watt", "Newton", "Pascal"], answer: "Newton" },
-      { prompt: "Which particle has a negative electric charge?", options: ["Proton", "Neutron", "Electron", "Nucleus"], answer: "Electron" }
-    ],
-    "Word puzzle": [
-      { prompt: "The basic structural and functional unit of life.", answer: "CELL", clue: "Biology", scramble: "LELC" },
-      { prompt: "The green pigment that absorbs light in plants.", answer: "CHLOROPHYLL", clue: "Photosynthesis", scramble: "LCHOROPHYLL" },
-      { prompt: "The force that pulls objects towards Earth.", answer: "GRAVITY", clue: "Physics", scramble: "VIGRATY" },
-      { prompt: "A substance made of one type of atom.", answer: "ELEMENT", clue: "Chemistry", scramble: "TELENME" },
-      { prompt: "The movement of water through a partially permeable membrane.", answer: "OSMOSIS", clue: "Biology", scramble: "SOMOSIS" }
-    ],
-    "Fill the blanks": [
-      { prompt: "The process by which cells release energy from glucose is ___.", answer: "respiration" },
-      { prompt: "The smallest unit of an element is an ___.", answer: "atom" },
-      { prompt: "The human heart has ___ chambers.", answer: "four" },
-      { prompt: "Water has the chemical formula ___.", answer: "h2o" },
-      { prompt: "The change from liquid to gas is called ___.", answer: "evaporation" }
-    ],
-    "True or false": [
-      { prompt: "Sound travels faster in a vacuum than in air.", options: ["True", "False"], answer: "False" },
-      { prompt: "Plants use carbon dioxide during photosynthesis.", options: ["True", "False"], answer: "True" },
-      { prompt: "An atom is electrically neutral when protons equal electrons.", options: ["True", "False"], answer: "True" },
-      { prompt: "The liver is part of the digestive system.", options: ["True", "False"], answer: "True" },
-      { prompt: "All metals are liquids at room temperature.", options: ["True", "False"], answer: "False" }
-    ],
-    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
-      { left: "Nucleus", right: "Contains genetic material" },
-      { left: "Mitochondrion", right: "Releases energy" },
-      { left: "Chloroplast", right: "Site of photosynthesis" },
-      { left: "Cell membrane", right: "Controls movement in and out" }
-    ] }]
-  },
-  general: {
-    "Multiple choice": [
-      { prompt: "Which study technique involves recalling information without looking at notes?", options: ["Passive rereading", "Active recall", "Highlighting only", "Copying notes"], answer: "Active recall" },
-      { prompt: "Which source is generally best for checking a scientific claim?", options: ["An anonymous post", "A peer-reviewed study", "An advert", "A rumour"], answer: "A peer-reviewed study" },
-      { prompt: "What should a good paragraph usually contain?", options: ["Several unrelated ideas", "One clear main idea", "Only quotations", "No evidence"], answer: "One clear main idea" },
-      { prompt: "Which is the best first step when solving a word problem?", options: ["Guess", "Identify the given information", "Skip the question", "Write any formula"], answer: "Identify the given information" },
-      { prompt: "What is the purpose of a conclusion?", options: ["Introduce unrelated facts", "Summarise the main findings", "Add a new topic", "Repeat the title only"], answer: "Summarise the main findings" }
-    ],
-    "Word puzzle": [
-      { prompt: "A planned way of approaching a task.", answer: "STRATEGY", clue: "Study skills", scramble: "TRATEGY S" },
-      { prompt: "Information collected for analysis.", answer: "DATA", clue: "Research skills", scramble: "ATAD" },
-      { prompt: "A reasoned judgement based on evidence.", answer: "CONCLUSION", clue: "Academic writing", scramble: "CONLUSIONC" },
-      { prompt: "A statement that can be tested.", answer: "HYPOTHESIS", clue: "Scientific method", scramble: "HYPOTHEISS" },
-      { prompt: "A source that gives information about a subject.", answer: "REFERENCE", clue: "Research skills", scramble: "EFERENCER" }
-    ],
-    "Fill the blanks": [
-      { prompt: "A reliable argument should be supported by ___.", answer: "evidence" },
-      { prompt: "The first stage of many research projects is defining the ___.", answer: "question" },
-      { prompt: "A summary presents the main points in a ___ form.", answer: "concise" },
-      { prompt: "A bibliography lists the sources that were ___.", answer: "used" },
-      { prompt: "A deadline is the latest time by which work must be ___.", answer: "submitted" }
-    ],
-    "True or false": [
-      { prompt: "Active recall can help strengthen memory.", options: ["True", "False"], answer: "True" },
-      { prompt: "A source is reliable simply because it appears first in a search.", options: ["True", "False"], answer: "False" },
-      { prompt: "Revision is more effective when it is spaced over time.", options: ["True", "False"], answer: "True" },
-      { prompt: "A conclusion should address the task or research question.", options: ["True", "False"], answer: "True" },
-      { prompt: "Copying a source without acknowledgement is good academic practice.", options: ["True", "False"], answer: "False" }
-    ],
-    "Matching": [{ prompt: "Match each term to the correct description.", answer: "", pairs: [
-      { left: "Hypothesis", right: "A statement that can be tested" },
-      { left: "Evidence", right: "Information supporting a claim" },
-      { left: "Bibliography", right: "A list of sources used" },
-      { left: "Conclusion", right: "A final judgement based on findings" }
-    ] }]
-  }
+type PracticeRequest={
+  id:string;subject_name:string;topic:string;question_count:number;status:string;
+  exercise_assignment_id:string|null;error_message:string|null;created_at:string;
 };
-
-const modes: { name: Mode; icon: typeof ListChecks; description: string }[] = [
-  { name: "Multiple choice", icon: ListChecks, description: "Choose the best answer" },
-  { name: "Word puzzle", icon: Puzzle, description: "Unscramble the key term" },
-  { name: "Fill the blanks", icon: PenLine, description: "Recall the missing word" },
-  { name: "True or false", icon: ToggleLeft, description: "Judge each statement" },
-  { name: "Matching", icon: Puzzle, description: "Connect terms to the right answers" }
-];
-
-function bankFor(subject: string): Record<Mode, Exercise[]> | null {
-  const name = subject.trim().toLocaleLowerCase();
-  if (name === "mathematics") return banks.mathematics;
-  if (name === "english" || name === "english language") return banks.english;
-  if (name === "science" || name === "combined science") return banks.science;
-  return null;
-}
-
-function readAttempts(): Attempt[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(studentStorageKey("studyspace-weekly-test-attempts")) || "[]");
-    return Array.isArray(value) ? value.filter((item: any) => item && typeof item.subject === "string" && typeof item.mode === "string" && Number.isFinite(item.score) && Number.isFinite(item.total) && typeof item.completedAt === "string") : [];
-  } catch { return []; }
-}
-
-type LearningPath = "Study notes" | "Revision notes" | "Topic test" | "Weekly test" | "Examination";
-type Topic = { name: string; keywords: string[] };
-const topicCatalog: Record<string, Topic[]> = {
-  mathematics: [
-    { name:"Algebra", keywords:["algebra","equation","expression","variable","simplify","solve","unknown"] },
-    { name:"Number and percentages", keywords:["number","percent","percentage","prime","factor","multiple","square","product","even"] },
-    { name:"Geometry and measurement", keywords:["triangle","angle","circle","area","rectangle","polygon","circumference","coordinate","pi"] },
-  ],
-  english: [
-    { name:"Grammar and parts of speech", keywords:["adjective","noun","verb","adverb","pronoun","apostrophe","plural","sentence","tense"] },
-    { name:"Vocabulary", keywords:["synonym","antonym","meaning","reluctant","word"] },
-    { name:"Literature and writing", keywords:["theme","metaphor","simile","stanza","paragraph","conclusion","poem"] },
-  ],
-  science: [
-    { name:"Biology", keywords:["cell","nucleus","plant","photosynthesis","chlorophyll","osmosis","respiration","heart","liver","life"] },
-    { name:"Chemistry", keywords:["oxygen","atom","element","chemical","water","h2o","metal","proton","electron"] },
-    { name:"Physics", keywords:["force","newton","gravity","sound","vacuum","electric","particle","energy"] },
-  ]
+const statusLabel:Record<string,string>={
+  queued:"Queued for preparation",
+  waiting_for_material:"Waiting for Monitor material approval",
+  waiting_for_study_pack:"Preparing your study pack",
+  ready:"Practice test ready",
+  failed:"Needs attention",
+  cancelled:"Cancelled",
 };
-function topicFor(subject: string): Topic[] {
-  const key = subject.trim().toLocaleLowerCase();
-  if (key === "mathematics") return topicCatalog.mathematics;
-  if (key === "english" || key === "english language") return topicCatalog.english;
-  if (key === "science" || key === "combined science") return topicCatalog.science;
-  return [];
-}
-function questionsFor(subject: string): Exercise[] {
-  const bank = bankFor(subject);
-  return bank ? modes.flatMap(item => bank[item.name]) : [];
-}
-function matchesTopic(question: Exercise, topic: Topic): boolean {
-  const text = [question.prompt, question.answer, question.clue ?? "", question.scramble ?? "", ...(question.pairs ?? []).flatMap(pair => [pair.left, pair.right])].join(" ").toLocaleLowerCase();
-  return topic.keywords.some(keyword => text.includes(keyword));
-}
+const formatDate=(value:string)=>new Date(value).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"});
 
-export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 0);
-  const [path, setPath] = useState<LearningPath | null>(null);
-  const [topicName, setTopicName] = useState("");
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [response, setResponse] = useState("");
-  const [matchingAnswers, setMatchingAnswers] = useState<Record<number, Record<string, string>>>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
-  const [attempts, setAttempts] = useState<Attempt[]>(readAttempts);
-  const [notes, setNotes] = useState<PersonalNote[]>([]);
-  const [teacherNotes, setTeacherNotes] = useState<TeacherNote[]>([]);
-  const [selectedNoteKey, setSelectedNoteKey] = useState("");
-  const [testTopicInput, setTestTopicInput] = useState("");
-  const [generatedQuestions, setGeneratedQuestions] = useState<Exercise[]>([]);
-  const [generatingTest, setGeneratingTest] = useState(false);
-  const [generationMessage, setGenerationMessage] = useState("");
-  const [noteTopic, setNoteTopic] = useState("");
-  const [noteError, setNoteError] = useState("");
-  const [viewingNote, setViewingNote] = useState<(typeof notes)[number] | null>(null);
-  const [notePreviewText, setNotePreviewText] = useState("");
-  const [flashcardIndex, setFlashcardIndex] = useState(0);
-  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
-  const [knownCards, setKnownCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"); } catch { return []; } });
-  const [reviewCards, setReviewCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"); } catch { return []; } });
-  useEffect(() => {
-    const refreshPracticeState = () => {
-      setAttempts(readAttempts());
-      try {
-        setKnownCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"));
-        setReviewCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"));
-      } catch { setKnownCards([]); setReviewCards([]); }
-    };
-    window.addEventListener("studyspace-cloud-practice-updated", refreshPracticeState);
-    return () => window.removeEventListener("studyspace-cloud-practice-updated", refreshPracticeState);
-  }, [subjectId]);
+export default function WeeklyTest({subjects}:{subjects:Subject[]}){
+  const subjectOptions=useMemo(()=>subjects.filter(subject=>String(subject.name||"").trim()),[subjects]);
+  const [selectedSubject,setSelectedSubject]=useState("");
+  const [topic,setTopic]=useState("");
+  const [questionCount,setQuestionCount]=useState(10);
+  const [requests,setRequests]=useState<PracticeRequest[]>([]);
+  const [loading,setLoading]=useState(false);
+  const [refreshing,setRefreshing]=useState(true);
+  const [error,setError]=useState("");
+  const [notice,setNotice]=useState("");
+  const [refreshKey,setRefreshKey]=useState(0);
+  const readySignature=useRef("");
 
-  useEffect(() => {
-    try {
-      setKnownCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"));
-      setReviewCards(JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"));
-    } catch { setKnownCards([]); setReviewCards([]); }
-    setFlashcardIndex(0); setFlashcardFlipped(false);
-  }, [subjectId]);
-  function rateFlashcard(known: boolean) {
-    if (!activeFlashcard) return;
-    const id = activeFlashcard.id;
-    const nextKnown = known ? [...new Set([...knownCards, id])] : knownCards.filter(item => item !== id);
-    const nextReview = known ? reviewCards.filter(item => item !== id) : [...new Set([...reviewCards, id])];
-    setKnownCards(nextKnown); setReviewCards(nextReview);
-    try {
-      localStorage.setItem(studentStorageKey("studyspace-known-cards-" + subjectId), JSON.stringify(nextKnown));
-      localStorage.setItem(studentStorageKey("studyspace-review-cards-" + subjectId), JSON.stringify(nextReview));
-    } catch { /* The current review remains usable if storage is unavailable. */ }
-    const cloudSubjectId = subjects.find(item => item.id === subjectId)?.cloudId;
-    if (supabase && cloudSubjectId) {
-      void supabase.rpc("record_studyspace_flashcard_review", {
-        p_subject_id: cloudSubjectId,
-        p_card_key: id,
-        p_known: known,
-      }).then(({ error }) => { if (error) console.warn("Flashcard progress could not be rewarded yet:", error.message); });
-    }
-    setFlashcardFlipped(false);
-    setFlashcardIndex(index => (index + 1) % Math.max(1, revisionDeck.length));
-  }
-  function moveFlashcard(direction: number) {
-    setFlashcardFlipped(false);
-    setFlashcardIndex(index => (index + direction + revisionDeck.length) % revisionDeck.length);
-  }
+  useEffect(()=>{
+    if(!selectedSubject&&subjectOptions.length)setSelectedSubject(String(subjectOptions[0].cloudId||subjectOptions[0].name));
+  },[selectedSubject,subjectOptions]);
 
-  const activeSubject = subjects.find(item => item.id === subjectId) ?? subjects[0] ?? null;
-  const subject = activeSubject?.name ?? "";
-  const topics = topicFor(subject);
-  const fullPool = useMemo(() => questionsFor(subject), [subject]);
-  const revisionDeck = useMemo(() => fullPool.map((item, index) => ({ id: String(index), front: item.prompt, back: item.pairs ? item.pairs.map(pair => pair.left + " → " + pair.right).join(" · ") : item.answer, mode: modes.find(mode => bankFor(subject)?.[mode.name].includes(item))?.name ?? "Key idea" })), [fullPool, subject]);
-  const activeFlashcard = revisionDeck[flashcardIndex];
-  const topicPool = useMemo(() => fullPool.filter(question => matchesTopic(question, topics.find(item => item.name === topicName) ?? {name:"",keywords:[]})), [fullPool, topics, topicName]);
-  const weeklyPool = useMemo(() => modes.flatMap(item => (bankFor(subject)?.[item.name] ?? []).slice(0, 3)), [subject, fullPool]);
-  const examPool = fullPool;
-  const activePool = generatedQuestions.length ? generatedQuestions : path === "Topic test" ? topicPool : path === "Weekly test" ? weeklyPool : path === "Examination" ? examPool : [];
-  const question = activePool[questionIndex];
-  const questionMode = question ? question.mode ?? modes.find(item => bankFor(subject)?.[item.name].includes(question))?.name ?? "Question" : "";
-  const sectionLetter = String.fromCharCode(65 + Math.max(0, modes.findIndex(item => item.name === questionMode)));
-  const currentMatches = matchingAnswers[questionIndex] ?? {};
-  const correct = !!question && (question.pairs ? question.pairs.every(pair => currentMatches[pair.left] === pair.right) : response.trim().toLocaleLowerCase() === question.answer.toLocaleLowerCase());
-  const correctAnswerText = question?.pairs ? question.pairs.map(pair => pair.left + " → " + pair.right).join(" · ") : question?.answer ?? "";
-  const percent = activePool.length ? Math.round((score / activePool.length) * 100) : 0;
-
-  async function loadNotes() {
-    try {
-      const { plannerDb } = await import("../data/db");
-      const stored = await plannerDb.resources.toArray();
-      setNotes(stored as typeof notes);
-    } catch { setNotes([]); }
-  }
-  useEffect(() => { void loadNotes(); }, [subjectId]);
-  useEffect(() => {
-    let alive = true;
-    async function loadTeacherNotes() {
-      if (!supabase) { if (alive) setTeacherNotes([]); return; }
-      try {
-        const { data: user, error: userError } = await supabase.auth.getUser();
-        if (userError || !user.user) throw new Error("Sign in again to use your teacher-assigned notes.");
-        const { data: assignments, error: assignmentsError } = await supabase
-          .from("resource_assignments").select("resource_id").eq("learner_id", user.user.id);
-        if (assignmentsError) throw assignmentsError;
-        const ids = (assignments ?? []).map(row => row.resource_id).filter(Boolean);
-        if (!ids.length) { if (alive) setTeacherNotes([]); return; }
-        const { data, error: resourcesError } = await supabase.from("learning_resources")
-          .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at")
-          .in("id", ids).order("created_at", { ascending: false });
-        if (resourcesError) throw resourcesError;
-        if (alive) setTeacherNotes((data ?? []) as TeacherNote[]);
-      } catch {
-        if (alive) setTeacherNotes([]);
+  const refreshRequests=useCallback(async()=>{
+    if(!supabase){setRefreshing(false);return;}
+    try{
+      const {data:authState,error:authError}=await supabase.auth.getUser();
+      if(authError||!authState.user)return;
+      const {data,error:queryError}=await supabase.from("learner_practice_requests")
+        .select("id,subject_name,topic,question_count,status,exercise_assignment_id,error_message,created_at")
+        .eq("learner_id",authState.user.id).order("created_at",{ascending:false}).limit(12);
+      if(queryError)throw queryError;
+      const rows=(data||[]) as PracticeRequest[];
+      setRequests(rows);
+      const signature=rows.filter(row=>row.status==="ready"&&row.exercise_assignment_id).map(row=>row.exercise_assignment_id).sort().join("|");
+      if(signature!==readySignature.current){
+        readySignature.current=signature;
+        setRefreshKey(value=>value+1);
       }
-    }
-    void loadTeacherNotes();
-    return () => { alive = false; };
-  }, [subjectId, subjects]);
-  const visibleNotes = notes.filter(item => item.subjectId === activeSubject?.id && item.resourceType === path && (path !== "Revision notes" || item.resourceType === "Revision notes"));
-  const personalNoteChoices: NoteChoice[] = notes
-    .filter(item => item.subjectId === activeSubject?.id && ["Study notes", "Revision notes"].includes(item.resourceType ?? ""))
-    .map(item => ({ key: "personal:" + item.id, name: item.name, topic: item.topic ?? "", source: "personal", personal: item }));
-  const teacherNoteChoices: NoteChoice[] = teacherNotes
-    .filter(item => item.subject_name.trim().toLowerCase() === (activeSubject?.name ?? "").trim().toLowerCase()
-      && /\.(pdf|txt|rtf)$/i.test(item.title)
-      && /note|lesson|study|revision|learning material/i.test(item.resource_type + " " + item.title))
-    .map(item => ({ key: "teacher:" + item.id, name: item.title, topic: item.topic || item.description || "", source: "teacher", teacher: item }));
-  const noteChoices = [...personalNoteChoices, ...teacherNoteChoices];
-  const selectedNote = selectedNoteKey === "none" ? null : noteChoices.find(item => item.key === selectedNoteKey) ?? noteChoices[0] ?? null;
-  function openResource(resource: typeof notes[number]) { setViewingNote(resource); }
-  useEffect(() => {
-    if (!viewingNote) { setNotePreviewText(""); return; }
-    setNotePreviewText("");
-    const ext = viewingNote.name.toLowerCase();
-    if (ext.endsWith(".txt") || ext.endsWith(".rtf")) void viewingNote.file.text().then(setNotePreviewText).catch(() => setNotePreviewText("Unable to read this file."));
-  }, [viewingNote]);
-  async function addNoteFiles(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []); event.target.value = "";
-    if (!files.length || !activeSubject) return;
-    setNoteError("");
-    try {
-      const { plannerDb } = await import("../data/db");
-      const accepted = files.filter(file => file.size <= 30 * 1024 * 1024 && /\.(pdf|txt|rtf)$/i.test(file.name));
-      if (!accepted.length) { setNoteError("Choose a supported document up to 30 MB."); return; }
-      await plannerDb.resources.bulkAdd(accepted.map((file,index) => ({id:Date.now()+index,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size,file,createdAt:new Date().toISOString(),subjectId:activeSubject.id,resourceType:path === "Revision notes" ? "Revision notes" : "Study notes",topic:noteTopic.trim()})));
-      await loadNotes();
-      window.dispatchEvent(new Event("studyspace-local-data-updated"));
-    } catch { setNoteError("The files could not be saved. Check available device storage."); }
-  }
-  function begin(nextPath: LearningPath) {
-    setPath(nextPath); setTopicName(""); setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false); setNoteError("");
-    setGeneratedQuestions([]); setGenerationMessage(""); setTestTopicInput("");
-  }
-  function restart() { setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false); }
+    }catch(reason){setError(reason instanceof Error?reason.message:"Practice requests could not be refreshed.");}
+    finally{setRefreshing(false);}
+  },[]);
 
-  async function generateTopicTest(requestedTopic?: string) {
-    if (!activeSubject || generatingTest) return;
-    setGeneratingTest(true); setGenerationMessage(""); setNoteError("");
-    try {
-      const topic = (requestedTopic?.trim() || testTopicInput.trim() || topicName.trim() || selectedNote?.topic.trim()
-        || selectedNote?.name.replace(/\.[^.]+$/, "").slice(0, 160) || "Core concepts and key principles").slice(0, 160);
-      if (!topic) throw new Error("Enter the topic you want MIΛ to test you on.");
-      let notesText = "";
-      if (selectedNote) {
-        let file: Blob;
-        if (selectedNote.source === "personal" && selectedNote.personal) {
-          file = selectedNote.personal.file;
-        } else if (selectedNote.source === "teacher" && selectedNote.teacher && supabase) {
-          const { data, error } = await supabase.storage.from("studyspace-resources").download(selectedNote.teacher.storage_path);
-          if (error) throw error;
-          file = data;
-        } else {
-          throw new Error("This note is not available on this device. Open it while online and try again.");
-        }
-        notesText = await extractNoteText(file, selectedNote.name);
-        if (notesText.length < 50) {
-          throw new Error("There is not enough readable text in this file. Choose a text-based PDF, TXT or RTF, or generate the test without notes.");
-        }
-      }
-      if (!supabase) throw new Error("StudySpace is not connected. Sign in again and retry.");
-      const { data, error } = await supabase.functions.invoke("mia-assistant", {
-        body: {
-          action: "generate_topic_test",
-          subject: activeSubject.name,
-          topic,
-          fileName: selectedNote?.name ?? "",
-          notesText,
-          questionCount: 10,
-          difficulty: "adaptive",
-        },
+  useEffect(()=>{
+    void refreshRequests();
+    const interval=window.setInterval(()=>void refreshRequests(),15000);
+    const onFocus=()=>{if(document.visibilityState==="visible")void refreshRequests();};
+    window.addEventListener("focus",onFocus);
+    return()=>{window.clearInterval(interval);window.removeEventListener("focus",onFocus);};
+  },[refreshRequests]);
+
+  const createPracticeTest=async()=>{
+    if(!supabase||loading)return;
+    const subject=subjectOptions.find(item=>String(item.cloudId||item.name)===selectedSubject);
+    if(!subject){setError("Choose one of your registered subjects.");return;}
+    setLoading(true);setError("");setNotice("");
+    try{
+      const {data,error:invokeError}=await supabase.functions.invoke("assessment-scheduler",{
+        body:{action:"request_practice",subjectId:subject.cloudId||undefined,subjectName:subject.name,topic:topic.trim(),questionCount},
       });
-      if (error) throw new Error(await getEdgeErrorMessage(error));
-      const questions = Array.isArray(data?.questions) ? data.questions.filter((item: any) => {
-        if (!item || typeof item.prompt !== "string" || item.prompt.trim().length < 8 || typeof item.answer !== "string") return false;
-        const type = String(item.question_type || "multiple_choice");
-        if (type === "multiple_choice") return Array.isArray(item.options) && item.options.length === 4 && item.options.every((option: unknown) => typeof option === "string") && item.options.includes(item.answer);
-        if (type === "true_false") return ["True", "False"].includes(item.answer);
-        if (type === "fill_blank" || type === "word_puzzle") return item.answer.trim().length > 0;
-        if (type === "matching") return Array.isArray(item.pairs) && item.pairs.length >= 3 && item.pairs.every((pair: any) => pair && typeof pair.left === "string" && typeof pair.right === "string");
-        return false;
-      }).map((item: any) => {
-        const type = String(item.question_type || "multiple_choice");
-        const mode: Mode = type === "true_false" ? "True or false" : type === "fill_blank" ? "Fill the blanks" : type === "word_puzzle" ? "Word puzzle" : type === "matching" ? "Matching" : "Multiple choice";
-        return {
-          prompt: item.prompt as string, answer: item.answer as string,
-          options: mode === "True or false" ? ["True", "False"] : Array.isArray(item.options) ? item.options as string[] : undefined,
-          pairs: Array.isArray(item.pairs) ? item.pairs as {left:string;right:string}[] : undefined,
-          clue: typeof item.clue === "string" ? item.clue : undefined,
-          scramble: typeof item.scramble === "string" ? item.scramble : undefined,
-          mode,
-          explanation: typeof item.explanation === "string" ? item.explanation : "",
-          difficulty: typeof item.difficulty === "string" ? item.difficulty : "Medium",
-          topic: typeof item.topic === "string" ? item.topic : topic,
-        };
-      }) : [];
-      if (questions.length < 3) throw new Error(data?.error || "MIΛ could not create a reliable topic test. Try a narrower topic.");
-      setGeneratedQuestions(questions);
-      setTopicName(topic);
-      setQuestionIndex(0); setResponse(""); setMatchingAnswers({}); setSubmitted(false); setScore(0); setFinished(false);
-      const source = selectedNote ? " using " + selectedNote.name : " using your registered level and curriculum";
-      setGenerationMessage("Created " + questions.length + " adaptive questions on " + topic + source + ".");
-    } catch (reason) {
-      setGenerationMessage(reason instanceof Error ? reason.message : "The topic test could not be created. Please try again.");
-    } finally { setGeneratingTest(false); }
-  }
-  function advance() {
-    const nextScore = score + (correct ? 1 : 0);
-    if (questionIndex === activePool.length - 1) {
-      const attempt: Attempt = {id:String(Date.now()),subject,mode:path ?? "Weekly test",score:nextScore,total:activePool.length,completedAt:new Date().toISOString()};
-      const next=[attempt,...attempts].slice(0,30); setAttempts(next);
-      try { localStorage.setItem(studentStorageKey("studyspace-weekly-test-attempts"),JSON.stringify(next)); } catch { /* Current result remains available. */ }
-      setScore(nextScore); setFinished(true); return;
-    }
-    setScore(nextScore); setQuestionIndex(index=>index+1); setResponse(""); setSubmitted(false);
-  }
-  const pathOptions: {name:LearningPath;description:string;icon:typeof BookOpen}[] = [
-    {name:"Study notes",description:"Open class notes, textbooks and learning resources.",icon:BookOpen},
-    {name:"Revision notes",description:"Review concise summaries and exam preparation material.",icon:FileText},
-    {name:"Topic test",description:"Choose one topic and practise only questions mapped to it.",icon:Target},
-    {name:"Weekly test",description:"A short mixed check of the selected subject.",icon:CalendarDays},
-    {name:"Examination",description:"A longer mixed paper covering the available subject question bank.",icon:GraduationCap}
-  ];
-  return <div className="weekly-test-page study-hub">
-    <section className="weekly-test-hero glass-panel"><div className="weekly-test-hero-copy"><span className="eyebrow">YOUR LEARNING WORKSPACE</span><h2>Study with a clear path.</h2><p>Choose one of your enrolled subjects, then open learning material, practise a topic, complete a weekly check or sit a mixed examination.</p></div><div className="weekly-test-trophy"><Trophy size={28}/><span>{attempts.length} attempts</span></div></section>
-    <section className="study-subject-select glass-panel"><div className="section-heading"><div><h2>1. Choose a subject or module</h2><p>Only subjects in your Studyspace profile are shown.</p></div><BookOpen size={20}/></div>{subjects.length?<div className="study-subject-grid">{subjects.map(item=><button key={item.id} className={activeSubject?.id===item.id?"study-subject-card selected":"study-subject-card"} onClick={()=>{setSubjectId(item.id);setPath(null);setTopicName("");setGeneratedQuestions([]);setGenerationMessage("");setTestTopicInput("");}}><span className="study-subject-dot" style={{background:item.color}}/><strong>{item.name}</strong><small>{item.category??"Your subject"}</small><ChevronRight size={16}/></button>)}</div>:<div className="weekly-test-unavailable"><BookOpen size={28}/><h2>Add your subjects first</h2><p>Choose Subjects in the menu to add the modules you are studying.</p></div>}</section>
-    {activeSubject&&<section className="study-path-section"><div className="section-heading"><div><h2>2. What would you like to do in {subject}?</h2><p>Choose a learning activity.</p></div><Sparkles size={20}/></div><div className="study-path-grid">{pathOptions.map(item=>{const Icon=item.icon;return <button key={item.name} className={path===item.name?"study-path-card selected":"study-path-card"} onClick={()=>begin(item.name)}><span><Icon size={20}/></span><strong>{item.name}</strong><small>{item.description}</small><ChevronRight size={16}/></button>;})}</div></section>}
-    {path==="Study notes"||path==="Revision notes"?<section className="glass-panel study-notes-panel"><div className="section-heading"><div><h2>{path} · {subject}</h2><p>{path==="Revision notes"?"Use active-recall cards, then open any teacher-provided revision files below.":"Files saved for this subject on this device."}</p></div><BookOpen size={20}/></div>{path==="Revision notes"&&<div className="revision-deck"><div className="revision-deck-heading"><div><span className="eyebrow">ACTIVE RECALL · VISUAL REVISION</span><h3>Flashcard practice</h3><p>{revisionDeck.length?"Short prompts first. Think of the answer, then flip the card.":"A verified question bank is not available for this subject yet."}</p></div><span className="revision-deck-count">{knownCards.length}/{revisionDeck.length} known</span></div>{revisionDeck.length>0&&<><div className="revision-progress"><span style={{width:(knownCards.length/revisionDeck.length*100)+"%"}}/></div><div className="revision-visual" aria-label={subject+" visual memory aid"}>{subject.toLowerCase().includes("math")?<svg viewBox="0 0 320 112" role="img" aria-label="Coordinate grid and rising line"><path d="M20 10V94H300" fill="none" stroke="currentColor" opacity=".45" strokeWidth="2"/>{Array.from({length:9},(_,i)=><path key={i} d={`M${20+i*34} 10V94`} stroke="currentColor" opacity=".12"/>)}{Array.from({length:4},(_,i)=><path key={i} d={`M20 ${24+i*22}H300`} stroke="currentColor" opacity=".12"/>)}<path d="M34 82L92 66L150 50L208 34L266 18" fill="none" stroke="#72d9bd" strokeWidth="4" strokeLinecap="round"/><circle cx="150" cy="50" r="5" fill="#8db9ff"/></svg>:subject.toLowerCase().includes("english")?<div className="revision-word-map"><span>WORD</span><i>→</i><span>MEANING</span><i>→</i><span>EXAMPLE</span></div>:<svg viewBox="0 0 320 112" role="img" aria-label="Simplified labelled cell illustration"><ellipse cx="160" cy="56" rx="130" ry="43" fill="#79e2c4" fillOpacity=".12" stroke="#79e2c4" strokeWidth="3"/><ellipse cx="154" cy="56" rx="31" ry="25" fill="#8db9ff" fillOpacity=".42" stroke="#8db9ff" strokeWidth="2"/><circle cx="154" cy="56" r="10" fill="#b7a5ff"/><g fill="#f2bd70"><ellipse cx="85" cy="48" rx="10" ry="5"/><ellipse cx="225" cy="66" rx="12" ry="5"/><ellipse cx="110" cy="77" rx="9" ry="4"/></g><path d="M154 25V9H194M185 56H240V35" fill="none" stroke="currentColor" opacity=".65"/><g fill="currentColor" fontSize="9"><text x="197" y="12">Nucleus</text><text x="244" y="34">Cell boundary</text></g></svg>}</div><button type="button" className={"revision-flashcard "+(flashcardFlipped?"is-flipped":"")} onClick={()=>setFlashcardFlipped(value=>!value)} aria-label="Flip flashcard"><span className="revision-card-meta">{activeFlashcard?.mode??"Revision card"} · CARD {flashcardIndex+1} OF {revisionDeck.length}</span><strong>{flashcardFlipped?activeFlashcard?.back:activeFlashcard?.front}</strong><small>{flashcardFlipped?"ANSWER · TAP TO SEE QUESTION":"QUESTION · TAP TO REVEAL ANSWER"}</small></button><div className="revision-card-actions"><button type="button" className="secondary-button" onClick={()=>moveFlashcard(-1)}>Previous</button><button type="button" className="revision-again-button" onClick={()=>rateFlashcard(false)}>↻ Review again</button><button type="button" className="revision-known-button" onClick={()=>rateFlashcard(true)}>✓ Know it</button><button type="button" className="secondary-button" onClick={()=>moveFlashcard(1)}>Next</button></div><div className="revision-deck-stats"><span>{reviewCards.length} to review</span><span>{revisionDeck.length-knownCards.length} not mastered</span></div></>}</div>}<div className="study-note-upload"><label className="field-label">Topic (optional)<input value={noteTopic} onChange={e=>setNoteTopic(e.target.value)} placeholder="e.g. Algebraic expressions"/></label><label className="primary-button library-upload"><Upload size={15}/> Add {path.toLowerCase()}<input type="file" multiple accept=".pdf,.txt,.rtf" onChange={addNoteFiles}/></label></div>{noteError&&<p className="inline-message" role="alert">{noteError}</p>}{visibleNotes.length?<div className="study-note-list">{visibleNotes.map(note=><button key={note.id} className="study-note-row" onClick={()=>openResource(note)}><FileText size={18}/><span><strong>{note.name}</strong><small>{note.topic||"General notes"} · {new Date(note.createdAt).toLocaleDateString()}</small></span><ChevronRight size={16}/></button>)}</div>:<div className="weekly-test-unavailable"><FolderOpen size={26}/><h2>No {path.toLowerCase()} yet</h2><p>Add a document here and it will be organised under {subject}.</p></div>}</section>:null}
-    {path==="Topic test"&&<section className="glass-panel study-topic-panel">
-      <div className="section-heading"><div><h2>3. Choose a topic or use your notes</h2><p>Practice an existing topic or create a new test from notes for {subject}.</p></div><Target size={20}/></div>
-      {topics.length>0&&<div className="study-topic-list">{topics.map(topic=><button key={topic.name} className={topicName===topic.name&&!generatedQuestions.length?"study-topic-option selected":"study-topic-option"} onClick={()=>{setGeneratedQuestions([]);setGenerationMessage("");setTopicName(topic.name);setTestTopicInput(topic.name);restart();}}><span><strong>{topic.name}</strong><small>Existing topic question bank</small></span><ChevronRight size={16}/></button>)}</div>}
-      <div className="topic-notes-generator">
-        <div className="topic-notes-copy"><strong>Generate a test for any topic</strong><span>MIΛ uses your registered grade, education level, curriculum, course, learning goals and recent assessment results to set the right level. Your notes are optional, but can make the questions more specific.</span></div>
-        <label className="field-label">Use reference notes (optional)
-          <select value={selectedNote?.key ?? "none"} onChange={event=>{const key=event.target.value;const choice=key==="none"?null:noteChoices.find(note=>note.key===key)??null;setSelectedNoteKey(key);setTopicName("");setTestTopicInput(choice?.topic || "");setGeneratedQuestions([]);setGenerationMessage("");setQuestionIndex(0);setResponse("");setSubmitted(false);setFinished(false);setScore(0);}}>
-            <option value="none">No notes — use my curriculum</option>
-            {personalNoteChoices.length>0&&<optgroup label="My uploaded notes">{personalNoteChoices.map(note=><option key={note.key} value={note.key}>{note.name}{note.topic?" · "+note.topic:""}</option>)}</optgroup>}
-            {teacherNoteChoices.length>0&&<optgroup label="Teacher-assigned notes">{teacherNoteChoices.map(note=><option key={note.key} value={note.key}>{note.name}{note.topic?" · "+note.topic:""}</option>)}</optgroup>}
-          </select>
-        </label>
-        <label className="field-label">Topic<input value={testTopicInput} onChange={event=>setTestTopicInput(event.target.value)} placeholder="e.g. Linear equations, cell structure, market segmentation" maxLength={160} aria-required="true"/></label>
-        <button type="button" className="primary-button" disabled={generatingTest||!(testTopicInput.trim()||topicName.trim()||selectedNote?.topic.trim()||selectedNote?.name)} onClick={()=>void generateTopicTest()}>
-          {generatingTest?<><Sparkles size={16}/> Creating test…</>:<><Target size={16}/> Generate topic test</>}
-        </button>
-        {!noteChoices.length&&<p className="topic-notes-hint">No notes yet? That is fine. MIΛ can build a curriculum-aware test from the subject and topic alone. You can add notes later for more targeted questions.</p>}
-        {generationMessage&&<p className="inline-message" role="status">{generationMessage}</p>}
-        {selectedNote&&<p className="topic-notes-hint">Only the text extracted from this selected note is sent to MIΛ. The original file is not saved in the AI conversation.</p>}
+      if(invokeError)throw invokeError;
+      if(!data?.success)throw new Error(String(data?.error||"Your practice test request could not be saved."));
+      setNotice(String(data.message||"Your practice test request has been saved."));
+      setTopic("");
+      await refreshRequests();
+      void prepareAssessmentProgramme();
+    }catch(reason){setError(reason instanceof Error?reason.message:"Your practice test could not be prepared.");}
+    finally{setLoading(false);}
+  };
+
+  return <section className="weekly-test-workspace practice-builder-workspace">
+    <header className="practice-builder-heading">
+      <div><span className="eyebrow">PERSONALISED PRACTICE</span><h2>Practise any subject.</h2><p>Study Space creates a saved practice test from your latest readable study materials. You can return to it later and your result is recorded in your learning history.</p></div>
+      <div className="practice-builder-icon"><BookOpenCheck size={24}/></div>
+    </header>
+
+    <div className="practice-builder-card">
+      <div className="practice-builder-copy"><Sparkles size={17}/><div><strong>Prepare a new practice test</strong><p>If you have no readable notes, Study Space requests a curriculum guide for Monitor approval and prepares your test automatically when the guide is ready.</p></div></div>
+      <div className="practice-builder-fields">
+        <label>Subject<select value={selectedSubject} onChange={event=>setSelectedSubject(event.target.value)} disabled={!subjectOptions.length}>
+          {!subjectOptions.length&&<option value="">No registered subjects</option>}
+          {subjectOptions.map(subject=><option key={subject.id} value={String(subject.cloudId||subject.name)}>{subject.name}</option>)}
+        </select></label>
+        <label>Topic (optional)<input value={topic} onChange={event=>setTopic(event.target.value)} placeholder="e.g. Algebra, photosynthesis, essay writing"/></label>
+        <label>Questions<select value={questionCount} onChange={event=>setQuestionCount(Number(event.target.value))}>
+          {[5,10,15,20].map(count=><option key={count} value={count}>{count} questions</option>)}
+        </select></label>
       </div>
-    </section>}
-    {(path==="Topic test"&&topicName||path==="Weekly test"||path==="Examination")&&<section className="weekly-test-card glass-panel study-quiz-card">
-      <div className="section-heading"><div><span className="eyebrow">{path==="Examination"?"EXAMINATION PAPER":path==="Weekly test"?"WEEKLY KNOWLEDGE CHECK":"TOPIC ASSESSMENT"}</span><h2>{subject}{topicName?" · "+topicName:""}</h2><p>{path==="Examination"?"Formal mixed paper: all available question formats, organised into sections, using the complete current subject question bank.":path==="Weekly test"?"Ten-question mixed practice round.":"Questions matched to the topic you selected."}</p></div><span className="count-chip">{activePool.length} questions</span></div>
-      {!activePool.length?<div className="weekly-test-unavailable"><BookOpen size={28}/><h2>Build a test for this subject</h2><p>A ready-made question bank is not available for {subject} yet. MIΛ can create this {path?.toLowerCase()} from your registered level, course and curriculum.</p><button type="button" className="primary-button" disabled={generatingTest} onClick={()=>void generateTopicTest(path === "Examination" ? "Full subject review — examination paper" : path === "Weekly test" ? "Full subject review — weekly test" : undefined)}>{generatingTest?<><Sparkles size={16}/> Creating test…</>:<><Sparkles size={16}/> Generate with MIΛ</>}</button>{generationMessage&&<p className="inline-message" role="status">{generationMessage}</p>}</div>:finished?<div className="weekly-test-result"><div className="weekly-test-result-icon"><Trophy size={30}/></div><span className="eyebrow">ASSESSMENT COMPLETE</span><h2>{percent>=80?"Excellent work.":percent>=60?"Good progress.":"Keep practising."}</h2><div className="weekly-test-score">{score}<small> / {activePool.length}</small></div><p>{percent}% correct · {subject}{topicName?" · "+topicName:""} · {path}</p><div className="weekly-test-result-actions"><button className="primary-button" onClick={restart}><RotateCcw size={16}/> Retake same test</button><button className="secondary-button" onClick={()=>{setGeneratedQuestions([]);setTopicName("");setTestTopicInput("");setGenerationMessage("");setPath("Topic test");restart();}}>Try another topic</button><button className="secondary-button" onClick={()=>{setPath(null);setGeneratedQuestions([]);setTopicName("");setTestTopicInput("");setGenerationMessage("");}}>Back to subject</button></div></div>:<><div className="weekly-test-progress"><div><span>{subject}{topicName?" · "+topicName:""}</span><strong>QUESTION {questionIndex+1} / {activePool.length}</strong></div><div className="weekly-test-progress-track"><span style={{width:((questionIndex+1)/activePool.length*100)+"%"}}/></div></div><div className="weekly-test-question"><span className="weekly-test-type">{path==="Examination"?"SECTION "+sectionLetter+" · "+questionMode:path==="Weekly test"?"WEEKLY · "+questionMode:"TOPIC · "+questionMode}</span><h2>Question {questionIndex+1}</h2><p>{question.prompt}</p></div>{question.mode === "Word puzzle" && question.scramble && <p className="weekly-test-type">Unscramble: <strong>{question.scramble}</strong></p>}{question.pairs?<div className="weekly-test-matching">{question.pairs.map(pair=><label key={pair.left}><span>{pair.left}</span><select disabled={submitted} value={currentMatches[pair.left]||""} onChange={event=>setMatchingAnswers(current=>({...current,[questionIndex]:{...(current[questionIndex]||{}),[pair.left]:event.target.value}}))}><option value="">Choose the matching answer</option>{question.pairs?.map(item=><option key={item.right} value={item.right}>{item.right}</option>)}</select></label>)}</div>:question.options?<div className="weekly-test-options">{question.options.map(option=><button key={option} disabled={submitted} className={submitted&&option===question.answer?"answer-correct":submitted&&option===response?"answer-wrong":response===option?"answer-selected":""} onClick={()=>setResponse(option)}>{option}{submitted&&option===question.answer&&<CheckCircle2 size={16}/>}</button>)}</div>:<label className="weekly-test-answer"><span>{question.clue??"Your answer"}</span><input value={response} onChange={e=>setResponse(e.target.value)} disabled={submitted} onKeyDown={e=>{if(e.key==="Enter"&&response.trim()&&!submitted)setSubmitted(true);}} placeholder="Type your answer…"/></label>}{submitted&&<p className={correct?"weekly-test-feedback good":"weekly-test-feedback bad"}>{correct?"Correct — well done.":"Not quite. Correct answer: "+correctAnswerText}</p>}{submitted&&question.explanation&&<p className="weekly-test-feedback">{question.explanation}</p>}{question.difficulty&&<span className="weekly-test-type">{question.difficulty} · FROM YOUR NOTES</span>}<div className="weekly-test-controls"><span>{score} correct so far</span>{!submitted?<button className="primary-button" disabled={question.pairs ? !question.pairs.every(pair=>!!currentMatches[pair.left]) : !response.trim()} onClick={()=>setSubmitted(true)}>Check answer <ChevronRight size={16}/></button>:<button className="primary-button" onClick={advance}>{questionIndex===activePool.length-1?"See results":"Next question"} <ChevronRight size={16}/></button>}</div></>}
-    </section>}
-    <section className="weekly-test-history glass-panel"><div className="section-heading"><div><h2>Recent attempts</h2><p>Results saved on this device.</p></div></div>{attempts.length?<div className="weekly-test-history-list">{attempts.slice(0,6).map(item=><div className="weekly-test-history-row" key={item.id}><div><strong>{item.subject} · {item.mode}</strong><span>{new Date(item.completedAt).toLocaleString()}</span></div><b>{item.score}/{item.total}</b></div>)}</div>:<p className="weekly-test-empty">Completed tests and examinations will appear here.</p>}</section>
-    {viewingNote && <div className="modal-backdrop library-viewer-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setViewingNote(null);}}><section className="library-viewer" role="dialog" aria-modal="true" aria-label={"Viewing "+viewingNote.name}><header className="library-viewer-header"><div><span>STUDYSPACE VIEWER</span><strong>{viewingNote.name}</strong></div><button className="icon-button" onClick={()=>setViewingNote(null)} aria-label="Close viewer"><X size={19}/></button></header><div className="library-viewer-content">{viewingNote.name.toLowerCase().endsWith(".pdf")&&<PdfViewer file={viewingNote.file} fileName={viewingNote.name} resourceKey={"weekly-test:"+viewingNote.name+":"+viewingNote.file.size}/>}{(viewingNote.name.toLowerCase().endsWith(".txt")||viewingNote.name.toLowerCase().endsWith(".rtf"))&&<pre>{notePreviewText||"Loading preview…"}</pre>}</div><footer className="library-viewer-footer">In-app viewing only · No external app or download action</footer></section></div>}
-  </div>;
+      <button className="primary-button practice-builder-submit" type="button" onClick={()=>void createPracticeTest()} disabled={loading||!subjectOptions.length}>
+        {loading?<LoaderCircle className="spin" size={16}/>:<Sparkles size={16}/>} Prepare practice test
+      </button>
+      {error&&<div className="practice-builder-message error"><AlertCircle size={15}/>{error}</div>}
+      {notice&&<div className="practice-builder-message success"><CheckCircle2 size={15}/>{notice}</div>}
+    </div>
+
+    <section className="practice-request-history">
+      <div className="practice-section-heading"><div><span className="eyebrow">PREPARATION STATUS</span><h3>Your practice tests</h3></div><button type="button" className="secondary-button" onClick={()=>void refreshRequests()} disabled={refreshing}><RefreshCw size={14}/> Refresh</button></div>
+      {refreshing&&!requests.length?<div className="practice-history-empty"><LoaderCircle className="spin" size={18}/> Loading practice requests…</div>:!requests.length?<div className="practice-history-empty"><Clock3 size={20}/><p>Your requested practice tests and their preparation status will appear here.</p></div>:<div className="practice-request-list">{requests.map(request=><article key={request.id} className="practice-request-row">
+        <div><strong>{request.subject_name}{request.topic?" · "+request.topic:""}</strong><p>{request.question_count} questions · {formatDate(request.created_at)}</p>{request.error_message&&<small>{request.error_message}</small>}</div>
+        <span className={"practice-request-status status-"+request.status}><i/>{statusLabel[request.status]||request.status.replace(/_/g," ")}</span>
+      </article>)}</div>}
+    </section>
+
+    <section className="practice-stored-tests">
+      <div className="practice-section-heading"><div><span className="eyebrow">SAVED ASSESSMENTS</span><h3>Ready to take</h3></div></div>
+      <AssignedAssessments assignmentType="practice" refreshKey={refreshKey}/>
+    </section>
+  </section>;
 }
