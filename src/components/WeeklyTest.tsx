@@ -297,6 +297,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const [viewingNote, setViewingNote] = useState<(typeof notes)[number] | null>(null);
   const [notePreviewText, setNotePreviewText] = useState("");
   const [flashcardIndex, setFlashcardIndex] = useState(0);
+  const [generatedFlashcards, setGeneratedFlashcards] = useState<{id:string;front:string;back:string;mode:string}[]>([]);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const [knownCards, setKnownCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-known-cards-" + subjectId)) || "[]"); } catch { return []; } });
   const [reviewCards, setReviewCards] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(studentStorageKey("studyspace-review-cards-" + subjectId)) || "[]"); } catch { return []; } });
@@ -347,9 +348,48 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
 
   const activeSubject = subjects.find(item => item.id === subjectId) ?? subjects[0] ?? null;
   const subject = activeSubject?.name ?? "";
+  useEffect(() => {
+    let alive = true;
+    async function loadApprovedMaterialCards() {
+      if (!supabase || !subject) { setGeneratedFlashcards([]); return; }
+      try {
+        const { data: authState, error: authError } = await supabase.auth.getUser();
+        if (authError || !authState.user) { setGeneratedFlashcards([]); return; }
+        const { data: assignments, error: assignmentError } = await supabase.from("resource_assignments")
+          .select("resource_id").eq("learner_id", authState.user.id);
+        if (assignmentError) throw assignmentError;
+        const ids = (assignments || []).map(row => row.resource_id).filter(Boolean);
+        if (!ids.length) { if (alive) setGeneratedFlashcards([]); return; }
+        const { data: resources, error: resourceError } = await supabase.from("learning_resources")
+          .select("id,title,subject_name,metadata").in("id", ids).eq("subject_name", subject).order("created_at", {ascending:false});
+        if (resourceError) throw resourceError;
+        const cards = (resources || []).flatMap(resource => {
+          const metadata = resource.metadata && typeof resource.metadata === "object" ? resource.metadata as Record<string,unknown> : {};
+          const content = metadata.content && typeof metadata.content === "object" ? metadata.content as Record<string,unknown> : {};
+          const flashcards = Array.isArray(content.flashcards) ? content.flashcards : [];
+          return flashcards.flatMap((raw,index) => {
+            if (!raw || typeof raw !== "object") return [];
+            const card = raw as Record<string,unknown>;
+            const front = typeof card.front === "string" ? card.front.trim() : "";
+            const back = typeof card.back === "string" ? card.back.trim() : "";
+            if (!front || !back) return [];
+            return [{id:"material:"+resource.id+":"+index,front,back,mode:"Approved study material"}];
+          });
+        });
+        if (alive) setGeneratedFlashcards(cards);
+      } catch (error) {
+        console.warn("Approved learning-material flashcards could not be loaded:", error);
+        if (alive) setGeneratedFlashcards([]);
+      }
+    }
+    void loadApprovedMaterialCards();
+    return () => { alive = false; };
+  }, [subject]);
+  useEffect(() => { setFlashcardIndex(0); setFlashcardFlipped(false); }, [generatedFlashcards]);
+
   const topics = topicFor(subject);
   const fullPool = useMemo(() => questionsFor(subject), [subject]);
-  const revisionDeck = useMemo(() => fullPool.map((item, index) => ({ id: String(index), front: item.prompt, back: item.pairs ? item.pairs.map(pair => pair.left + " → " + pair.right).join(" · ") : item.answer, mode: modes.find(mode => bankFor(subject)?.[mode.name].includes(item))?.name ?? "Key idea" })), [fullPool, subject]);
+  const revisionDeck = useMemo(() => generatedFlashcards.length ? generatedFlashcards : fullPool.map((item, index) => ({ id: String(index), front: item.prompt, back: item.pairs ? item.pairs.map(pair => pair.left + " → " + pair.right).join(" · ") : item.answer, mode: modes.find(mode => bankFor(subject)?.[mode.name].includes(item))?.name ?? "Key idea" })), [fullPool, subject, generatedFlashcards]);
   const activeFlashcard = revisionDeck[flashcardIndex];
   const topicPool = useMemo(() => fullPool.filter(question => matchesTopic(question, topics.find(item => item.name === topicName) ?? {name:"",keywords:[]})), [fullPool, topics, topicName]);
   const weeklyPool = useMemo(() => modes.flatMap(item => (bankFor(subject)?.[item.name] ?? []).slice(0, 3)), [subject, fullPool]);
