@@ -14,6 +14,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
   const [learnerId,setLearnerId]=useState("");
   const [windows,setWindows]=useState<WindowDraft[]>(emptyWindows);
   const [dailyLimit,setDailyLimit]=useState("120");
+  const [questionCount,setQuestionCount]=useState("10");
   const [timezone,setTimezone]=useState("Africa/Mbabane");
   const [items,setItems]=useState<ScheduleItem[]>([]);
   const [conflicts,setConflicts]=useState<Conflict[]>([]);
@@ -72,10 +73,11 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
       if(!alive)return;
       setLearnerId(auth.user.id);
       const {data:preferences,error:preferencesError}=await supabase.from("assessment_schedule_preferences")
-        .select("available_windows,daily_minutes_limit,timezone").eq("learner_id",auth.user.id).maybeSingle();
+        .select("available_windows,daily_minutes_limit,timezone,question_count").eq("learner_id",auth.user.id).maybeSingle();
       if(preferencesError){setError(preferencesError.message);setLoading(false);return;}
       if(preferences){
         setDailyLimit(String(preferences.daily_minutes_limit||120));
+        setQuestionCount(String(preferences.question_count||10));
         setTimezone(String(preferences.timezone||"Africa/Mbabane"));
         const saved=Array.isArray(preferences.available_windows)?preferences.available_windows as Record<string,unknown>[]:[];
         setWindows(weekdays.map(day=>{
@@ -118,7 +120,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
       const {error:saveError}=await supabase.from("assessment_schedule_preferences").upsert({
         learner_id:learnerId,timezone,available_windows,
         preferred_assessment_days:selectedDays.map(item=>item.day),
-        daily_minutes_limit:Number(dailyLimit),question_count:10,updated_at:new Date().toISOString(),
+        daily_minutes_limit:Number(dailyLimit),question_count:Number(questionCount),updated_at:new Date().toISOString(),
       },{onConflict:"learner_id"});
       if(saveError)throw saveError;
       setNotice("Your available study periods have been saved. Building your balanced weekly programme…");
@@ -148,6 +150,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
         </div>)}</div>
         <div className="assessment-preference-footer">
           <label>Daily assessment workload<select value={dailyLimit} onChange={event=>setDailyLimit(event.target.value)}><option value="60">Up to 1 hour</option><option value="90">Up to 1.5 hours</option><option value="120">Up to 2 hours</option><option value="180">Up to 3 hours</option><option value="240">Up to 4 hours</option></select></label>
+          <label>Questions per subject test<select value={questionCount} onChange={event=>setQuestionCount(event.target.value)}><option value="5">5 questions</option><option value="10">10 questions</option><option value="15">15 questions</option><option value="20">20 questions</option><option value="25">25 questions</option><option value="30">30 questions</option></select></label>
           <label>Time zone<select value={timezone} onChange={event=>setTimezone(event.target.value)}><option value="Africa/Mbabane">Eswatini (Africa/Mbabane)</option><option value="Africa/Johannesburg">South Africa (Africa/Johannesburg)</option><option value="UTC">UTC</option></select></label>
           <button type="submit" className="primary-button" disabled={saving||generating}>{saving||generating?"Saving…":"Save availability & build plan"}</button>
         </div>
@@ -159,7 +162,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
     {notice&&<p className="assessment-programme-notice" role="status">{notice}</p>}
 
     <section className="assessment-weekly-plan glass-panel">
-      <div className="assessment-section-heading"><div><span className="eyebrow">BALANCED MONDAY–FRIDAY PLAN</span><h3>{weekStart?"Week of "+new Date(weekStart+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"}):"Your weekly schedule"}</h3><p>{items.length} of your registered subject assessments scheduled. Each regular subject test contains 10 questions.</p></div><button type="button" className="secondary-button" onClick={()=>void runScheduler(true)} disabled={generating||!learnerId}><RefreshCw size={15}/>{generating?"Preparing…":"Prepare next batch"}</button></div>
+      <div className="assessment-section-heading"><div><span className="eyebrow">BALANCED MONDAY–FRIDAY PLAN</span><h3>{weekStart?"Week of "+new Date(weekStart+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"}):"Your weekly schedule"}</h3><p>{items.length} of your registered subject assessments scheduled. Each regular subject test contains {questionCount} questions.</p></div><button type="button" className="secondary-button" onClick={()=>void runScheduler(true)} disabled={generating||!learnerId}><RefreshCw size={15}/>{generating?"Preparing…":"Prepare next batch"}</button></div>
       {programmeStatus==="needs_availability"&&<div className="assessment-programme-empty"><Clock3 size={22}/><strong>Availability needed</strong><span>Choose free study windows above or mark personal timetable periods as ready for study.</span></div>}
       {items.length? <div className="assessment-week-grid">{grouped.map(day=><article className="assessment-week-day" key={day.day}>
         <header><strong>{day.label}</strong><span>{day.items.length} test{day.items.length===1?"":"s"}</span></header>
