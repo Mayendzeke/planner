@@ -51,7 +51,7 @@ const tabs: { id: AssessmentTab; label: string; description: string; icon: typeo
 ];
 
 export default function StudyExamsPage({ subjects }: { subjects: Subject[] }) {
-  const [activeTab, setActiveTab] = useState<AssessmentTab>("practice");
+  const [activeTab, setActiveTab] = useState<AssessmentTab>("programme");
   const active = tabs.find(tab => tab.id === activeTab) ?? tabs[0];
   const ActiveIcon = active.icon;
 
