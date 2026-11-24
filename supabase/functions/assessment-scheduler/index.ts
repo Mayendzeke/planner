@@ -44,6 +44,12 @@ async function sha(value:string) {
   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map(value=>value.toString(16).padStart(2,"0")).join("");
 }
+function normalizeQuestionDifficulty(value:unknown):"Foundation"|"Standard"|"Advanced" {
+  const difficulty=String(value||"").toLocaleLowerCase();
+  if(["advanced","very_high","high","hard","challenging"].includes(difficulty))return "Advanced";
+  if(["foundation","very_low","low","easy","basic"].includes(difficulty))return "Foundation";
+  return "Standard";
+}
 function shuffle<T>(items:T[],seed:string):T[] {
   let state=2166136261;
   for(const char of seed) state=Math.imul(state^char.charCodeAt(0),16777619);
@@ -316,7 +322,7 @@ Deno.serve(async request=>{
       const questionRows=questions.map((question:any,index:number)=>({
         exercise_set_id:set.id,position:index+1,question_type:String(question.question_type),
         prompt:String(question.prompt),content:{options:question.options||[],pairs:question.pairs||[],clue:question.clue||"",scramble:question.scramble||"",topic:question.topic||item.subject_name,difficulty:question.difficulty||"adaptive"},
-        explanation:String(question.explanation||""),points:1,topic:String(question.topic||item.subject_name),difficulty:String(question.difficulty||"Standard"),
+        explanation:String(question.explanation||""),points:1,topic:String(question.topic||item.subject_name),difficulty:normalizeQuestionDifficulty(question.difficulty),
       }));
       const {data:savedQuestions,error:questionError}=await admin.from("exercise_questions").insert(questionRows).select("id,position").order("position");
       if(questionError||!savedQuestions||savedQuestions.length!==10)throw new Error("The generated questions could not be saved completely.");
