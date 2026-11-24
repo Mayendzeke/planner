@@ -255,7 +255,19 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         if(!extractedText.trim()){
           const imageLike=/\.(pdf|png|jpe?g|webp)$/i.test(resource.name);
           const status=preview.kind==="unsupported"&&(imageLike||preview.message.toLowerCase().includes("scanned"))?"needs_ocr":"unsupported";
-          await pause(()=>table.update(resource.id,{studyPackStatus:status,studyPackLastAttemptAt:attemptedAt}));
+          if(status==="needs_ocr"){
+            const {data,error}=await supabase!.functions.invoke("study-material-engine",{
+              body:{resourceId,extractedText:"",subjectName,topic:resource.topic||"",force},
+            });
+            await pause(()=>table.update(resource.id,{
+              studyPackHash:String(data?.sourceHash||resource.studyPackHash||""),
+              studyPackStatus:!error&&data?.success?"needs_ocr":"failed",
+              studyPackLastAttemptAt:attemptedAt,
+            }));
+            if(!error&&data?.success)void prepareAssessmentProgramme();
+          }else{
+            await pause(()=>table.update(resource.id,{studyPackStatus:status,studyPackLastAttemptAt:attemptedAt}));
+          }
           return;
         }
         await pause(()=>table.update(resource.id,{studyPackStatus:"generating",studyPackLastAttemptAt:attemptedAt}));
