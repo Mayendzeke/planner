@@ -271,6 +271,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
           studyPackStatus:data.status==="ready"?"ready":data.status==="needs_ocr"?"needs_ocr":"generating",
           studyPackLastAttemptAt:attemptedAt,
         }));
+        if(data.status==="ready")void prepareAssessmentProgramme();
       }catch(error){
         console.warn("Study pack preparation will retry later:",error);
         await pause(()=>table.update(resource.id,{studyPackStatus:"failed",studyPackLastAttemptAt:attemptedAt}));
@@ -473,6 +474,21 @@ async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{
   }
   if(downloaded>0) window.dispatchEvent(new Event("studyspace-cloud-practice-updated"));
   return {downloaded,uploaded};
+}
+
+let assessmentPreparationPromise:Promise<void>|null=null;
+
+export function prepareAssessmentProgramme():Promise<void> {
+  if(assessmentPreparationPromise)return assessmentPreparationPromise;
+  assessmentPreparationPromise=(async()=>{
+    if(!supabase)return;
+    for(let batch=0;batch<12;batch++){
+      const {data,error}=await supabase.functions.invoke("assessment-scheduler",{body:{}});
+      if(error||!data?.success||!data.hasMore||Number(data.generatedCount||0)===0)break;
+    }
+  })().catch(error=>{console.warn("Automatic assessment preparation will retry on the next app session:",error);})
+    .finally(()=>{assessmentPreparationPromise=null;});
+  return assessmentPreparationPromise;
 }
 
 const inFlightStudentSyncs = new Map<string, Promise<StudentSyncResult>>();
