@@ -122,7 +122,7 @@ Deno.serve(async request=>{
   ]);
   if(preferencesError||subjectsError||studentEntriesError||membersError)return json(503,{error:"Your subjects, timetable or assessment availability could not be loaded."});
   if(!subjects?.length)return json(200,{success:true,status:"no_subjects",message:"Add your subjects before creating a weekly assessment programme."});
-  const prefs=preferences||{available_windows:[],daily_minutes_limit:120,preferred_assessment_days:[1,2,3,4,5],timezone};
+  const prefs=preferences||{available_windows:[],daily_minutes_limit:120,preferred_assessment_days:[1,2,3,4,5],timezone:"Africa/Mbabane"};\n  let timezone=String(prefs.timezone||requestedTimezone||"Africa/Mbabane");\n  try { new Intl.DateTimeFormat("en-GB",{timeZone:timezone}); } catch { timezone="Africa/Mbabane"; }\n  const localToday=dateParts(new Date(),timezone);\n  const monday=weekMonday(localToday);\n  const fridayDate=dateForDay(monday,"Friday");
   const preferredDays=Array.isArray(prefs.preferred_assessment_days)?prefs.preferred_assessment_days.map(Number):[1,2,3,4,5];
   let windows=Array.isArray(prefs.available_windows)?prefs.available_windows as Record<string,unknown>[]:[];
   if(!windows.length) {
