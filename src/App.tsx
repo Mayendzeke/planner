@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
-import { syncStudentWorkspace } from "./lib/cloudSync";
+import { prepareAssessmentProgramme, syncStudentWorkspace } from "./lib/cloudSync";
 import { EDUCATION_LEVEL_VALUES, isEducationLevel, isTertiaryLevel } from "./lib/educationPathways";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
@@ -337,6 +337,19 @@ export default function App() {
 
   const profileReady = Boolean(cloudUserId && profile && profileOwnerId === cloudUserId);
   const profileProgressReady = Boolean(profileReady && ready);
+
+  // Keep the assessment programme current even when a learner does not open Study & Exams.
+  useEffect(() => {
+    if (!profileProgressReady || !cloudUserId || termsAccepted !== true || expiredAccess || accessStatusError || !supabase) return;
+    void prepareAssessmentProgramme();
+    const interval = window.setInterval(() => void prepareAssessmentProgramme(), 15 * 60 * 1000);
+    const onVisible = () => { if (document.visibilityState === "visible") void prepareAssessmentProgramme(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [cloudUserId, profileProgressReady, termsAccepted, expiredAccess, accessStatusError]);
 
   useEffect(() => {
     if (!profileProgressReady || !cloudUserId) {
