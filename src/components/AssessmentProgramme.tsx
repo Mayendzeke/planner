@@ -8,7 +8,6 @@ type WindowDraft={day:number;enabled:boolean;start:string;end:string};
 type ScheduleItem={id:string;subject_name:string;assessment_type:string;scheduled_at:string;duration_minutes:number;question_count:number;status:string;exercise_assignment_id:string|null;metadata:Record<string,unknown>};
 type Conflict={subjectName?:string;reason:string;requiredMinutes?:number};
 const emptyWindows=():WindowDraft[]=>weekdays.map(item=>({day:item.day,enabled:false,start:"",end:""}));
-const dateLabel=(value:string)=>new Date(value).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"});
 const timeLabel=(value:string)=>new Date(value).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
 
 export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignments:()=>void}) {
