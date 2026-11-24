@@ -437,7 +437,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
     setGeneratingTest(true); setGenerationMessage(""); setNoteError("");
     try {
       const topic = (requestedTopic?.trim() || testTopicInput.trim() || topicName.trim() || selectedNote?.topic.trim()
-        || selectedNote?.name.replace(/\.[^.]+$/, "").slice(0, 160) || "").slice(0, 160);
+        || selectedNote?.name.replace(/\.[^.]+$/, "").slice(0, 160) || "Core concepts and key principles").slice(0, 160);
       if (!topic) throw new Error("Enter the topic you want MIΛ to test you on.");
       let notesText = "";
       if (selectedNote) {
