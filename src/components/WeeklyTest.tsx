@@ -4,7 +4,6 @@ import type { Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
 import { prepareAssessmentProgramme } from "../lib/cloudSync";
 import AssignedAssessments from "./AssignedAssessments";
-import "./WeeklyTest.css";
 
 type PracticeRequest={
   id:string;subject_name:string;topic:string;question_count:number;status:string;
