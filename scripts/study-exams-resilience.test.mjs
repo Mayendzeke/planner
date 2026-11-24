@@ -65,26 +65,27 @@ test("MIΛ topic tests support all five question formats for every registered su
   for (const format of ["multiple_choice", "true_false", "fill_blank", "word_puzzle", "matching"]) {
     assert.ok(backend.includes(format), "Missing generated question format: " + format);
   }
-  assert.match(backend, /Core concepts and key principles across the registered subject/);
-  assert.match(backend, /assessment questions on the requested subject and topic/);
-  assert.match(weekly, /question\\.question_type/);
-  assert.match(weekly, /mode === "True or false" \\? \\["True", "False"\\]/);
-  assert.match(weekly, /question\\.mode === "Word puzzle"/);
+  assert.ok(backend.includes("Core concepts and key principles across the registered subject"));
+  assert.ok(backend.includes("assessment questions on the requested subject and topic"));
+  assert.ok(weekly.includes("question.question_type"));
+  assert.ok(weekly.includes('mode === "True or false" ? ["True", "False"]'));
+  assert.ok(weekly.includes('question.mode === "Word puzzle"'));
 });
 
 test("Every enrolled subject can request a weekly test or examination from MIΛ", () => {
-  assert.match(weekly, /Full subject review — weekly test/);
-  assert.match(weekly, /Full subject review — examination paper/);
-  assert.match(weekly, /generateTopicTest\\(requestedTopic\\?: string\\)/);
+  assert.ok(weekly.includes("Full subject review — weekly test"));
+  assert.ok(weekly.includes("Full subject review — examination paper"));
+  assert.ok(weekly.includes("generateTopicTest(requestedTopic?: string)"));
+  assert.ok(weekly.includes("const activePool = generatedQuestions.length ? generatedQuestions"));
 });
 
 test("Completed practice tests offer same-test retakes and a new-topic path", () => {
-  assert.match(weekly, /Retake same test/);
-  assert.match(weekly, /Try another topic/);
-  assert.match(weekly, /setGeneratedQuestions\\(\\[\\]\\)/);
+  assert.ok(weekly.includes("Retake same test"));
+  assert.ok(weekly.includes("Try another topic"));
+  assert.ok(weekly.includes("setGeneratedQuestions([])"));
 });
 
 test("MIΛ structured test generation has enough output capacity for a complete mixed paper", () => {
-  assert.match(provider, /Math\\.min\\(6000/);
-  assert.match(backend, /maxTokens: 5200/);
+  assert.ok(provider.includes("Math.min(6000"));
+  assert.ok(backend.includes("maxTokens: 5200"));
 });
