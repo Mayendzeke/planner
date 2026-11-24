@@ -255,19 +255,15 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         if(!extractedText.trim()){
           const imageLike=/\.(pdf|png|jpe?g|webp)$/i.test(resource.name);
           const status=preview.kind==="unsupported"&&(imageLike||preview.message.toLowerCase().includes("scanned"))?"needs_ocr":"unsupported";
-          if(status==="needs_ocr"){
-            const {data,error}=await supabase!.functions.invoke("study-material-engine",{
-              body:{resourceId,extractedText:"",subjectName,topic:resource.topic||"",force},
-            });
-            await pause(()=>table.update(resource.id,{
-              studyPackHash:String(data?.sourceHash||resource.studyPackHash||""),
-              studyPackStatus:!error&&data?.success?"needs_ocr":"failed",
-              studyPackLastAttemptAt:attemptedAt,
-            }));
-            if(!error&&data?.success)void prepareAssessmentProgramme();
-          }else{
-            await pause(()=>table.update(resource.id,{studyPackStatus:status,studyPackLastAttemptAt:attemptedAt}));
-          }
+          const {data,error}=await supabase!.functions.invoke("study-material-engine",{
+            body:{resourceId,extractedText:"",subjectName,topic:resource.topic||"",force,unsupported:status==="unsupported"},
+          });
+          await pause(()=>table.update(resource.id,{
+            studyPackHash:String(data?.sourceHash||resource.studyPackHash||""),
+            studyPackStatus:!error&&data?.success?data.status:"failed",
+            studyPackLastAttemptAt:attemptedAt,
+          }));
+          if(!error&&data?.success)void prepareAssessmentProgramme();
           return;
         }
         await pause(()=>table.update(resource.id,{studyPackStatus:"generating",studyPackLastAttemptAt:attemptedAt}));
@@ -548,8 +544,9 @@ export function prepareAssignedTeacherStudyPacks():Promise<void> {
         if(downloadError||!file)continue;
         const preview=await readStudyMaterialPreview(file,resource.title);
         const extractedText=studyMaterialText(preview);
+        const unsupported=!extractedText.trim()&&!/\\.(pdf|png|jpe?g|webp)$/i.test(resource.title);
         const {data:generated,error:generationError}=await supabase.functions.invoke("study-material-engine",{
-          body:{sourceType:"teacher_resource",resourceId:resource.id,extractedText,subjectName:resource.subject_name,topic:resource.topic||""},
+          body:{sourceType:"teacher_resource",resourceId:resource.id,extractedText,subjectName:resource.subject_name,topic:resource.topic||"",unsupported},
         });
         if(!generationError&&generated?.success&&generated.status==="ready")await prepareAssessmentProgramme();
       }catch(error){console.warn("Assigned teacher study pack preparation will retry later:",error);}
