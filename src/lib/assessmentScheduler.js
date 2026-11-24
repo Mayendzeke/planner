@@ -118,6 +118,10 @@ export function buildBalancedWeeklySchedule(input) {
     });
   }
 
+  for (const day of dayLoads) {
+    if (day.minutes > dailyLimit) conflicts.push({ reason: "daily_workload_limit_exceeded", day: day.day, requiredMinutes: day.minutes, limitMinutes: dailyLimit });
+  }
+
   return {
     policy: "balanced",
     assignments: assignments.sort((a, b) => WEEKDAYS.indexOf(a.day) - WEEKDAYS.indexOf(b.day) || a.start.localeCompare(b.start)),
