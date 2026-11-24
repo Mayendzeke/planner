@@ -21,7 +21,7 @@ type Assignment = {
 type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; aiMarked: number; markingStatus: string; markingNotice: string; teacherFeedback?: string; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string;markingMethod?:string;confidence?:number;status?:string}> };
 type StoredAttempt = { score:number; total_points:number; submitted_at:string; marked_at:string|null; teacher_feedback:string; marking_status:string; teacher_review_required:boolean; ai_marked_at:string|null; marking_details:Record<string,unknown>; manual_marks:Record<string,number> };
 
-type AssignedAssessmentsProps={assignmentType?:"teacher_assignment"|"scheduled_assessment"|"practice";refreshKey?:number};
+type AssignedAssessmentsProps={assignmentType?:"teacher_assignment"|"scheduled_assessment"|"practice"|"non_practice";refreshKey?:number};
 
 export default function AssignedAssessments({assignmentType,refreshKey}:AssignedAssessmentsProps={}) {
   const [assignments,setAssignments] = useState<Assignment[]>([]);
@@ -52,7 +52,7 @@ export default function AssignedAssessments({assignmentType,refreshKey}:Assigned
         .eq("learner_id",authState.user.id)
         .order("available_at",{ascending:true});
       if(assignmentError) throw assignmentError;
-      const rows=(assigned||[]).filter(row=>!assignmentType||row.assignment_type===assignmentType);
+      const rows=(assigned||[]).filter(row=>!assignmentType||(assignmentType==="non_practice"?row.assignment_type!=="practice":row.assignment_type===assignmentType));
       if(!rows.length){setAssignments([]);setAttemptsByAssignment({});setLoading(false);return;}
       const ids=[...new Set(rows.map(row=>row.exercise_set_id))];
       const [{data:sets,error:setError},{data:questions,error:questionError},{data:attemptRows,error:attemptError}]=await Promise.all([
