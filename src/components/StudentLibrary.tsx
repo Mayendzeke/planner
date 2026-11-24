@@ -16,7 +16,7 @@ type ResourceType = NonNullable<StudentResource["resourceType"]>;
 type LearnerStudyPack = {
   id:string; subject_name:string; topic?:string; file_name?:string; status:string;
   content:Record<string,any>; error_message?:string; updated_at:string; source_type:string;
-  personal_resource_id?:string;
+  personal_resource_id?:string; learning_resource_id?:string;
 };
 type TeacherResource = {
   id: string; title: string; description: string; subject_name: string; topic?: string;
@@ -138,7 +138,8 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at,updated_at")
         .in("id", ids).order("created_at", { ascending: false });
       if (error) throw error;
-      setTeacherFiles((data ?? []) as TeacherResource[]);\n      void prepareTeacherStudyPacks((data ?? []) as TeacherResource[],authState.user.id);
+      setTeacherFiles((data ?? []) as TeacherResource[]);
+      void prepareTeacherStudyPacks((data ?? []) as TeacherResource[],authState.user.id);
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "Teacher resources could not be loaded.");
       setMessageIsError(true);
