@@ -9,6 +9,8 @@ const weekly = read("src/components/WeeklyTest.tsx");
 const assigned = read("src/components/AssignedAssessments.tsx");
 const homework = read("src/components/SchoolHomeworkHelp.tsx");
 const styles = read("src/components/StudyExamsPage.css");
+const backend = read("supabase/functions/mia-assistant/index.ts");
+const provider = read("supabase/functions/mia-assistant/provider.ts");
 
 test("Study & Exams is isolated behind a recovery boundary", () => {
   assert.match(app, /StudyExamsErrorBoundary><StudyExamsPage subjects=\{subjects\}\/>/);
@@ -56,4 +58,34 @@ test("Assessment workspace provides responsive, keyboard-visible tab controls", 
   assert.match(styles, /\.study-exams-tab:focus-visible/);
   assert.match(styles, /@media\(max-width:620px\)/);
   assert.match(styles, /grid-template-columns:1fr/);
+});
+
+
+test("MIΛ topic tests support all five question formats for every registered subject", () => {
+  for (const format of ["multiple_choice", "true_false", "fill_blank", "word_puzzle", "matching"]) {
+    assert.ok(backend.includes(format), "Missing generated question format: " + format);
+  }
+  assert.ok(backend.includes("Core concepts and key principles across the registered subject"));
+  assert.ok(backend.includes("assessment questions on the requested subject and topic"));
+  assert.ok(weekly.includes("item.question_type"));
+  assert.ok(weekly.includes('mode === "True or false" ? ["True", "False"]'));
+  assert.ok(weekly.includes('question.mode === "Word puzzle"'));
+});
+
+test("Every enrolled subject can request a weekly test or examination from MIΛ", () => {
+  assert.ok(weekly.includes("Full subject review — weekly test"));
+  assert.ok(weekly.includes("Full subject review — examination paper"));
+  assert.ok(weekly.includes("generateTopicTest(requestedTopic?: string)"));
+  assert.ok(weekly.includes("const activePool = generatedQuestions.length ? generatedQuestions"));
+});
+
+test("Completed practice tests offer same-test retakes and a new-topic path", () => {
+  assert.ok(weekly.includes("Retake same test"));
+  assert.ok(weekly.includes("Try another topic"));
+  assert.ok(weekly.includes("setGeneratedQuestions([])"));
+});
+
+test("MIΛ structured test generation has enough output capacity for a complete mixed paper", () => {
+  assert.ok(provider.includes("Math.min(6000"));
+  assert.ok(backend.includes("maxTokens: 5200"));
 });

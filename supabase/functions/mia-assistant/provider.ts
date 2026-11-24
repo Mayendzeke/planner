@@ -87,7 +87,7 @@ async function callModel(model: string, messages: ProviderMessage[], options: Re
 }
 export async function generateWithFallback(messages: ProviderMessage[], options: GenerationOptions = {}): Promise<ProviderResult> {
   const config: Required<GenerationOptions> = {
-    maxTokens: Math.max(64, Math.min(3000, Math.floor(options.maxTokens ?? 1800))),
+    maxTokens: Math.max(64, Math.min(6000, Math.floor(options.maxTokens ?? 1800))),
     jsonMode: options.jsonMode === true,
     requiredJsonKeys: Array.isArray(options.requiredJsonKeys) ? options.requiredJsonKeys.filter(key => typeof key === "string").slice(0, 20) : [],
   };

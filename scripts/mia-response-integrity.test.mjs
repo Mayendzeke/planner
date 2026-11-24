@@ -13,10 +13,12 @@ test("student topic-test requests have a matching MIΛ Edge Function action", ()
   assert.ok(weekly.includes("data?.questions"));
 });
 
-test("subjects without a pre-authored local bank have a route to curriculum-aware topic tests", () => {
+test("subjects without a pre-authored local bank can generate topic, weekly and examination tests with MIΛ", () => {
   assert.ok(weekly.includes("A ready-made question bank is not available for {subject} yet"));
-  assert.ok(weekly.includes("Create a topic test with MIΛ"));
-  assert.ok(weekly.includes('onClick={()=>begin("Topic test")}'));
+  assert.ok(weekly.includes("Generate with MIΛ"));
+  assert.ok(weekly.includes("Full subject review — weekly test"));
+  assert.ok(weekly.includes("Full subject review — examination paper"));
+  assert.ok(weekly.includes("generateTopicTest(path ==="));
 });
 
 test("MIΛ responses are no longer silently cut to 1,200 or 4,000 characters", () => {
