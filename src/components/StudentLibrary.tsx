@@ -6,7 +6,7 @@ import {
 import PdfViewer from "./PdfViewer";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
-import { readStudyMaterialPreview, type StudyMaterialPreview } from "../lib/studyMaterialPreview";
+import { readStudyMaterialPreview, studyMaterialText, type StudyMaterialPreview } from "../lib/studyMaterialPreview";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_BATCH_SIZE = 100 * 1024 * 1024;
@@ -19,7 +19,7 @@ type LearnerStudyPack = {
 };
 type TeacherResource = {
   id: string; title: string; description: string; subject_name: string; topic?: string;
-  resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string;
+  resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string; updated_at?: string;
 };
 type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" } | { kind: "powerpoint" } | { kind: "word" };
 type StorageStatus = { used_bytes: number; quota_bytes: number; reserved_bytes: number; available_bytes: number; used_percent: number };
@@ -134,14 +134,50 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       const ids = (assignments ?? []).map(row => row.resource_id).filter(Boolean);
       if (!ids.length) { setTeacherFiles([]); return; }
       const { data, error } = await supabase.from("learning_resources")
-        .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at")
+        .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at,updated_at")
         .in("id", ids).order("created_at", { ascending: false });
       if (error) throw error;
-      setTeacherFiles((data ?? []) as TeacherResource[]);
+      setTeacherFiles((data ?? []) as TeacherResource[]);\n      void prepareTeacherStudyPacks((data ?? []) as TeacherResource[],authState.user.id);
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "Teacher resources could not be loaded.");
       setMessageIsError(true);
     } finally { setTeacherLoading(false); }
+  }
+
+  async function prepareTeacherStudyPacks(resources:TeacherResource[],learnerId:string) {
+    if(!supabase||!resources.length)return;
+    try{
+      const {data:packs,error}=await supabase.from("learner_study_packs")
+        .select("learning_resource_id,status,updated_at")
+        .eq("learner_id",learnerId).not("learning_resource_id","is",null)
+        .order("updated_at",{ascending:false});
+      if(error)return;
+      const latest=new Map<string,{status:string;updated_at:string}>();
+      for(const pack of packs||[])if(pack.learning_resource_id&&!latest.has(String(pack.learning_resource_id)))latest.set(String(pack.learning_resource_id),{status:String(pack.status),updated_at:String(pack.updated_at)});
+      const candidates=resources.filter(resource=>{
+        const pack=latest.get(resource.id);
+        if(!pack)return true;
+        const packTime=new Date(pack.updated_at).getTime();
+        const resourceTime=new Date(resource.updated_at||resource.created_at).getTime();
+        if(pack.status==="ready"&&packTime>=resourceTime)return false;
+        if(pack.status==="needs_ocr"&&packTime>=resourceTime)return false;
+        if(pack.status==="generating"&&Date.now()-packTime<10*60*1000)return false;
+        if(pack.status==="failed"&&Date.now()-packTime<60*60*1000)return false;
+        return true;
+      }).slice(0,2);
+      for(const resource of candidates){
+        void (async()=>{
+          const {data:file,error:downloadError}=await supabase!.storage.from("studyspace-resources").download(resource.storage_path);
+          if(downloadError)return;
+          const preview=await readStudyMaterialPreview(file,resource.title);
+          const extractedText=studyMaterialText(preview);
+          const {data:generated,error:generationError}=await supabase!.functions.invoke("study-material-engine",{
+            body:{sourceType:"teacher_resource",resourceId:resource.id,extractedText,subjectName:resource.subject_name||"",topic:resource.topic||""},
+          });
+          if(!generationError&&generated?.success)void refreshStudyPacks();
+        })().catch(reason=>console.warn("Teacher study pack preparation will retry later:",reason));
+      }
+    }catch(reason){console.warn("Assigned study materials could not be prepared yet:",reason);}
   }
 
   async function refreshStudyPacks() {
@@ -150,7 +186,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       const { data: authState, error: authError } = await supabase.auth.getUser();
       if (authError || !authState.user) { setStudyPacks([]); return; }
       const { data, error } = await supabase.from("learner_study_packs")
-        .select("id,subject_name,topic,file_name,status,content,error_message,updated_at,source_type,personal_resource_id")
+        .select("id,subject_name,topic,file_name,status,content,error_message,updated_at,source_type,personal_resource_id,learning_resource_id")
         .eq("learner_id", authState.user.id)
         .neq("status", "superseded")
         .order("updated_at", { ascending: false }).limit(100);
@@ -534,7 +570,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       </section>}
 
       {(filterSource==="All"||filterSource==="Personal")&&<section className="glass-panel library-list study-packs-list">
-        <div className="library-section-heading"><div><h3>Study packs prepared from your files</h3><p>Generated privately from your uploaded school notes and documents.</p></div><Brain size={19}/></div>
+        <div className="library-section-heading"><div><h3>Study packs prepared from your files</h3><p>Generated privately from your uploaded or teacher-assigned school materials.</p></div><Brain size={19}/></div>
         {studyPacksLoading?<div className="library-empty"><strong>Loading your study packs…</strong></div>:studyPacks.length?<div className="library-files">{studyPacks.map(pack=><article className="library-file study-pack-row" key={pack.id}>
           <span className="library-file-icon"><BookOpen size={18}/></span>
           <div className="library-file-copy"><strong>{pack.content?.title||pack.subject_name+" study pack"}</strong><span>{pack.subject_name} · {pack.file_name||"School material"}{pack.topic?" · "+pack.topic:""}</span><span>{pack.status==="ready"?"Summary, concepts, flashcards and practice questions are ready.":pack.status==="generating"?"Study Space is preparing this pack.":pack.status==="needs_ocr"?"This file appears scanned; readable text is needed.":pack.status==="failed"?"The pack could not be prepared yet; it will retry on a later sync.":"This file format cannot be converted into a study pack yet."}</span></div>
