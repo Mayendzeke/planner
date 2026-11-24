@@ -13,7 +13,7 @@ import {
   type StudentResource,
 } from "../data/db";
 import { getStudentStorageOwner, studentStorageKeyForUser } from "./studentStorage";
-import { readStudyMaterialPreview, type StudyMaterialPreview } from "./studyMaterialPreview";
+import { readStudyMaterialPreview, studyMaterialText } from "./studyMaterialPreview";
 import { supabase } from "./supabase";
 
 type CloudRow = Record<string, any>;
@@ -77,14 +77,6 @@ function fromLocalDateTime(value?: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
-function studyTextFromPreview(preview:StudyMaterialPreview):string {
-  if(preview.kind==="text")return preview.text;
-  if(preview.kind==="slides")return preview.slides.map(slide=>"Slide "+slide.number+": "+slide.title+"\n"+slide.body).join("\n\n").slice(0,180000);
-  if(preview.kind==="table")return preview.rows.map(row=>row.join(" | ")).join("\n").slice(0,180000);
-  if(preview.kind==="workbook")return preview.sheets.map(sheet=>"Worksheet: "+sheet.name+"\n"+sheet.rows.map(row=>row.map(cell=>cell.value+(cell.formula?" ("+cell.formula+")":"")).join(" | ")).join("\n")).join("\n\n").slice(0,180000);
-  return "";
 }
 
 function safeFileName(value: string): string {
@@ -259,7 +251,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
       const attemptedAt=new Date().toISOString();
       try{
         const preview=await readStudyMaterialPreview(resource.file,resource.name);
-        const extractedText=studyTextFromPreview(preview);
+        const extractedText=studyMaterialText(preview);
         if(!extractedText.trim()){
           const imageLike=/\.(pdf|png|jpe?g|webp)$/i.test(resource.name);
           const status=preview.kind==="unsupported"&&(imageLike||preview.message.toLowerCase().includes("scanned"))?"needs_ocr":"unsupported";
