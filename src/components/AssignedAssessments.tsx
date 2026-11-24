@@ -124,7 +124,6 @@ export default function AssignedAssessments() {
   const begin=(item:Assignment)=>{
     const availableAt = new Date(item.available_at).getTime();
     if (Number.isFinite(availableAt) && availableAt > Date.now()) return;
-    if (item.due_at && new Date(item.due_at).getTime() < Date.now()) return;
     let restored:Record<string,unknown>={};
     try {
       const parsed=JSON.parse(localStorage.getItem(studentStorageKey("studyspace-assessment-draft:"+item.id))||"{}");
@@ -220,7 +219,7 @@ export default function AssignedAssessments() {
       assignments.length?<div className="assigned-assessment-list">{assignments.map(item=><article className="assigned-assessment-card" key={item.id}>
         <div className="assigned-assessment-icon"><BookOpen size={19}/></div>
         <div className="assigned-assessment-copy"><strong>{item.set.title}</strong><span>{item.set.subject_name} · {item.questions.length} questions · {item.set.duration_minutes} min</span><small>{new Date(item.available_at).getTime()>Date.now()?"Available "+new Date(item.available_at).toLocaleString():item.due_at?"Due "+new Date(item.due_at).toLocaleDateString():"No due date"}</small>{attemptsByAssignment[item.id]&&<small>Last submitted: {Number(attemptsByAssignment[item.id].score)} / {Number(attemptsByAssignment[item.id].total_points)} · {attemptsByAssignment[item.id].marking_status==="teacher_marked"?"Teacher marked":attemptsByAssignment[item.id].marking_status==="ai_marked"?"MIΛ marked":attemptsByAssignment[item.id].teacher_review_required?"Teacher review pending":"Auto-marked"}</small>}{attemptsByAssignment[item.id]?.teacher_feedback&&<small>Teacher feedback: {attemptsByAssignment[item.id].teacher_feedback}</small>}</div>
-        {item.available_at&&new Date(item.available_at).getTime()>Date.now()?<button type="button" className="secondary-button" disabled>Not available yet</button>:item.due_at&&new Date(item.due_at).getTime()<Date.now()?<button type="button" className="secondary-button" disabled>Deadline passed</button>:<button type="button" className="primary-button" onClick={()=>begin(item)}>{attemptsByAssignment[item.id]?"New attempt":"Start"} <ChevronRight size={15}/></button>}
+        {item.available_at&&new Date(item.available_at).getTime()>Date.now()?<button type="button" className="secondary-button" disabled>Not available yet</button>:<button type="button" className="primary-button" onClick={()=>begin(item)}>{item.due_at&&new Date(item.due_at).getTime()<Date.now()?"Complete overdue":attemptsByAssignment[item.id]?"New attempt":"Start"} <ChevronRight size={15}/></button>}
       </article>)}</div>:
       <div className="assigned-assessment-empty"><ShieldCheck size={27}/><strong>No assigned assessments</strong><span>When your teacher publishes a test or assignment to your account, it will appear here.</span></div>}
   </section>;
