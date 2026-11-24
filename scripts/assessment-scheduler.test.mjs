@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { buildBalancedWeeklySchedule, workloadFor } from "../src/lib/assessmentScheduler.js";
 
 const slots = [
