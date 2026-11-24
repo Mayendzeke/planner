@@ -69,3 +69,13 @@ test("subject workload preferences sync to and from the shared database", () => 
   assert.match(cloudSync, /difficultyLevel: String\(remote\.difficulty_level \|\| "moderate"\)/);
   assert.match(cloudSync, /subjectType: String\(remote\.subject_type \|\| "mixed"\)/);
 });
+
+test("programme is the default Study & Exams view and assessment batches prepare automatically", () => {
+  const programme = readFileSync("src/components/AssessmentProgramme.tsx", "utf8");
+  const examsPage = readFileSync("src/components/StudyExamsPage.tsx", "utf8");
+  assert.match(examsPage, /useState<AssessmentTab>\("programme"\)/);
+  assert.match(programme, /question_count:Number\(questionCount\)/);
+  assert.match(programme, /setQuestionCount\(String\(preferences\.question_count\|\|10\)\)/);
+  assert.match(programme, /for\(let batch=0;batch<12;batch\+\+\)/);
+  assert.doesNotMatch(programme, /Prepare next batch/i);
+});
