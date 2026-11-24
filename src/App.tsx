@@ -296,7 +296,7 @@ export default function App() {
       setAccessStatusError("");
       setAccessLoading(false);
 
-      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialStart + 6 * 24 * 60 * 60 * 1000) {
+      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialExpiry - 24 * 60 * 60 * 1000) {
         const { data: marked, error: reminderError } = await supabase!.rpc("mark_studyspace_trial_reminder_shown");
         if (alive && !reminderError && marked === true) setTrialReminder(true);
       }
@@ -1013,7 +1013,7 @@ export default function App() {
       <div className="onboarding-brand"><span className="onboarding-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="eyebrow"><LockKeyhole size={14}/> ACCESS PAUSED</div>
       <div className="onboarding-heading">
-        <h1>Your 7-day free trial has ended.</h1>
+        <h1>Your 48-hour free trial has ended.</h1>
         <p>Your account and Student ID are saved. Restore access with a renewal PIN or request a plan below. Once access is restored, you can finish setting up your study profile.</p>
       </div>
       <StudentSubscription onAccessRestored={() => setAccessRetry(value => value + 1)}/>
