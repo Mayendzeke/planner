@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
-import { prepareAssessmentProgramme, syncStudentWorkspace } from "./lib/cloudSync";
+import { prepareAssessmentProgramme, prepareAssignedTeacherStudyPacks, syncStudentWorkspace } from "./lib/cloudSync";
 import { EDUCATION_LEVEL_VALUES, isEducationLevel, isTertiaryLevel } from "./lib/educationPathways";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
@@ -342,8 +342,9 @@ export default function App() {
   useEffect(() => {
     if (!profileProgressReady || !cloudUserId || termsAccepted !== true || expiredAccess || accessStatusError || !supabase) return;
     void prepareAssessmentProgramme();
-    const interval = window.setInterval(() => void prepareAssessmentProgramme(), 15 * 60 * 1000);
-    const onVisible = () => { if (document.visibilityState === "visible") void prepareAssessmentProgramme(); };
+    void prepareAssignedTeacherStudyPacks();
+    const interval = window.setInterval(() => { void prepareAssessmentProgramme(); void prepareAssignedTeacherStudyPacks(); }, 15 * 60 * 1000);
+    const onVisible = () => { if (document.visibilityState === "visible") { void prepareAssessmentProgramme(); void prepareAssignedTeacherStudyPacks(); } };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearInterval(interval);
