@@ -58,11 +58,11 @@ function accessActive(profile:Record<string,unknown>) {
   if(profile.subscription_tier) return Boolean(profile.subscription_expires_at&&Date.parse(String(profile.subscription_expires_at))>now);
   return Boolean(profile.trial_started_at&&profile.trial_expires_at&&Date.parse(String(profile.trial_started_at))<=now&&Date.parse(String(profile.trial_expires_at))>now);
 }
-async function generateQuestions(url:string,publishable:string,token:string,subject:string,difficulty:string,notesText:string) {
+async function generateQuestions(url:string,publishable:string,token:string,subject:string,difficulty:string,notesText:string,variationSeed:string) {
   const response=await fetch(url+"/functions/v1/mia-assistant",{
     method:"POST",
     headers:{Authorization:"Bearer "+token,apikey:publishable,Origin:APP_ORIGIN,"Content-Type":"application/json"},
-    body:JSON.stringify({action:"generate_topic_test",subject,topic:"Weekly curriculum practice and current learning objectives",questionCount:10,difficulty,notesText}),
+    body:JSON.stringify({action:"generate_topic_test",subject,topic:"Weekly curriculum practice and current learning objectives. Create a distinct version with different examples and values. Variation token: "+variationSeed,questionCount:10,difficulty,notesText}),
     signal:AbortSignal.timeout(90000),
   });
   const payload=await response.json().catch(()=>({}));
@@ -280,7 +280,7 @@ Deno.serve(async request=>{
         }));
       }else{
         const notesText=await approvedNotes(admin,auth.user.id,item.subject_name);
-        questions=await generateQuestions(url,publishable,token,item.subject_name,String(item.difficulty_score||"adaptive"),notesText);
+        questions=await generateQuestions(url,publishable,token,item.subject_name,String(item.difficulty_score||"adaptive"),notesText,seed);
         const bankRows=await Promise.all(questions.map(async(question:any)=>({
           country:String(profile.country||""),curriculum:String(profile.curriculum||""),education_level:String(profile.education_level||""),
           grade:String(profile.grade||""),course:String(profile.course||""),subject_name:item.subject_name,language:"English",
