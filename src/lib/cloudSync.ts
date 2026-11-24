@@ -497,6 +497,55 @@ export function prepareAssessmentProgramme():Promise<AssessmentPreparationResult
   return assessmentPreparationPromise;
 }
 
+let teacherPackPreparationPromise:Promise<void>|null=null;
+
+export function prepareAssignedTeacherStudyPacks():Promise<void> {
+  if(teacherPackPreparationPromise)return teacherPackPreparationPromise;
+  teacherPackPreparationPromise=(async()=>{
+    if(!supabase)return;
+    const {data:authState,error:authError}=await supabase.auth.getUser();
+    if(authError||!authState.user)return;
+    const learnerId=authState.user.id;
+    const {data:assignments,error:assignmentError}=await supabase.from("resource_assignments")
+      .select("resource_id").eq("learner_id",learnerId);
+    if(assignmentError)return;
+    const ids=(assignments||[]).map(row=>row.resource_id).filter(Boolean);
+    if(!ids.length)return;
+    const [{data:resources,error:resourceError},{data:packs,error:packError}]=await Promise.all([
+      supabase.from("learning_resources").select("id,title,subject_name,topic,storage_path,mime_type,file_size,created_at,updated_at").in("id",ids),
+      supabase.from("learner_study_packs").select("learning_resource_id,status,updated_at")
+        .eq("learner_id",learnerId).not("learning_resource_id","is",null).order("updated_at",{ascending:false}),
+    ]);
+    if(resourceError||packError)return;
+    const latest=new Map<string,{status:string;updated_at:string}>();
+    for(const pack of packs||[])if(pack.learning_resource_id&&!latest.has(String(pack.learning_resource_id)))latest.set(String(pack.learning_resource_id),{status:String(pack.status),updated_at:String(pack.updated_at)});
+    const candidates=(resources||[]).filter(resource=>{
+      if(!resource.subject_name||!resource.storage_path)return false;
+      const pack=latest.get(String(resource.id));
+      if(!pack)return true;
+      const packTime=new Date(pack.updated_at).getTime();
+      const resourceTime=new Date(resource.updated_at||resource.created_at).getTime();
+      if((pack.status==="ready"||pack.status==="needs_ocr")&&packTime>=resourceTime)return false;
+      if(pack.status==="generating"&&Date.now()-packTime<10*60*1000)return false;
+      if(pack.status==="failed"&&Date.now()-packTime<60*60*1000)return false;
+      return true;
+    }).slice(0,2);
+    for(const resource of candidates){
+      try{
+        const {data:file,error:downloadError}=await supabase.storage.from("studyspace-resources").download(resource.storage_path);
+        if(downloadError||!file)continue;
+        const preview=await readStudyMaterialPreview(file,resource.title);
+        const extractedText=studyMaterialText(preview);
+        const {data:generated,error:generationError}=await supabase.functions.invoke("study-material-engine",{
+          body:{sourceType:"teacher_resource",resourceId:resource.id,extractedText,subjectName:resource.subject_name,topic:resource.topic||""},
+        });
+        if(!generationError&&generated?.success&&generated.status==="ready")await prepareAssessmentProgramme();
+      }catch(error){console.warn("Assigned teacher study pack preparation will retry later:",error);}
+    }
+  })().finally(()=>{teacherPackPreparationPromise=null;});
+  return teacherPackPreparationPromise;
+}
+
 const inFlightStudentSyncs = new Map<string, Promise<StudentSyncResult>>();
 
 export function syncStudentWorkspace(
