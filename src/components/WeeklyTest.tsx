@@ -482,7 +482,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
         const mode: Mode = type === "true_false" ? "True or false" : type === "fill_blank" ? "Fill the blanks" : type === "word_puzzle" ? "Word puzzle" : type === "matching" ? "Matching" : "Multiple choice";
         return {
           prompt: item.prompt as string, answer: item.answer as string,
-          options: Array.isArray(item.options) ? item.options as string[] : undefined,
+          options: mode === "True or false" ? ["True", "False"] : Array.isArray(item.options) ? item.options as string[] : undefined,
           pairs: Array.isArray(item.pairs) ? item.pairs as {left:string;right:string}[] : undefined,
           clue: typeof item.clue === "string" ? item.clue : undefined,
           scramble: typeof item.scramble === "string" ? item.scramble : undefined,
