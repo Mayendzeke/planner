@@ -58,3 +58,13 @@ test("reports days that exceed the student's daily workload target", () => {
   const result = buildBalancedWeeklySchedule({ subjects, availableSlots: slots, dailyMinutesLimit: 30 });
   assert.ok(result.conflicts.some(item => item.reason === "daily_workload_limit_exceeded"));
 });
+
+test("subject workload preferences sync to and from the shared database", () => {
+  const cloudSync = readFileSync("src/lib/cloudSync.ts", "utf8");
+  assert.match(cloudSync, /difficulty_level: local\.difficultyLevel \|\| "moderate"/);
+  assert.match(cloudSync, /subject_type: local\.subjectType \|\| "mixed"/);
+  assert.match(cloudSync, /credit_hours: local\.creditHours \?\? 1/);
+  assert.match(cloudSync, /weekly_minutes_target: local\.weeklyMinutesTarget \?\? 60/);
+  assert.match(cloudSync, /difficultyLevel: String\(remote\.difficulty_level \|\| "moderate"\)/);
+  assert.match(cloudSync, /subjectType: String\(remote\.subject_type \|\| "mixed"\)/);
+});
