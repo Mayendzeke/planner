@@ -465,6 +465,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
   };
   const visibleTeacherFiles = filterSource === "Personal" ? [] : teacherFiles.filter(item =>
     matchesFilters(item.title, item.subject_name || "General", item.resource_type || "Other"));
+  const visibleStudyPacks=studyPacks.filter(pack=>filterSource==="All"||(filterSource==="Personal"&&pack.source_type==="uploaded_resource")||(filterSource==="Teacher"&&pack.source_type==="teacher_resource"));
   const visiblePersonalFiles = filterSource === "Teacher" ? [] : files.filter(item =>
     matchesFilters(item.name, subjectName(item, subjects), item.resourceType || "Study notes"));
 
@@ -571,9 +572,9 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         </article>)}</div>:<div className="library-empty"><div><BookOpen size={23}/></div><strong>No teacher materials match</strong><p>When your teacher assigns materials, they will appear here. Try changing the filters if you expected to see a file.</p></div>}
       </section>}
 
-      {(filterSource==="All"||filterSource==="Personal")&&<section className="glass-panel library-list study-packs-list">
+      {(filterSource==="All"||filterSource==="Personal"||filterSource==="Teacher")&&<section className="glass-panel library-list study-packs-list">
         <div className="library-section-heading"><div><h3>Study packs prepared from your files</h3><p>Generated privately from your uploaded or teacher-assigned school materials.</p></div><Brain size={19}/></div>
-        {studyPacksLoading?<div className="library-empty"><strong>Loading your study packs…</strong></div>:studyPacks.length?<div className="library-files">{studyPacks.map(pack=><article className="library-file study-pack-row" key={pack.id}>
+        {studyPacksLoading?<div className="library-empty"><strong>Loading your study packs…</strong></div>:visibleStudyPacks.length?<div className="library-files">{visibleStudyPacks.map(pack=><article className="library-file study-pack-row" key={pack.id}>
           <span className="library-file-icon"><BookOpen size={18}/></span>
           <div className="library-file-copy"><strong>{pack.content?.title||pack.subject_name+" study pack"}</strong><span>{pack.subject_name} · {pack.file_name||"School material"}{pack.topic?" · "+pack.topic:""}</span><span>{pack.status==="ready"?"Summary, concepts, flashcards and practice questions are ready.":pack.status==="generating"?"Study Space is preparing this pack.":pack.status==="needs_ocr"?"This file appears scanned; readable text is needed.":pack.status==="failed"?"The pack could not be prepared yet; it will retry on a later sync.":"This file format cannot be converted into a study pack yet."}</span></div>
           <div className="library-file-actions">{pack.status==="ready"?<button type="button" className="secondary-button" onClick={()=>setSelectedStudyPack(pack)}>Open pack</button>:<span className={"library-study-status status-"+pack.status}>{pack.status==="generating"?"Preparing":pack.status==="needs_ocr"?"Needs readable text":pack.status==="failed"?"Retry pending":"Unsupported"}</span>}</div>
