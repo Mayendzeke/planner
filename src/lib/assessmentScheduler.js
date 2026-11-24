@@ -21,9 +21,10 @@ export function workloadFor(subject) {
   const creditLoad = clamp(numeric(subject.credit_hours, 1) / 3, 0.5, 2.5);
   const typeFactor = TYPE_WEIGHT[String(subject.subject_type || "mixed").toLowerCase()] || 1.1;
   const difficulty = (explicit || clamp(numeric(subject.difficulty_score, 3), 1, 5)) + weakness;
+  const weeklyTargetFactor = clamp(numeric(subject.weekly_minutes_target, 60) / 60, 0.5, 4);
   return {
     difficulty,
-    workload: difficulty * typeFactor * creditLoad,
+    workload: difficulty * typeFactor * creditLoad * weeklyTargetFactor,
     estimatedMinutes: clamp(Math.round(15 + difficulty * 5 + creditLoad * 5), 20, 60),
   };
 }
