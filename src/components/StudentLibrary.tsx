@@ -438,10 +438,11 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         <div className="library-hero-copy">
           <span className="library-hero-kicker"><BookOpen size={13}/> YOUR STUDY MATERIALS</span>
           <h2>Everything you need to learn, in one place.</h2>
-          <p>Keep teacher-assigned resources and your own study files together. Preview supported documents, organise them by subject and continue studying when you are offline.</p>
+          <p>Keep teacher-assigned resources and your own school files together. Study Space turns readable uploads into summaries, key terms, flashcards, worked examples and practice questions.</p>
           <div className="library-hero-stats">
             <span><strong>{teacherFiles.length}</strong> teacher resources</span>
             <span><strong>{files.length}</strong> personal materials</span>
+            <span><strong>{studyPacks.filter(pack=>pack.status==="ready").length}</strong> generated study packs</span>
             <span><ShieldCheck size={12}/> Private to your account</span>
           </div>
         </div>
@@ -532,6 +533,15 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         </article>)}</div>:<div className="library-empty"><div><BookOpen size={23}/></div><strong>No teacher materials match</strong><p>When your teacher assigns materials, they will appear here. Try changing the filters if you expected to see a file.</p></div>}
       </section>}
 
+      {(filterSource==="All"||filterSource==="Personal")&&<section className="glass-panel library-list study-packs-list">
+        <div className="library-section-heading"><div><h3>Study packs prepared from your files</h3><p>Generated privately from your uploaded school notes and documents.</p></div><Brain size={19}/></div>
+        {studyPacksLoading?<div className="library-empty"><strong>Loading your study packs…</strong></div>:studyPacks.length?<div className="library-files">{studyPacks.map(pack=><article className="library-file study-pack-row" key={pack.id}>
+          <span className="library-file-icon"><BookOpen size={18}/></span>
+          <div className="library-file-copy"><strong>{pack.content?.title||pack.subject_name+" study pack"}</strong><span>{pack.subject_name} · {pack.file_name||"School material"}{pack.topic?" · "+pack.topic:""}</span><span>{pack.status==="ready"?"Summary, concepts, flashcards and practice questions are ready.":pack.status==="generating"?"Study Space is preparing this pack.":pack.status==="needs_ocr"?"This file appears scanned; readable text is needed.":pack.status==="failed"?"The pack could not be prepared yet; it will retry on a later sync.":"This file format cannot be converted into a study pack yet."}</span></div>
+          <div className="library-file-actions">{pack.status==="ready"?<button type="button" className="secondary-button" onClick={()=>setSelectedStudyPack(pack)}>Open pack</button>:<span className={"library-study-status status-"+pack.status}>{pack.status==="generating"?"Preparing":pack.status==="needs_ocr"?"Needs readable text":pack.status==="failed"?"Retry pending":"Unsupported"}</span>}</div>
+        </article>)}</div>:<div className="library-empty"><div><Brain size={23}/></div><strong>Your first study pack will appear here</strong><p>Upload a PDF, Word document, presentation, spreadsheet or text file, assign it to one of your subjects, and Study Space will prepare revision material automatically.</p></div>}
+      </section>}
+
       {(filterSource==="All"||filterSource==="Personal")&&<section className="glass-panel library-list">
         <div className="library-section-heading"><div><h3>My personal materials</h3><p>{visiblePersonalFiles.length} of {files.length} personal file(s) shown · available offline after sync</p></div><FileText size={19}/></div>
         {visiblePersonalFiles.length?<div className="library-files">{visiblePersonalFiles.map(file=><article className="library-file" key={file.id}>
@@ -545,6 +555,22 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
           </div>
         </article>)}</div>:<div className="library-empty"><div><FolderOpen size={23}/></div><strong>Your personal library is ready</strong><p>Save notes, presentations, worksheets, images and spreadsheets here. Choose files above to begin building your own study collection.</p></div>}
       </section>}
+
+      {selectedStudyPack&&<div className="modal-backdrop study-pack-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setSelectedStudyPack(null);}}>
+        <section className="study-pack-viewer" role="dialog" aria-modal="true" aria-label={selectedStudyPack.content?.title||"Study pack"}>
+          <header className="study-pack-viewer-header"><div><span>STUDYSPACE STUDY PACK</span><h2>{selectedStudyPack.content?.title||selectedStudyPack.subject_name+" study pack"}</h2><p>{selectedStudyPack.subject_name} · {selectedStudyPack.file_name||"School material"} · {selectedStudyPack.content?.estimated_minutes||30} minute study guide</p></div><button type="button" className="icon-button" aria-label="Close study pack" onClick={()=>setSelectedStudyPack(null)}><X size={18}/></button></header>
+          <div className="study-pack-viewer-content">
+            <section><h3>Overview</h3><p>{selectedStudyPack.content?.summary}</p></section>
+            {Array.isArray(selectedStudyPack.content?.learning_objectives)&&<section><h3>What you should learn</h3><ul>{selectedStudyPack.content.learning_objectives.map((item:string,index:number)=><li key={index}>{item}</li>)}</ul></section>}
+            {Array.isArray(selectedStudyPack.content?.key_terms)&&<section><h3>Key terms</h3><dl>{selectedStudyPack.content.key_terms.map((item:any,index:number)=><div key={index}><dt>{item.term}</dt><dd>{item.definition}</dd></div>)}</dl></section>}
+            {Array.isArray(selectedStudyPack.content?.concept_sections)&&<section><h3>Learn the concepts</h3>{selectedStudyPack.content.concept_sections.map((item:any,index:number)=><article className="study-pack-concept" key={index}><h4>{item.heading}</h4><p>{item.explanation}</p>{item.example&&<blockquote>{item.example}</blockquote>}</article>)}</section>}
+            {Array.isArray(selectedStudyPack.content?.worked_examples)&&selectedStudyPack.content.worked_examples.length>0&&<section><h3>Worked examples</h3>{selectedStudyPack.content.worked_examples.map((item:any,index:number)=><article className="study-pack-example" key={index}><h4>{item.title}</h4><p>{item.problem}</p>{Array.isArray(item.steps)&&<ol>{item.steps.map((step:string,stepIndex:number)=><li key={stepIndex}>{step}</li>)}</ol>}<details><summary>Show final answer</summary><p>{item.answer}</p></details></article>)}</section>}
+            {Array.isArray(selectedStudyPack.content?.common_mistakes)&&selectedStudyPack.content.common_mistakes.length>0&&<section><h3>Common mistakes to avoid</h3><ul>{selectedStudyPack.content.common_mistakes.map((item:any,index:number)=><li key={index}><strong>{item.mistake}</strong><p>{item.correction}</p></li>)}</ul></section>}
+            {Array.isArray(selectedStudyPack.content?.flashcards)&&<section><h3>Flashcards</h3>{selectedStudyPack.content.flashcards.map((item:any,index:number)=><details className="study-pack-flashcard" key={index}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</section>}
+            {Array.isArray(selectedStudyPack.content?.practice_questions)&&<section><h3>Practice questions</h3>{selectedStudyPack.content.practice_questions.map((item:any,index:number)=><article className="study-pack-question" key={index}><strong>{index+1}. {item.prompt}</strong>{Array.isArray(item.options)&&<ol type="A">{item.options.map((option:string,optionIndex:number)=><li key={optionIndex}>{option}</li>)}</ol>}<details><summary>Reveal answer and explanation</summary><p><strong>Answer:</strong> {item.correct_answer}</p><p>{item.explanation}</p></details></article>)}</section>}
+          </div>
+        </section>
+      </div>}
 
       {viewing&&<div className={"modal-backdrop library-viewer-backdrop" + (fullscreenPreview ? " is-fullscreen" : "")} onMouseDown={event=>{if(event.target===event.currentTarget)closePreview();}}>
         <section ref={viewerDialogRef} className={"library-viewer" + (fullscreenPreview ? " is-fullscreen" : "") + (landscapeFallback ? " is-landscape-fallback" : "")} role="dialog" aria-modal="true" aria-label={"Previewing "+viewing.name}>
