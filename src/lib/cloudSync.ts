@@ -245,16 +245,16 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
   let downloaded = 0;
   let uploaded = 0;
 
-  const scheduleStudyPackGeneration = (resource:StudentResource,resourceId:string) => {
+  const scheduleStudyPackGeneration = (resource:StudentResource,resourceId:string,force=false) => {
     const subjectName=resource.subjectId==null?"":(subjects.find(subject=>subject.id===resource.subjectId)?.name||"");
     if(!subjectName||!resource.file)return;
     const lastAttempt=timestamp(resource.studyPackLastAttemptAt);
     const age=Date.now()-lastAttempt;
-    if(resource.studyPackStatus==="ready"&&resource.studyPackHash)return;
-    if(resource.studyPackStatus==="needs_ocr"&&resource.studyPackHash)return;
-    if(resource.studyPackStatus==="unsupported"&&age<24*60*60*1000)return;
-    if(resource.studyPackStatus==="failed"&&age<60*60*1000)return;
-    if(resource.studyPackStatus==="generating"&&age<10*60*1000)return;
+    if(!force&&resource.studyPackStatus==="ready"&&resource.studyPackHash)return;
+    if(!force&&resource.studyPackStatus==="needs_ocr"&&resource.studyPackHash)return;
+    if(!force&&resource.studyPackStatus==="unsupported"&&age<24*60*60*1000)return;
+    if(!force&&resource.studyPackStatus==="failed"&&age<60*60*1000)return;
+    if(!force&&resource.studyPackStatus==="generating"&&age<10*60*1000)return;
     void (async()=>{
       const attemptedAt=new Date().toISOString();
       try{
@@ -268,7 +268,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         }
         await pause(()=>table.update(resource.id,{studyPackStatus:"generating",studyPackLastAttemptAt:attemptedAt}));
         const {data,error}=await supabase!.functions.invoke("study-material-engine",{
-          body:{resourceId,extractedText,subjectName,topic:resource.topic||""},
+          body:{resourceId,extractedText,subjectName,topic:resource.topic||"",force},
         });
         if(error||!data?.success){
           await pause(()=>table.update(resource.id,{studyPackStatus:"failed",studyPackLastAttemptAt:attemptedAt}));
@@ -330,7 +330,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         cloudUpdatedAt: remoteStamp,
       }));
       downloaded += 1;
-      if(needsFileRefresh||!existing.studyPackHash)scheduleStudyPackGeneration({...existing,...filePatch},String(remote.id));
+      if(needsFileRefresh||!existing.studyPackHash)scheduleStudyPackGeneration({...existing,...filePatch},String(remote.id),needsFileRefresh);
     }
   };
 
@@ -365,7 +365,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         const stamp = String(data.updated_at || data.created_at);
         await pause(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
         uploaded += 1;
-        scheduleStudyPackGeneration({...local,cloudUpdatedAt:stamp,localUpdatedAt:stamp},String(data.id));
+        scheduleStudyPackGeneration({...local,cloudUpdatedAt:stamp,localUpdatedAt:stamp},String(data.id),true);
       } else {
         await persistRemote(remote, local.id, local);
       }
