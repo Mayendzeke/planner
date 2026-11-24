@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText, Target } from "lucide-react";
+import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText, Target, Menu } from "lucide-react";
+import "./MiaFullscreen.css";
 import { strFromU8, unzipSync } from "fflate";
 import * as pdfjs from "pdfjs-dist";
 pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
@@ -193,11 +194,12 @@ async function functionErrorMessage(error: unknown): Promise<string> {
     : "MIΛ could not complete the request. Check your connection and retry.";
 }
 
-export default function MiaChat({ profile, subjects, variant = "studio", onClose, initialAttachment, initialPrompt, onAttachmentConsumed }: {
+export default function MiaChat({ profile, subjects, variant = "studio", onClose, onMenuClick, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
   onClose?: () => void;
+  onMenuClick?: () => void;
   initialAttachment?: File | null;
   initialPrompt?: string;
   onAttachmentConsumed?: () => void;
@@ -430,8 +432,9 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <div className="mia-brand-mark">Λ</div>
       <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMMA 4</span></div>
       <div className="mia-header-actions">
-        <button className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
-        {onClose && <button className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
+        <button type="button" className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
+        {onMenuClick && <button type="button" className="mia-icon-button mia-navigation-menu" onClick={onMenuClick} aria-label="Open StudySpace menu" title="Open StudySpace menu"><Menu size={19}/></button>}
+        {onClose && <button type="button" className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
     </header>
     <div className="mia-context-strip"><BookOpen size={14}/><span>{profile.level} · {profile.grade} · {profile.curriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
