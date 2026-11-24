@@ -6,7 +6,7 @@ import "./AssessmentProgramme.css";
 const weekdays=[{day:1,label:"Monday"},{day:2,label:"Tuesday"},{day:3,label:"Wednesday"},{day:4,label:"Thursday"},{day:5,label:"Friday"}];
 type WindowDraft={day:number;enabled:boolean;start:string;end:string};
 type ScheduleItem={id:string;subject_name:string;assessment_type:string;scheduled_at:string;duration_minutes:number;question_count:number;status:string;exercise_assignment_id:string|null;metadata:Record<string,unknown>};
-type Conflict={subjectName?:string;reason:string;requiredMinutes?:number};
+type Conflict={subjectName?:string;reason:string;day?:string;requiredMinutes?:number;limitMinutes?:number};
 const emptyWindows=():WindowDraft[]=>weekdays.map(item=>({day:item.day,enabled:false,start:"",end:""}));
 const timeLabel=(value:string)=>new Date(value).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
 
@@ -168,7 +168,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
           <span className={"assessment-item-status status-"+item.status}>{item.exercise_assignment_id?"Ready":item.status==="generated"?"Preparing":"Scheduled"}</span>
         </div>):<p className="assessment-no-test">No test allocated</p>}
       </article>)}</div>:programmeStatus!=="needs_availability"&&<div className="assessment-programme-empty"><Sparkles size={22}/><strong>Your weekly programme is not ready yet</strong><span>Save your availability to let StudySpace balance your subjects and create stored tests.</span></div>}
-      {conflicts.length>0&&<div className="assessment-conflicts"><strong>Scheduling capacity needs attention</strong>{conflicts.map((item,index)=><p key={index}>{item.subjectName||"A subject"} could not be scheduled within the available periods{item.requiredMinutes?" ("+item.requiredMinutes+" minutes needed)":""}. Add more free time or adjust your availability.</p>)}</div>}
+      {conflicts.length>0&&<div className="assessment-conflicts"><strong>Scheduling capacity needs attention</strong>{conflicts.map((item,index)=><p key={index}>{item.reason==="daily_workload_limit_exceeded"?item.day+" exceeds your daily workload target ("+item.requiredMinutes+" minutes planned; target "+item.limitMinutes+" minutes).":(item.subjectName||"A subject")+" could not be scheduled within the available periods"+(item.requiredMinutes?" ("+item.requiredMinutes+" minutes needed)":"")+". Add more free time or adjust your availability."}</p>)}</div>}
       {items.some(item=>!item.exercise_assignment_id)&&items.length>0&&<p className="assessment-next-batch-hint">To control generation time, StudySpace prepares up to two stored assessments per request. Select “Prepare next batch” to prepare the next subjects. Tests already published remain available without MIΛ chat.</p>}
       <div className="assessment-plan-footer"><span><CheckCircle2 size={15}/> Your tests are stored independently of live MIΛ chat.</span><button type="button" className="text-button" onClick={onOpenAssignments}>Open my assessments →</button></div>
     </section>
