@@ -40,6 +40,14 @@ function zonedTimeToIso(date:string,time:string,timezone:string) {
   const localAsUtc=Date.UTC(get("year"),get("month")-1,get("day"),get("hour"),get("minute"));
   return new Date(utcGuess-(localAsUtc-utcGuess)).toISOString();
 }
+function shuffleWithSeed<T>(items:T[],seed:string):T[] {
+  let state=2166136261;
+  for(const char of seed)state=Math.imul(state^char.charCodeAt(0),16777619);
+  const random=()=>{state+=0x6D2B79F5;let t=state;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}
+  return result;
+}
 async function sha(value:string) {
   const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
   return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,"0")).join("");
@@ -165,7 +173,7 @@ Deno.serve(async request=>{
       ? (scoreBySubject.get(subject.name)||[]).reduce((sum,value)=>sum+value,0)/(scoreBySubject.get(subject.name)||[]).length : undefined,
   }));
   const schedule=buildBalancedSchedule(schedulerSubjects,freeSlots,Number(prefs.daily_minutes_limit)||120);
-  const snapshot={profile:{country:profile.country,education_level:profile.education_level,grade:profile.grade,curriculum:profile.curriculum,course:profile.course,academic_year:profile.academic_year},subjects:schedulerSubjects,windows,freeSlots};
+  const snapshot={profile:{country:profile.country,education_level:profile.education_level,grade:profile.grade,curriculum:profile.curriculum,course:profile.course,academic_year:profile.academic_year},subjects:schedulerSubjects,windows,freeSlots,dailyMinutesLimit:Number(prefs.daily_minutes_limit)||120,timezone};
   const hash=await sha(JSON.stringify(snapshot));
   const {data:existing}=await admin.from("assessment_schedule_runs").select("id,schedule_hash,status").eq("learner_id",auth.user.id).eq("period_type","weekly").eq("period_start",monday).maybeSingle();
   let runId=existing?.id;
@@ -212,7 +220,7 @@ Deno.serve(async request=>{
         curriculum:String(profile.curriculum||""),question_count:10,is_published:false,review_status:"draft",
         duration_minutes:item.duration_minutes,due_date:dateForDay(monday,String(item.metadata?.day||"Monday")),
       }).select("id").single();
-      if(setError||!set)throw new Error("Assessment storage could not be created.");
+      if(setError||!set)throw new Error("Assessment storage could not be created.");\n      setId=set.id;
       const questionRows=questions.map((question:any,index:number)=>({
         exercise_set_id:set.id,position:index+1,question_type:String(question.question_type),
         prompt:String(question.prompt),content:{options:question.options||[],pairs:question.pairs||[],clue:question.clue||"",scramble:question.scramble||"",topic:question.topic||item.subject_name,difficulty:question.difficulty||"adaptive"},
@@ -229,7 +237,7 @@ Deno.serve(async request=>{
       const {error:publishError}=await admin.from("exercise_sets").update({is_published:true,review_status:"approved"}).eq("id",set.id);
       if(publishError)throw new Error("The assessment could not be published.");
       const scheduledAt=Date.parse(item.scheduled_at);
-      const dueAt=new Date(scheduledAt).toISOString().slice(0,10)+"T23:59:00Z";
+      const dueAt=zonedTimeToIso(dateForDay(monday,String(item.metadata?.day||"Monday")),"23:59",timezone);
       const {data:assignment,error:assignmentError}=await admin.from("exercise_assignments").insert({
         exercise_set_id:set.id,learner_id:auth.user.id,assigned_by:auth.user.id,
         available_at:item.scheduled_at,due_at:dueAt,
