@@ -13,6 +13,7 @@ import {
   type StudentResource,
 } from "../data/db";
 import { getStudentStorageOwner, studentStorageKeyForUser } from "./studentStorage";
+import { readStudyMaterialPreview, type StudyMaterialPreview } from "./studyMaterialPreview";
 import { supabase } from "./supabase";
 
 type CloudRow = Record<string, any>;
@@ -76,6 +77,14 @@ function fromLocalDateTime(value?: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function studyTextFromPreview(preview:StudyMaterialPreview):string {
+  if(preview.kind==="text")return preview.text;
+  if(preview.kind==="slides")return preview.slides.map(slide=>"Slide "+slide.number+": "+slide.title+"\\n"+slide.body).join("\\n\\n").slice(0,180000);
+  if(preview.kind==="table")return preview.rows.map(row=>row.join(" | ")).join("\\n").slice(0,180000);
+  if(preview.kind==="workbook")return preview.sheets.map(sheet=>"Worksheet: "+sheet.name+"\\n"+sheet.rows.map(row=>row.map(cell=>cell.value+(cell.formula?" ("+cell.formula+")":"")).join(" | ")).join("\\n")).join("\\n\\n").slice(0,180000);
+  return "";
 }
 
 function safeFileName(value: string): string {
@@ -236,6 +245,47 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
   let downloaded = 0;
   let uploaded = 0;
 
+  const scheduleStudyPackGeneration = (resource:StudentResource,resourceId:string) => {
+    const subjectName=resource.subjectId==null?"":(subjects.find(subject=>subject.id===resource.subjectId)?.name||"");
+    if(!subjectName||!resource.file)return;
+    const lastAttempt=timestamp(resource.studyPackLastAttemptAt);
+    const age=Date.now()-lastAttempt;
+    if(resource.studyPackStatus==="ready"&&resource.studyPackHash)return;
+    if(resource.studyPackStatus==="needs_ocr"&&resource.studyPackHash)return;
+    if(resource.studyPackStatus==="unsupported"&&age<24*60*60*1000)return;
+    if(resource.studyPackStatus==="failed"&&age<60*60*1000)return;
+    if(resource.studyPackStatus==="generating"&&age<10*60*1000)return;
+    void (async()=>{
+      const attemptedAt=new Date().toISOString();
+      try{
+        const preview=await readStudyMaterialPreview(resource.file,resource.name);
+        const extractedText=studyTextFromPreview(preview);
+        if(!extractedText.trim()){
+          const imageLike=/\\.(pdf|png|jpe?g|webp)$/i.test(resource.name);
+          const status=preview.kind==="unsupported"&&(imageLike||preview.message.toLowerCase().includes("scanned"))?"needs_ocr":"unsupported";
+          await pause(()=>table.update(resource.id,{studyPackStatus:status,studyPackLastAttemptAt:attemptedAt}));
+          return;
+        }
+        await pause(()=>table.update(resource.id,{studyPackStatus:"generating",studyPackLastAttemptAt:attemptedAt}));
+        const {data,error}=await supabase!.functions.invoke("study-material-engine",{
+          body:{resourceId,extractedText,subjectName,topic:resource.topic||""},
+        });
+        if(error||!data?.success){
+          await pause(()=>table.update(resource.id,{studyPackStatus:"failed",studyPackLastAttemptAt:attemptedAt}));
+          return;
+        }
+        await pause(()=>table.update(resource.id,{
+          studyPackHash:String(data.sourceHash||resource.studyPackHash||""),
+          studyPackStatus:data.status==="ready"?"ready":data.status==="needs_ocr"?"needs_ocr":"generating",
+          studyPackLastAttemptAt:attemptedAt,
+        }));
+      }catch(error){
+        console.warn("Study pack preparation will retry later:",error);
+        await pause(()=>table.update(resource.id,{studyPackStatus:"failed",studyPackLastAttemptAt:attemptedAt}));
+      }
+    })();
+  };
+
   const persistRemote = async (remote: CloudRow, localId: number, existing?: StudentResource) => {
     if (!existing) {
       const { data, error } = await supabase!.storage.from("studyspace-resources").download(remote.storage_path);
@@ -256,6 +306,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
       };
       await pause(() => table.put(resource));
       downloaded += 1;
+      scheduleStudyPackGeneration(resource,String(remote.id));
     } else {
       const remoteStamp = String(remote.updated_at || remote.created_at);
       const needsFileRefresh = timestamp(remoteStamp) > timestamp(existing.cloudUpdatedAt || existing.localUpdatedAt);
@@ -279,6 +330,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         cloudUpdatedAt: remoteStamp,
       }));
       downloaded += 1;
+      if(needsFileRefresh||!existing.studyPackHash)scheduleStudyPackGeneration({...existing,...filePatch},String(remote.id));
     }
   };
 
@@ -313,6 +365,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         const stamp = String(data.updated_at || data.created_at);
         await pause(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
         uploaded += 1;
+        scheduleStudyPackGeneration({...local,cloudUpdatedAt:stamp,localUpdatedAt:stamp},String(data.id));
       } else {
         await persistRemote(remote, local.id, local);
       }
@@ -350,6 +403,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
     }));
     handled.add(cloudId);
     uploaded += 1;
+    scheduleStudyPackGeneration({...local,cloudId,cloudUpdatedAt:stamp,localUpdatedAt:stamp},cloudId);
   }
 
   for (const remote of remoteRows) {
