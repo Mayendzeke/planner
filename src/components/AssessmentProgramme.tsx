@@ -38,6 +38,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
     if(item.status==="completed")return "Completed";
     if(item.exercise_assignment_id)return new Date(item.scheduled_at).getTime()>Date.now()?"Stored":"Ready";
     if(item.metadata?.waiting_for_material_approval)return "Awaiting material approval";
+    if(item.metadata?.waiting_for_study_pack)return "Preparing study material";
     if(item.metadata?.material_request_error)return "Material preparation failed";
     return "Scheduled";
   };
