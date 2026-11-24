@@ -104,6 +104,9 @@ export type StudentResource = {
   cloudId?: string;
   localUpdatedAt?: string;
   cloudUpdatedAt?: string;
+  studyPackHash?: string;
+  studyPackStatus?: "generating" | "ready" | "failed" | "needs_ocr" | "unsupported";
+  studyPackLastAttemptAt?: string;
 };
 
 export type CalendarEvent = {
