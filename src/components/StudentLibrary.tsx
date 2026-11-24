@@ -15,6 +15,7 @@ type ResourceType = NonNullable<StudentResource["resourceType"]>;
 type TeacherResource = {
   id: string; title: string; description: string; subject_name: string; topic?: string;
   resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string;
+  education_level?: string; grade?: string; curriculum?: string; course?: string; academic_year?: string; language?: string;
 };
 type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" } | { kind: "powerpoint" } | { kind: "word" };
 type StorageStatus = { used_bytes: number; quota_bytes: number; reserved_bytes: number; available_bytes: number; used_percent: number };
@@ -126,7 +127,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       const ids = (assignments ?? []).map(row => row.resource_id).filter(Boolean);
       if (!ids.length) { setTeacherFiles([]); return; }
       const { data, error } = await supabase.from("learning_resources")
-        .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at")
+        .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at,education_level,grade,curriculum,course,academic_year,language")
         .in("id", ids).order("created_at", { ascending: false });
       if (error) throw error;
       setTeacherFiles((data ?? []) as TeacherResource[]);
@@ -496,7 +497,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         <div className="library-section-heading"><div><h3>From your teacher</h3><p>{visibleTeacherFiles.length} assigned resource(s) shown · opens only for your account</p></div><BookOpen size={19}/></div>
         {teacherLoading?<div className="library-empty"><strong>Loading assigned materials…</strong></div>:visibleTeacherFiles.length?<div className="library-files">{visibleTeacherFiles.map(file=><article className="library-file" key={file.id}>
           <span className="library-file-icon"><FileText size={18}/></span>
-          <div className="library-file-copy"><strong>{file.title}</strong><span>{file.subject_name||"General"} · {formatCategory(file.resource_type)} · {fileType(file.title)} · {formatSize(Number(file.file_size))}</span>{file.description&&<span>{file.description}</span>}</div>
+          <div className="library-file-copy"><strong>{file.title}</strong><span>{file.subject_name||"General"} · {formatCategory(file.resource_type)} · {fileType(file.title)} · {formatSize(Number(file.file_size))}</span><span>{[file.education_level,file.grade,file.course,file.curriculum,file.language].filter(Boolean).join(" · ") || "Academic level not specified"} · Produced {new Date(file.created_at).toLocaleDateString()}{file.academic_year?" · Academic year "+file.academic_year:""}</span>{file.description&&<span>{file.description}</span>}</div>
           <div className="library-file-actions">
             <button type="button" className="icon-button" aria-label={"Download "+file.title} title="Download original file" disabled={teacherBusyId===file.id} onClick={()=>void (async()=>{if(!supabase)return;setTeacherBusyId(file.id);try{const {data,error}=await supabase.storage.from("studyspace-resources").download(file.storage_path);if(error)throw error;downloadFile({file:data,name:file.title});}catch(reason){setMessage(reason instanceof Error?reason.message:"The file could not be downloaded.");setMessageIsError(true);}finally{setTeacherBusyId("");}})()}><Download size={15}/></button>
             {canStudyWithMia(file.title, Number(file.file_size))&&<button type="button" className="icon-button" aria-label={"Study "+file.title+" with MIΛ"} title="Study with MIΛ · summarise, explain and practise" disabled={teacherBusyId===file.id} onClick={()=>void studyTeacherFileWithMia(file)}><Brain size={15}/></button>}
