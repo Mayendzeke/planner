@@ -114,7 +114,7 @@ Deno.serve(async request => {
   const acceptedByName = String(body.acceptedByName ?? "").trim();
   const acceptanceRole = String(body.acceptanceRole ?? "");
   if (isAdult) {
-    if (body.termsAccepted !== true || body.termsVersion !== "2026-11-09-v8") {
+    if (body.termsAccepted !== true || body.termsVersion !== "2026-11-24-v9") {
       return json(400, { error: "Read and personally accept the current StudySpace Terms and Conditions before creating your account." });
     }
     if (acceptedByName !== fullName || acceptanceRole !== "adult_learner") {
@@ -229,15 +229,6 @@ Deno.serve(async request => {
     if (referralError) console.warn("StudySpace referral attribution was not recorded:", referralError.message);
   }
 
-  const referralCode = String(body.referralCode ?? "").trim().toUpperCase();
-  if (/^[A-Z0-9]{10}$/.test(referralCode)) {
-    const { error: referralError } = await admin.rpc("attribute_studyspace_referral", {
-      p_referred_id: created.user.id,
-      p_referral_code: referralCode,
-    });
-    if (referralError) console.warn("StudySpace referral attribution was not recorded:", referralError.message);
-  }
-
   if (completed === "pending_guardian_verification") {
     return json(200, {
       success: true,
@@ -252,7 +243,7 @@ Deno.serve(async request => {
     success: true,
     studentId,
     accountStatus: "active",
-    trialHours: 168,
+    trialHours: 48,
     message: invitation
       ? "Account created. Sign in with your Student ID and password."
       : "Your StudySpace account is ready. Keep your generated Student ID safe and use it with your password to sign in.",
