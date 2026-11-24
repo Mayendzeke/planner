@@ -67,7 +67,7 @@ test("MIΛ topic tests support all five question formats for every registered su
   }
   assert.ok(backend.includes("Core concepts and key principles across the registered subject"));
   assert.ok(backend.includes("assessment questions on the requested subject and topic"));
-  assert.ok(weekly.includes("question.question_type"));
+  assert.ok(weekly.includes("item.question_type"));
   assert.ok(weekly.includes('mode === "True or false" ? ["True", "False"]'));
   assert.ok(weekly.includes('question.mode === "Word puzzle"'));
 });
