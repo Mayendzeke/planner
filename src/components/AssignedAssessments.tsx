@@ -12,6 +12,7 @@ type Question = {
 };
 type Assignment = {
   id: string;
+  assignment_type?: string;
   due_at: string | null;
   available_at: string;
   set: { id: string; title: string; subject_name: string; instructions: string; duration_minutes: number; grade: string; curriculum: string };
@@ -20,7 +21,9 @@ type Assignment = {
 type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; aiMarked: number; markingStatus: string; markingNotice: string; teacherFeedback?: string; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string;markingMethod?:string;confidence?:number;status?:string}> };
 type StoredAttempt = { score:number; total_points:number; submitted_at:string; marked_at:string|null; teacher_feedback:string; marking_status:string; teacher_review_required:boolean; ai_marked_at:string|null; marking_details:Record<string,unknown>; manual_marks:Record<string,number> };
 
-export default function AssignedAssessments() {
+type AssignedAssessmentsProps={assignmentType?:"teacher_assignment"|"scheduled_assessment"|"practice";refreshKey?:number};
+
+export default function AssignedAssessments({assignmentType,refreshKey}:AssignedAssessmentsProps={}) {
   const [assignments,setAssignments] = useState<Assignment[]>([]);
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState("");
@@ -45,11 +48,11 @@ export default function AssignedAssessments() {
       if(authError||!authState.user) throw new Error("Sign in again to load your assigned assessments.");
       setLearnerId(authState.user.id);
       const {data:assigned,error:assignmentError}=await supabase.from("exercise_assignments")
-        .select("id,exercise_set_id,due_at,available_at")
+        .select("id,exercise_set_id,due_at,available_at,assignment_type")
         .eq("learner_id",authState.user.id)
         .order("available_at",{ascending:true});
       if(assignmentError) throw assignmentError;
-      const rows=assigned||[];
+      const rows=(assigned||[]).filter(row=>!assignmentType||row.assignment_type===assignmentType);
       if(!rows.length){setAssignments([]);setAttemptsByAssignment({});setLoading(false);return;}
       const ids=[...new Set(rows.map(row=>row.exercise_set_id))];
       const [{data:sets,error:setError},{data:questions,error:questionError},{data:attemptRows,error:attemptError}]=await Promise.all([
@@ -70,7 +73,7 @@ export default function AssignedAssessments() {
         const set=setMap.get(row.exercise_set_id);
         if(!set) continue;
         next.push({
-          id:row.id,due_at:row.due_at,available_at:row.available_at,
+          id:row.id,assignment_type:row.assignment_type,due_at:row.due_at,available_at:row.available_at,
           set:set as Assignment["set"],
           questions:(questions||[]).filter(q=>q.exercise_set_id===set.id) as Question[],
         });
@@ -83,14 +86,14 @@ export default function AssignedAssessments() {
       refreshInFlight.current=false;
       setLoading(false);
     }
-  },[]);
+  },[assignmentType]);
 
   useEffect(()=>{
     void refresh();
     const onFocus=()=>{if(document.visibilityState==="visible")void refresh();};
     window.addEventListener("focus",onFocus);
     return()=>window.removeEventListener("focus",onFocus);
-  },[refresh]);
+  },[refresh,refreshKey]);
 
   useEffect(()=>{
     if(!supabase||!learnerId)return;
