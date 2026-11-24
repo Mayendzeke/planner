@@ -73,6 +73,10 @@ async function callModel(model: string, messages: ProviderMessage[], options: Re
   const raw = await response.text();
   let payload: any = {};
   try { payload = JSON.parse(raw); } catch { /* Normalised below. */ }
+  const completion = Array.isArray(payload?.choices) ? payload.choices[0] : undefined;
+  if (completion?.finish_reason === "length") {
+    throw new Error(model + " reached its response limit before completing the answer. The automatic backup will be tried.");
+  }
   if (!response.ok) {
     const details = Array.isArray(payload?.errors)
       ? payload.errors.map((item: any) => String(item?.message ?? "")).filter(Boolean).join("; ").slice(0, 180)
