@@ -544,7 +544,7 @@ export function prepareAssignedTeacherStudyPacks():Promise<void> {
         if(downloadError||!file)continue;
         const preview=await readStudyMaterialPreview(file,resource.title);
         const extractedText=studyMaterialText(preview);
-        const unsupported=!extractedText.trim()&&!/\\.(pdf|png|jpe?g|webp)$/i.test(resource.title);
+        const unsupported=!extractedText.trim()&&!/\.(pdf|png|jpe?g|webp)$/i.test(resource.title);
         const {data:generated,error:generationError}=await supabase.functions.invoke("study-material-engine",{
           body:{sourceType:"teacher_resource",resourceId:resource.id,extractedText,subjectName:resource.subject_name,topic:resource.topic||"",unsupported},
         });
