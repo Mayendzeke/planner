@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, RefreshCw, Settings2, ShieldAlert, Sparkles } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { prepareAssessmentProgramme } from "../lib/cloudSync";
 import "./AssessmentProgramme.css";
 
 const weekdays=[{day:1,label:"Monday"},{day:2,label:"Tuesday"},{day:3,label:"Wednesday"},{day:4,label:"Thursday"},{day:5,label:"Friday"}];
@@ -70,37 +71,27 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
     setConflicts((runs||[]).flatMap((run:any)=>(Array.isArray(run.conflicts)?run.conflicts:[]).map((item:any)=>({...item,periodType:run.period_type}))) as Conflict[]);
   },[learnerId]);
 
-  const runScheduler=useCallback(async(showProgress=true,learnerIdOverride?:string,timezoneOverride?:string)=>{
+  const runScheduler=useCallback(async(showProgress=true,learnerIdOverride?:string)=>{
     const activeLearnerId=learnerIdOverride||learnerId;
-    const activeTimezone=timezoneOverride||timezone;
     if(!supabase||!activeLearnerId||generating)return;
     if(showProgress)setGenerating(true);
     setError("");setNotice("");
     try{
-      let latestData:any=null;
-      let pendingCount=0;
-      let lastGeneratedCount=0;
-      for(let batch=0;batch<12;batch++){
-        const {data,error:invokeError}=await supabase.functions.invoke("assessment-scheduler",{body:{timezone:activeTimezone}});
-        if(invokeError)throw invokeError;
-        if(!data?.success)throw new Error(data?.error||"The assessment programme could not be created.");
-        latestData=data;
-        lastGeneratedCount=Number(data.generatedCount||0);
-        setProgrammeStatus(String(data.status||"planned"));
-        setConflicts(Array.isArray(data.conflicts)?data.conflicts as Conflict[]:[]);
-        if(data.weekStart)setWeekStart(String(data.weekStart));
-        if(data.scheduleRunId)await refreshItems(activeLearnerId);
-        pendingCount=Number(data.pendingCount||0);
-        if(data.status==="needs_availability"||data.status==="no_subjects"||!data.hasMore||lastGeneratedCount===0)break;
-      }
-      if(latestData?.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
-      else if(latestData?.status==="no_subjects")setNotice("Add your registered subjects before creating your assessment programme.");
-      else if(pendingCount>0)setNotice("Your programme is saved. Study Space will continue preparing the remaining assessments automatically.");
-      else setNotice("Your programme and stored assessments are ready. You do not need to prepare tests manually.");
+      const result=await prepareAssessmentProgramme();
+      if(result.error)throw new Error(result.error);
+      const data=result.data;
+      if(data?.status)setProgrammeStatus(String(data.status));
+      if(Array.isArray(data?.conflicts))setConflicts(data.conflicts as Conflict[]);
+      if(data?.weekStart)setWeekStart(String(data.weekStart));
+      await refreshItems(activeLearnerId);
+      if(data?.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
+      else if(data?.status==="no_subjects")setNotice("Add your registered subjects before creating your assessment programme.");
+      else if(data?.hasMore)setNotice("Your programme is saved. Study Space will continue preparing the remaining near-term assessments automatically.");
+      else setNotice(String(data?.message||"Your programme and stored assessments are ready."));
     }catch(reason){
       setError(reason instanceof Error?reason.message:"The assessment programme could not be loaded.");
     }finally{if(showProgress)setGenerating(false);}
-  },[learnerId,timezone,generating,refreshItems]);
+  },[learnerId,generating,refreshItems]);
 
   useEffect(()=>{
     let alive=true;
@@ -124,7 +115,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
         }));
       }
       setLoading(false);
-      if(alive)await runScheduler(true,auth.user.id,String(preferences?.timezone||"Africa/Mbabane"));
+      if(alive)await runScheduler(true,auth.user.id);
     }
     void load();
     return()=>{alive=false;};
