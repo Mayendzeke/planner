@@ -231,8 +231,20 @@ Deno.serve(async request=>{
     }
   }
 
-  const {data:items,error:itemsError}=await admin.from("assessment_schedule_items").select("*").eq("schedule_run_id",runId).order("scheduled_at");
+  let {data:items,error:itemsError}=await admin.from("assessment_schedule_items").select("*").eq("schedule_run_id",runId).order("scheduled_at");
   if(itemsError)return json(503,{error:"The saved weekly assessment plan could not be loaded."});
+  const staleItems=(items||[]).filter((item:any)=>{
+    if(item.exercise_assignment_id||item.status!=="generated")return false;
+    const started=Date.parse(String(item.metadata?.generation_started_at||item.updated_at||item.created_at||""));
+    return Number.isFinite(started)&&Date.now()-started>15*60*1000;
+  });
+  for(const stale of staleItems)await admin.from("assessment_schedule_items").update({
+    status:"scheduled",metadata:{...(stale.metadata||{}),generation_started_at:null,generation_recovered_at:new Date().toISOString()},
+  }).eq("id",stale.id);
+  if(staleItems.length){
+    const refreshed=await admin.from("assessment_schedule_items").select("*").eq("schedule_run_id",runId).order("scheduled_at");
+    items=refreshed.data||items;
+  }
   const pending=(items||[]).filter((item:any)=>!item.exercise_assignment_id&&item.status==="scheduled").slice(0,2);
   const appOrigin=APP_ORIGIN;
   let generatedCount=0;
@@ -240,7 +252,7 @@ Deno.serve(async request=>{
     let setId="";
     let assignmentId="";
     try{
-      const {data:claim}=await admin.from("assessment_schedule_items").update({status:"generated"})
+      const {data:claim}=await admin.from("assessment_schedule_items").update({status:"generated",metadata:{...(item.metadata||{}),generation_started_at:new Date().toISOString()}})
         .eq("id",item.id).eq("status","scheduled").is("exercise_assignment_id",null).select("id").maybeSingle();
       if(!claim)continue;
       const hasMaterial=await existingMaterials(admin,auth.user.id,item.subject_name);
