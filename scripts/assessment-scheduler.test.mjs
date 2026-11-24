@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { buildBalancedWeeklySchedule, workloadFor } from "../src/lib/assessmentScheduler.js";
 
 const slots = [
-  { id: "mon-1", day: "Monday", start: "16:00", end: "18:00" },
-  { id: "tue-1", day: "Tuesday", start: "16:00", end: "18:00" },
-  { id: "wed-1", day: "Wednesday", start: "16:00", end: "18:00" },
-  { id: "thu-1", day: "Thursday", start: "16:00", end: "18:00" },
-  { id: "fri-1", day: "Friday", start: "16:00", end: "18:00" },
+  { id: "mon-1", day: "Monday", start: "16:00", end: "20:00" },
+  { id: "tue-1", day: "Tuesday", start: "16:00", end: "20:00" },
+  { id: "wed-1", day: "Wednesday", start: "16:00", end: "20:00" },
+  { id: "thu-1", day: "Thursday", start: "16:00", end: "20:00" },
+  { id: "fri-1", day: "Friday", start: "16:00", end: "20:00" },
 ];
 
 test("covers all registered subjects when weekday capacity is sufficient", () => {
@@ -37,7 +37,7 @@ test("flags capacity conflicts instead of silently dropping subjects", () => {
   });
   assert.equal(result.assignments.length, 0);
   assert.equal(result.conflicts.length, 2);
-  assert.ok(result.conflicts.every(item => item.reason === "no_available_slot"));
+  assert.ok(result.conflicts.every(item => item.reason === "insufficient_available_capacity"));
 });
 
 test("deduplicates duplicate subject records by id", () => {
