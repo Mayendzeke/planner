@@ -78,5 +78,8 @@ export function buildBalancedSchedule(subjects:Record<string,unknown>[], slots:R
       creditHours:number(subject.credit_hours,1),weeklyMinutesTarget:number(subject.weekly_minutes_target,60),
     });
   }
+  for(const day of days) {
+    if(day.minutes>dailyLimit)conflicts.push({reason:"daily_workload_limit_exceeded",day:day.day,requiredMinutes:day.minutes,limitMinutes:dailyLimit});
+  }
   return {assignments,conflicts,dayLoads:days};
 }
