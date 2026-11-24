@@ -128,11 +128,11 @@ async function pdfPreview(file:Blob):Promise<StudyMaterialPreview> {
     for(let pageNumber=1;pageNumber<=pageLimit;pageNumber++){
       const page=await document.getPage(pageNumber);
       const content=await page.getTextContent();
-      const text=content.items.map(item=>"str" in item?item.str:"").join(" ").replace(/\\s+/g," ").trim();
-      if(text)pages.push("--- Page "+pageNumber+" ---\\n"+text);
-      if(pages.join("\\n\\n").length>=180000)break;
+      const text=content.items.map(item=>"str" in item?item.str:"").join(" ").replace(/\s+/g," ").trim();
+      if(text)pages.push("--- Page "+pageNumber+" ---\n"+text);
+      if(pages.join("\n\n").length>=180000)break;
     }
-    const extracted=pages.join("\\n\\n").slice(0,180000);
+    const extracted=pages.join("\n\n").slice(0,180000);
     if(extracted.trim().length<100)return {kind:"unsupported",message:"This PDF appears to be scanned or image-based, so readable text could not be extracted yet. Upload a text-based PDF or Word version to create a study pack."};
     return {kind:"text",text:extracted};
   } catch(reason) {
