@@ -1,12 +1,13 @@
 import { Component, useState, type ErrorInfo, type ReactNode } from "react";
-import { BookOpen, ClipboardCheck, GraduationCap, MessageCircle, ShieldCheck } from "lucide-react";
+import { BookOpen, CalendarDays, ClipboardCheck, GraduationCap, MessageCircle, ShieldCheck } from "lucide-react";
 import type { Subject } from "../data/db";
 import AssignedAssessments from "./AssignedAssessments";
+import AssessmentProgramme from "./AssessmentProgramme";
 import SchoolHomeworkHelp from "./SchoolHomeworkHelp";
 import WeeklyTest from "./WeeklyTest";
 import "./StudyExamsPage.css";
 
-type AssessmentTab = "practice" | "assigned" | "help";
+type AssessmentTab = "programme" | "practice" | "assigned" | "help";
 type ErrorBoundaryProps = { children: ReactNode };
 type ErrorBoundaryState = { failed: boolean };
 
@@ -43,6 +44,7 @@ export class StudyExamsErrorBoundary extends Component<ErrorBoundaryProps, Error
 }
 
 const tabs: { id: AssessmentTab; label: string; description: string; icon: typeof BookOpen; kicker: string }[] = [
+  { id: "programme", label: "My programme", description: "Set your available study periods and follow your balanced weekly assessment schedule.", icon: CalendarDays, kicker: "YOUR PERSONAL WEEKLY PROGRAMME" },
   { id: "practice", label: "Practice & exams", description: "Choose a subject, revise key ideas, practise a topic or sit a mixed examination.", icon: GraduationCap, kicker: "YOUR PERSONAL REVISION SPACE" },
   { id: "assigned", label: "Teacher assignments", description: "Open tests and assessments your teacher has assigned to your StudySpace account.", icon: ClipboardCheck, kicker: "WORK SET BY YOUR TEACHER" },
   { id: "help", label: "Ask my teacher", description: "Send a homework question or photo and follow the replies from your teacher and MIΛ.", icon: MessageCircle, kicker: "SCHOOL HOMEWORK SUPPORT" },
@@ -112,6 +114,7 @@ export default function StudyExamsPage({ subjects }: { subjects: Subject[] }) {
 
       <div id="study-exams-panel" role="tabpanel" aria-labelledby={"study-exams-tab-" + activeTab} className="study-exams-tab-panel">
         <StudyExamsErrorBoundary key={activeTab}>
+          {activeTab === "programme" && <AssessmentProgramme onOpenAssignments={() => setActiveTab("assigned")} />}
           {activeTab === "practice" && <WeeklyTest subjects={subjects} />}
           {activeTab === "assigned" && <AssignedAssessments />}
           {activeTab === "help" && <SchoolHomeworkHelp />}
