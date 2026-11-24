@@ -79,3 +79,11 @@ test("programme is the default Study & Exams view and assessment batches prepare
   assert.match(programme, /for\(let batch=0;batch<12;batch\+\+\)/);
   assert.doesNotMatch(programme, /Prepare next batch/i);
 });
+
+test("programme includes monthly and quarterly assessments and resumes generation automatically", () => {
+  const programme = readFileSync("src/components/AssessmentProgramme.tsx", "utf8");
+  assert.match(programme, /Monthly comprehensive tests/);
+  assert.match(programme, /Quarterly examinations/);
+  assert.match(programme, /data\.hasMore/);
+  assert.match(programme, /assessment_schedule_runs/);
+});
