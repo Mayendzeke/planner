@@ -86,9 +86,22 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
       }
       setLoading(false);
       if(alive) {
-        const {data:run}=await supabase.from("assessment_schedule_runs").select("id,period_start,status")
-          .eq("learner_id",auth.user.id).eq("period_type","weekly").order("period_start",{ascending:false}).limit(1).maybeSingle();
-        if(run){setWeekStart(run.period_start);setProgrammeStatus(run.status);await refreshItems(run.id);}
+        const {data:scheduled,error:scheduleError}=await supabase.functions.invoke("assessment-scheduler",{body:{timezone:String(preferences?.timezone||"Africa/Mbabane")}});
+        if(!alive)return;
+        if(scheduleError) setError(scheduleError.message);
+        else if(scheduled?.success) {
+          setProgrammeStatus(String(scheduled.status||"planned"));
+          setConflicts(Array.isArray(scheduled.conflicts)?scheduled.conflicts as Conflict[]:[]);
+          if(scheduled.weekStart)setWeekStart(String(scheduled.weekStart));
+          if(scheduled.scheduleRunId) {
+            const {data:rows}=await supabase.from("assessment_schedule_items")
+              .select("id,subject_name,assessment_type,scheduled_at,duration_minutes,question_count,status,exercise_assignment_id,metadata")
+              .eq("schedule_run_id",scheduled.scheduleRunId).order("scheduled_at");
+            if(alive)setItems((rows||[]) as ScheduleItem[]);
+          }
+          if(scheduled.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
+          else setNotice(String(scheduled.message||"Your weekly programme is ready."));
+        }
       }
     }
     void load();
