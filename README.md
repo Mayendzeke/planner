@@ -78,3 +78,8 @@ The app is published through GitHub Pages at [mayendzeke.github.io/planner](http
 - Test installation, first load, refresh and offline relaunch on target browsers.
 
 The production build verifies TypeScript and frontend compilation. It does not, by itself, prove every live database policy, account, storage rule or multi-device workflow.
+
+
+## Development standard
+
+All changes must follow the [Study Space Development Standard](STUDYSPACE_DEVELOPMENT_STANDARD.md). The pull-request template includes the required visual, accessibility, and verification checklist.
