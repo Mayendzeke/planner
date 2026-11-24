@@ -17,6 +17,8 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
   const [questionCount,setQuestionCount]=useState("10");
   const [timezone,setTimezone]=useState("Africa/Mbabane");
   const [items,setItems]=useState<ScheduleItem[]>([]);
+  const [monthlyItems,setMonthlyItems]=useState<ScheduleItem[]>([]);
+  const [quarterlyItems,setQuarterlyItems]=useState<ScheduleItem[]>([]);
   const [conflicts,setConflicts]=useState<Conflict[]>([]);
   const [weekStart,setWeekStart]=useState("");
   const [programmeStatus,setProgrammeStatus]=useState("");
@@ -27,20 +29,30 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
   const [notice,setNotice]=useState("");
 
   const selectedDays=useMemo(()=>windows.filter(item=>item.enabled),[windows]);
-  const refreshItems=useCallback(async(runId?:string)=>{
+  const refreshItems=useCallback(async(runId?:string,learnerIdOverride?:string)=>{
     if(!supabase)return;
-    let id=runId;
-    if(!id){
-      const {data:run}=await supabase.from("assessment_schedule_runs").select("id,period_start,status")
-        .eq("learner_id",learnerId).eq("period_type","weekly").order("period_start",{ascending:false}).limit(1).maybeSingle();
-      if(!run){setItems([]);return;}
-      id=run.id;setWeekStart(run.period_start);setProgrammeStatus(run.status);
-    }
+    const activeLearnerId=learnerIdOverride||learnerId;
+    if(!activeLearnerId)return;
+    const {data:runs,error:runError}=await supabase.from("assessment_schedule_runs")
+      .select("id,period_type,period_start,status,conflicts")
+      .eq("learner_id",activeLearnerId).in("period_type",["weekly","monthly","quarterly"])
+      .order("period_start",{ascending:false});
+    if(runError)throw runError;
+    const latestByType=new Map<string,any>();
+    for(const run of runs||[])if(!latestByType.has(String(run.period_type)))latestByType.set(String(run.period_type),run);
+    const weeklyRun=latestByType.get("weekly");
+    if(weeklyRun){setWeekStart(String(weeklyRun.period_start));setProgrammeStatus(String(weeklyRun.status||"planned"));}
+    const runIds=[...latestByType.values()].map((run:any)=>run.id).filter(Boolean);
+    if(!runIds.length){setItems([]);setMonthlyItems([]);setQuarterlyItems([]);setConflicts([]);return;}
     const {data,error:queryError}=await supabase.from("assessment_schedule_items")
       .select("id,subject_name,assessment_type,scheduled_at,duration_minutes,question_count,status,exercise_assignment_id,metadata")
-      .eq("schedule_run_id",id).order("scheduled_at");
+      .in("schedule_run_id",runIds).order("scheduled_at");
     if(queryError)throw queryError;
-    setItems((data||[]) as ScheduleItem[]);
+    const rows=(data||[]) as ScheduleItem[];
+    setItems(rows.filter(item=>item.assessment_type==="weekly_subject"));
+    setMonthlyItems(rows.filter(item=>item.assessment_type==="monthly_subject"));
+    setQuarterlyItems(rows.filter(item=>item.assessment_type==="quarterly_exam"));
+    setConflicts((runs||[]).flatMap((run:any)=>(Array.isArray(run.conflicts)?run.conflicts:[]).map((item:any)=>({...item,periodType:run.period_type}))) as Conflict[]);
   },[learnerId]);
 
   const runScheduler=useCallback(async(showProgress=true,learnerIdOverride?:string,timezoneOverride?:string)=>{
@@ -62,11 +74,9 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
         setProgrammeStatus(String(data.status||"planned"));
         setConflicts(Array.isArray(data.conflicts)?data.conflicts as Conflict[]:[]);
         if(data.weekStart)setWeekStart(String(data.weekStart));
-        if(data.scheduleRunId)await refreshItems(String(data.scheduleRunId));
-        pendingCount=Array.isArray(data.items)
-          ?data.items.filter((item:any)=>!item.exercise_assignment_id&&item.status==="scheduled").length
-          :0;
-        if(data.status==="needs_availability"||data.status==="no_subjects"||pendingCount===0||lastGeneratedCount===0)break;
+        if(data.scheduleRunId)await refreshItems(String(data.scheduleRunId),activeLearnerId);
+        pendingCount=Number(data.pendingCount||0);
+        if(data.status==="needs_availability"||data.status==="no_subjects"||!data.hasMore||lastGeneratedCount===0)break;
       }
       if(latestData?.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
       else if(latestData?.status==="no_subjects")setNotice("Add your registered subjects before creating your assessment programme.");
