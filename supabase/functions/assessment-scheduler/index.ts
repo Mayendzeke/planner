@@ -69,20 +69,45 @@ async function generateQuestions(url:string,publishable:string,token:string,subj
   if(!response.ok||payload?.success!==true||!Array.isArray(payload.questions)) throw new Error(String(payload?.error||"Question generation was unavailable."));
   return payload.questions as Record<string,unknown>[];
 }
-async function approvedNotes(admin:any,learnerId:string,subject:string) {
-  const {data:assignments}=await admin.from("resource_assignments").select("resource_id").eq("learner_id",learnerId);
+async function existingMaterials(admin:any,learnerId:string,subject:string) {
+  const [{data:personal,error:personalError},{data:assignments,error:assignmentError}]=await Promise.all([
+    admin.from("learner_personal_resources").select("id").eq("learner_id",learnerId).ilike("subject_name",subject).limit(1),
+    admin.from("resource_assignments").select("resource_id").eq("learner_id",learnerId),
+  ]);
+  if(personalError||assignmentError)throw new Error("The learner's existing resources could not be checked.");
   const ids=(assignments||[]).map((row:any)=>row.resource_id).filter(Boolean);
-  if(!ids.length)return "";
-  const {data:resources}=await admin.from("learning_resources").select("title,topic,storage_path,mime_type").in("id",ids).ilike("subject_name",subject).limit(5);
+  if(!ids.length)return Boolean(personal?.length);
+  const {data:resources,error}=await admin.from("learning_resources").select("id").in("id",ids).ilike("subject_name",subject).limit(1);
+  if(error)throw new Error("The learner's assigned resources could not be checked.");
+  return Boolean(personal?.length||resources?.length);
+}
+async function approvedNotes(admin:any,learnerId:string,subject:string) {
+  const [{data:assignments},{data:personal}]=await Promise.all([
+    admin.from("resource_assignments").select("resource_id").eq("learner_id",learnerId),
+    admin.from("learner_personal_resources").select("title,topic,storage_path,mime_type").eq("learner_id",learnerId).ilike("subject_name",subject).limit(5),
+  ]);
+  const ids=(assignments||[]).map((row:any)=>row.resource_id).filter(Boolean);
+  const {data:resources}=ids.length?await admin.from("learning_resources").select("title,topic,storage_path,mime_type").in("id",ids).ilike("subject_name",subject).limit(5):{data:[]};
   const notes:string[]=[];
-  for(const resource of resources||[]) {
+  for(const resource of [...(resources||[]),...(personal||[])]) {
     if(!resource.storage_path||!/^text\/(plain|markdown)/i.test(String(resource.mime_type||"")))continue;
     const {data,error}=await admin.storage.from("studyspace-resources").download(resource.storage_path);
     if(error||!data)continue;
     const text=await data.text();
-    if(text.trim())notes.push("# "+String(resource.title||subject)+"\nTopic: "+String(resource.topic||"")+"\n"+text.slice(0,7000));
+    if(text.trim())notes.push("# "+String(resource.title||subject)+"\\nTopic: "+String(resource.topic||"")+"\\n"+text.slice(0,7000));
   }
-  return notes.join("\n\n").slice(0,23000);
+  return notes.join("\\n\\n").slice(0,23000);
+}
+async function requestMaterialReview(url:string,publishable:string,service:string,learnerId:string,subject:string) {
+  const response=await fetch(url+"/functions/v1/mia-monitor-assistant",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+service,apikey:publishable,Origin:APP_ORIGIN,"Content-Type":"application/json"},
+    body:JSON.stringify({action:"prepare_material",learnerId,subjectName:subject,topic:""}),
+    signal:AbortSignal.timeout(120000),
+  });
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok||payload?.success!==true)throw new Error(String(payload?.error||"The Monitor material preparation workflow could not be started."));
+  return payload as Record<string,unknown>;
 }
 
 Deno.serve(async request=>{
@@ -212,6 +237,22 @@ Deno.serve(async request=>{
       const {data:claim}=await admin.from("assessment_schedule_items").update({status:"generated"})
         .eq("id",item.id).eq("status","scheduled").is("exercise_assignment_id",null).select("id").maybeSingle();
       if(!claim)continue;
+      const hasMaterial=await existingMaterials(admin,auth.user.id,item.subject_name);
+      if(!hasMaterial) {
+        try {
+          const request=await requestMaterialReview(url,publishable,service,auth.user.id,item.subject_name);
+          await admin.from("assessment_schedule_items").update({
+            status:"scheduled",
+            metadata:{...(item.metadata||{}),waiting_for_material_approval:true,material_review_id:String(request.reviewId||""),material_request_status:String(request.status||"pending_review")},
+          }).eq("id",item.id);
+        } catch(materialError) {
+          const message=materialError instanceof Error?materialError.message.slice(0,240):"Material preparation could not be started.";
+          await admin.from("assessment_schedule_items").update({
+            status:"scheduled",metadata:{...(item.metadata||{}),material_request_error:message},
+          }).eq("id",item.id);
+        }
+        continue;
+      }
       const cohortKey=[profile.country,profile.curriculum,profile.education_level,profile.grade,profile.course,item.subject_name,"English"]
         .map((value:any)=>String(value||"").trim().toLocaleLowerCase()).join("|");
       const {data:pool,error:poolError}=await admin.from("assessment_question_bank")
