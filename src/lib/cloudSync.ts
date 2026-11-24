@@ -476,17 +476,23 @@ async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{
   return {downloaded,uploaded};
 }
 
-let assessmentPreparationPromise:Promise<void>|null=null;
+export type AssessmentPreparationResult = { data:Record<string,any>|null; error?:string };
+let assessmentPreparationPromise:Promise<AssessmentPreparationResult>|null=null;
 
-export function prepareAssessmentProgramme():Promise<void> {
+export function prepareAssessmentProgramme():Promise<AssessmentPreparationResult> {
   if(assessmentPreparationPromise)return assessmentPreparationPromise;
   assessmentPreparationPromise=(async()=>{
-    if(!supabase)return;
+    if(!supabase)return {data:null,error:"StudySpace cloud services are not configured."};
+    let lastData:Record<string,any>|null=null;
     for(let batch=0;batch<12;batch++){
       const {data,error}=await supabase.functions.invoke("assessment-scheduler",{body:{}});
-      if(error||!data?.success||!data.hasMore||Number(data.generatedCount||0)===0)break;
+      if(error)return {data:lastData,error:error.message||"The assessment programme could not be prepared."};
+      if(!data?.success)return {data:lastData,error:String(data?.error||"The assessment programme could not be prepared.")};
+      lastData=data as Record<string,any>;
+      if(!data.hasMore||Number(data.generatedCount||0)===0)break;
     }
-  })().catch(error=>{console.warn("Automatic assessment preparation will retry on the next app session:",error);})
+    return {data:lastData};
+  })().catch(error=>({data:null,error:error instanceof Error?error.message:"Automatic assessment preparation failed."}))
     .finally(()=>{assessmentPreparationPromise=null;});
   return assessmentPreparationPromise;
 }
