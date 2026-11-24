@@ -12,6 +12,11 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_BATCH_SIZE = 100 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".pdf", ".pptx", ".ppt", ".docx", ".doc", ".xlsx", ".xls", ".csv", ".jpg", ".jpeg", ".png", ".webp", ".txt", ".rtf"];
 type ResourceType = NonNullable<StudentResource["resourceType"]>;
+type LearnerStudyPack = {
+  id:string; subject_name:string; topic?:string; file_name?:string; status:string;
+  content:Record<string,any>; error_message?:string; updated_at:string; source_type:string;
+  personal_resource_id?:string;
+};
 type TeacherResource = {
   id: string; title: string; description: string; subject_name: string; topic?: string;
   resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string;
@@ -67,6 +72,9 @@ function canStudyWithMia(name: string, size: number) {
 export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?: Subject[]; onAskMia: (file: File, prompt: string) => void }) {
   const [files, setFiles] = useState<StudentResource[]>([]);
   const [teacherFiles, setTeacherFiles] = useState<TeacherResource[]>([]);
+  const [studyPacks, setStudyPacks] = useState<LearnerStudyPack[]>([]);
+  const [studyPacksLoading, setStudyPacksLoading] = useState(true);
+  const [selectedStudyPack, setSelectedStudyPack] = useState<LearnerStudyPack | null>(null);
   const [teacherLoading, setTeacherLoading] = useState(true);
   const [teacherBusyId, setTeacherBusyId] = useState("");
   const [message, setMessage] = useState("");
@@ -136,12 +144,31 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
     } finally { setTeacherLoading(false); }
   }
 
+  async function refreshStudyPacks() {
+    if (!supabase) { setStudyPacksLoading(false); return; }
+    try {
+      const { data: authState, error: authError } = await supabase.auth.getUser();
+      if (authError || !authState.user) { setStudyPacks([]); return; }
+      const { data, error } = await supabase.from("learner_study_packs")
+        .select("id,subject_name,topic,file_name,status,content,error_message,updated_at,source_type,personal_resource_id")
+        .eq("learner_id", authState.user.id)
+        .neq("status", "superseded")
+        .order("updated_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      setStudyPacks((data ?? []) as LearnerStudyPack[]);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Generated study packs could not be loaded.");
+      setMessageIsError(true);
+    } finally { setStudyPacksLoading(false); }
+  }
+
   useEffect(() => {
     void refresh();
     void refreshTeacherFiles();
     void refreshStorageStatus();
-    const interval = window.setInterval(() => { void refreshTeacherFiles(); void refreshStorageStatus(); }, 60000);
-    const onVisible = () => { if (document.visibilityState === "visible") { void refreshTeacherFiles(); void refreshStorageStatus(); } };
+    void refreshStudyPacks();
+    const interval = window.setInterval(() => { void refresh(); void refreshTeacherFiles(); void refreshStorageStatus(); void refreshStudyPacks(); }, 60000);
+    const onVisible = () => { if (document.visibilityState === "visible") { void refresh(); void refreshTeacherFiles(); void refreshStorageStatus(); void refreshStudyPacks(); } };
     const onStorageUpdated = () => void refreshStorageStatus();
     window.addEventListener("focus", onVisible);
     window.addEventListener("studyspace-storage-updated", onStorageUpdated);
