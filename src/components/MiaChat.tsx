@@ -430,7 +430,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
     <header className="mia-header">
       <div className="mia-brand-mark">Λ</div>
-      <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · GEMMA 4</span></div>
+      <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · STUDY SPACE</span></div>
       <div className="mia-header-actions">
         <button type="button" className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
         {onMenuClick && <button type="button" className="mia-icon-button mia-navigation-menu" onClick={onMenuClick} aria-label="Open StudySpace menu" title="Open StudySpace menu"><Menu size={19}/></button>}
