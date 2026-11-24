@@ -3,12 +3,18 @@
 ## Product rules
 - Weekly coverage is for every active registered subject/module, Monday–Friday.
 - The balanced policy is authoritative: distribute high-workload subjects across different days where free slots permit; never silently omit a subject.
-- Regular subject assessments contain 10 questions.
+- Regular subject assessments default to 10 questions; the learner may change that preference.
 - Schedule generation is deterministic for a given profile/week/availability snapshot and must be idempotent when persisted.
 - A missed due date marks an assessment overdue; it must not prevent opening or submitting it.
 - MIΛ may generate questions, but persisted assessments and attempts must work without a live MIΛ conversation.
 - Monthly assessments and quarterly examinations are separate assessment periods and must be planned around weekly workload.
+- All scheduled assessments must be prepared automatically in bounded background batches; learners must not be required to press a “prepare next batch” button.
 - Saturday competitions are out of scope for this implementation phase.
+
+## Repository ownership
+- Student repository owns the learner interface, preferences UI and client-side display only.
+- Monitor repository is the single source of truth for Supabase migrations and Edge Function source, including assessment-scheduler and submit-exercise-attempt.
+- Do not add backend migration or Edge Function copies to the Student repository.
 
 ## Scheduling inputs
 The trusted scheduling service must build normalized free slots by subtracting school timetable entries, teacher/class lessons, personal timetable entries, personal commitments and explicit unavailable periods from the student's configured availability. The client scheduler must never infer that a student is free merely because no timetable row exists.
