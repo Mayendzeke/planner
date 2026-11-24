@@ -142,6 +142,14 @@ async function pdfPreview(file:Blob):Promise<StudyMaterialPreview> {
   }
 }
 
+export function studyMaterialText(preview:StudyMaterialPreview):string {
+  if(preview.kind==="text")return preview.text;
+  if(preview.kind==="slides")return preview.slides.map(slide=>"Slide "+slide.number+": "+slide.title+"\n"+slide.body).join("\n\n").slice(0,180000);
+  if(preview.kind==="table")return preview.rows.map(row=>row.join(" | ")).join("\n").slice(0,180000);
+  if(preview.kind==="workbook")return preview.sheets.map(sheet=>"Worksheet: "+sheet.name+"\n"+sheet.rows.map(row=>row.map(cell=>cell.value+(cell.formula?" ("+cell.formula+")":"")).join(" | ")).join("\n")).join("\n\n").slice(0,180000);
+  return "";
+}
+
 export async function readStudyMaterialPreview(file: Blob, fileName: string): Promise<StudyMaterialPreview> {
   const extension = fileName.toLowerCase().slice(fileName.lastIndexOf("."));
   if (extension === ".pdf") return await pdfPreview(file);
