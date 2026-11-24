@@ -52,3 +52,9 @@ test("weak recent performance increases workload priority", () => {
   assert.ok(workloadFor({ difficulty: "moderate", recent_score: 35 }).workload >
     workloadFor({ difficulty: "moderate", recent_score: 90 }).workload);
 });
+
+test("reports days that exceed the student's daily workload target", () => {
+  const subjects = Array.from({ length: 10 }, (_, index) => ({ id: index + 1, name: "Module " + (index + 1), difficulty: "moderate" }));
+  const result = buildBalancedWeeklySchedule({ subjects, availableSlots: slots, dailyMinutesLimit: 30 });
+  assert.ok(result.conflicts.some(item => item.reason === "daily_workload_limit_exceeded"));
+});
