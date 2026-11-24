@@ -56,6 +56,10 @@ export type Subject = {
   description?: string;
   category?: string;
   targetMark?: number;
+  difficultyLevel?: "very_low" | "low" | "moderate" | "high" | "very_high";
+  subjectType?: "calculation" | "practical" | "essay" | "theory" | "memorisation" | "language" | "mixed";
+  creditHours?: number;
+  weeklyMinutesTarget?: number;
   periodIds?: number[];
   cloudId?: string;
   localUpdatedAt?: string;
