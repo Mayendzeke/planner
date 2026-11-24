@@ -321,7 +321,7 @@ Deno.serve(async request=>{
     .select("id,subject_name,assessment_type,scheduled_at,duration_minutes,question_count,status,exercise_assignment_id,metadata")
     .eq("schedule_run_id",runId).order("scheduled_at");
   const allPublished=(finalItems||[]).length>0&&(finalItems||[]).every((item:any)=>item.exercise_assignment_id);
-  const finalStatus=allPublished?"published":schedule.conflicts.length?"capacity_conflict":"planned";
+  const finalStatus=schedule.conflicts.length?"capacity_conflict":allPublished?"published":"planned";
   await admin.from("assessment_schedule_runs").update({status:finalStatus}).eq("id",runId);
   return json(200,{
     success:true,status:finalStatus,scheduleRunId:runId,weekStart:monday,subjectCount:subjects.length,
