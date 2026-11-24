@@ -354,7 +354,7 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const topicPool = useMemo(() => fullPool.filter(question => matchesTopic(question, topics.find(item => item.name === topicName) ?? {name:"",keywords:[]})), [fullPool, topics, topicName]);
   const weeklyPool = useMemo(() => modes.flatMap(item => (bankFor(subject)?.[item.name] ?? []).slice(0, 3)), [subject, fullPool]);
   const examPool = fullPool;
-  const activePool = path === "Topic test" ? (generatedQuestions.length ? generatedQuestions : topicPool) : path === "Weekly test" ? weeklyPool : path === "Examination" ? examPool : [];
+  const activePool = generatedQuestions.length ? generatedQuestions : path === "Topic test" ? topicPool : path === "Weekly test" ? weeklyPool : path === "Examination" ? examPool : [];
   const question = activePool[questionIndex];
   const questionMode = question ? question.mode ?? modes.find(item => bankFor(subject)?.[item.name].includes(question))?.name ?? "Question" : "";
   const sectionLetter = String.fromCharCode(65 + Math.max(0, modes.findIndex(item => item.name === questionMode)));
