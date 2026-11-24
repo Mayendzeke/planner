@@ -6,6 +6,7 @@ import {
 import PdfViewer from "./PdfViewer";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
+import { prepareAssessmentProgramme } from "../lib/cloudSync";
 import { readStudyMaterialPreview, studyMaterialText, type StudyMaterialPreview } from "../lib/studyMaterialPreview";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
@@ -174,7 +175,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
           const {data:generated,error:generationError}=await supabase!.functions.invoke("study-material-engine",{
             body:{sourceType:"teacher_resource",resourceId:resource.id,extractedText,subjectName:resource.subject_name||"",topic:resource.topic||""},
           });
-          if(!generationError&&generated?.success)void refreshStudyPacks();
+          if(!generationError&&generated?.success){void refreshStudyPacks();if(generated.status==="ready")void prepareAssessmentProgramme();}
         })().catch(reason=>console.warn("Teacher study pack preparation will retry later:",reason));
       }
     }catch(reason){console.warn("Assigned study materials could not be prepared yet:",reason);}
