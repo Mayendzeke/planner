@@ -6,7 +6,7 @@ import {
 import PdfViewer from "./PdfViewer";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
-import { prepareAssessmentProgramme, prepareAssignedTeacherStudyPacks } from "../lib/cloudSync";
+import { prepareAssignedTeacherStudyPacks } from "../lib/cloudSync";
 import { readStudyMaterialPreview, type StudyMaterialPreview } from "../lib/studyMaterialPreview";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
