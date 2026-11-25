@@ -23,3 +23,10 @@ test("student MIΛ provides a visible loading state and recoverable history warn
   assert.match(source, /setRestoreAttempt\(value => value \+ 1\)/);
   assert.match(source, /!restoring && messages\.length === 0/);
 });
+
+test("student MIΛ exposes source-grounded notes summaries and past-paper support", () => {
+  assert.match(source, /id: "summary", title: "Summarise my notes"/);
+  assert.match(source, /id: "exam-materials", title: "Past papers & mark schemes"/);
+  assert.match(source, /Never invent an official paper, question, marking scheme or citation/);
+  assert.match(source, /Do not claim to have read a file unless its contents are actually available/);
+});
