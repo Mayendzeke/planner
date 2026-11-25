@@ -531,3 +531,49 @@
   background: var(--accent, #7c5ce7);
   color: white;
 }
+
+
+/* MIΛ mobile navigation: keep the drawer above the full-screen chat viewport.
+   The full-screen workspace has its own fixed stacking layer. The normal
+   glass-panel positioning can otherwise trap the sidebar beneath the blur scrim
+   in Android WebViews, making the screen dim while the menu stays hidden. */
+@media (max-width: 760px) {
+  .app-shell-mia > .sidebar.glass-panel {
+    position: fixed !important;
+    top: 0 !important;
+    right: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 140 !important;
+    width: min(285px, 85vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    transform: translateX(-105%) !important;
+    transition: transform .22s ease, visibility .22s ease;
+    visibility: hidden;
+    pointer-events: none;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    background: var(--panel-strong) !important;
+    background-color: var(--panel-strong) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .app-shell-mia > .sidebar.glass-panel.sidebar-open {
+    transform: translateX(0) !important;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .app-shell-mia > .mobile-scrim {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 130 !important;
+    border: 0 !important;
+    background: rgba(3, 8, 20, .68) !important;
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+  }
+}
