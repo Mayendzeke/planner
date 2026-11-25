@@ -222,6 +222,23 @@ async function functionErrorMessage(error: unknown): Promise<string> {
     : "MIΛ could not complete the request. Check your connection and retry.";
 }
 
+async function invokeMiaAssistant(body: Record<string, unknown>) {
+  if (!supabase) throw new Error("The secure StudySpace connection is unavailable.");
+  const current = await supabase.auth.getSession();
+  if (current.error) throw current.error;
+  let session = current.data.session;
+  if (!session || (session.expires_at && session.expires_at * 1000 <= Date.now() + 60_000)) {
+    const refreshed = await supabase.auth.refreshSession();
+    if (refreshed.error) throw refreshed.error;
+    session = refreshed.data.session;
+  }
+  if (!session?.access_token) throw new Error("Your StudySpace session has expired. Sign in again to use MIΛ.");
+  return supabase.functions.invoke("mia-assistant", {
+    body,
+    headers: { Authorization: "Bearer " + session.access_token },
+  });
+}
+
 export default function MiaChat({ profile, subjects, variant = "studio", onClose, onMenuClick, onNavigate, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
@@ -370,8 +387,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     try {
       const uploaded = file ? await filePayload(file) : null;
       if (uploaded?.textContent && !value) setText("");
-      const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded?.data ? uploaded : null, conversationId },
+      const { data, error: invokeError } = await invokeMiaAssistant({
+        action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded?.data ? uploaded : null, conversationId,
       });
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
@@ -425,8 +442,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
     try {
       if (!attachment.type.startsWith("image/")) throw new Error("Timetable import currently needs a photo or image file.");
       const image = await filePayload(attachment);
-      const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "parse_timetable", image: { mimeType: image.mimeType, data: image.data }, conversationId, message: text.trim() },
+      const { data, error: invokeError } = await invokeMiaAssistant({
+        action: "parse_timetable", image: { mimeType: image.mimeType, data: image.data }, conversationId, message: text.trim(),
       });
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success) throw new Error(data?.error || "The timetable could not be read.");
