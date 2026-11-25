@@ -41,7 +41,7 @@ test("persistent notifications can be opened, refreshed and marked read", () => 
   assert.match(notifications, /read_at/);
   assert.match(notifications, /student-notification-center-/);
   assert.match(app, /<StudentNotificationCenter onNavigate=/);
-  assert.match(mia, /<StudentNotificationCenter onNavigate=/);
+  assert.doesNotMatch(mia, /StudentNotificationCenter/);
 });
 
 test("student settings include friend-request notification preferences", () => {
@@ -63,4 +63,12 @@ test("MIΛ is a dedicated full-screen learning workspace with clear grouped entr
   assert.match(mia, /Plan and research/);
   assert.match(mia, /mia-visual-flashcards/);
   assert.match(mia, /mia-composer/);
+});
+
+
+test("MIΛ is mounted behind a recoverable render boundary and tolerates stale learner data", () => {
+  assert.match(app, /class MiaChatErrorBoundary/);
+  assert.match(app, /<MiaChatErrorBoundary><MiaChat/);
+  assert.match(mia, /Array\.isArray\(suppliedSubjects\)/);
+  assert.match(mia, /typeof profile\?\.preferredName === "string"/);
 });
