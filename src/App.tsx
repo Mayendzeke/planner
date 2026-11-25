@@ -1041,7 +1041,7 @@ export default function App() {
       <div className="onboarding-brand"><span className="onboarding-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="eyebrow"><LockKeyhole size={14}/> ACCESS PAUSED</div>
       <div className="onboarding-heading">
-        <h1>Your 48-hour free trial has ended.</h1>
+        <h1>Your free trial has ended.</h1>
         <p>Your account and Student ID are saved. Restore access with a renewal PIN or request a plan below. Once access is restored, you can finish setting up your study profile.</p>
       </div>
       <StudentSubscription onAccessRestored={() => setAccessRetry(value => value + 1)}/>
