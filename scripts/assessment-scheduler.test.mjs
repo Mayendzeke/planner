@@ -29,3 +29,29 @@ test("programme displays weekly, monthly and quarterly assessment periods", () =
   assert.match(programme, /data\.hasMore/);
   assert.match(programme, /assessment_schedule_runs/);
 });
+
+
+test("learner can request a persistent practice test and see its saved status", () => {
+  const builder = readFileSync("src/components/PracticeRequestBuilder.tsx", "utf8");
+  const exams = readFileSync("src/components/StudyExamsPage.tsx", "utf8");
+  const assignments = readFileSync("src/components/AssignedAssessments.tsx", "utf8");
+  assert.match(builder, /action:\s*"request_practice"/);
+  assert.match(builder, /learner_practice_requests/);
+  assert.match(builder, /questionCount:\s*Number\(questionCount\)/);
+  assert.match(builder, /difficulty/);
+  assert.match(exams, /PracticeRequestBuilder/);
+  assert.match(exams, /assignmentType="practice"/);
+  assert.match(assignments, /assignment_type/);
+});
+
+test("uploaded and teacher-assigned resources can trigger private study-pack preparation", () => {
+  const library = readFileSync("src/components/StudentLibrary.tsx", "utf8");
+  const cloudSync = readFileSync("src/lib/cloudSync.ts", "utf8");
+  const preview = readFileSync("src/lib/studyMaterialPreview.ts", "utf8");
+  assert.match(library, /learner_study_packs/);
+  assert.match(cloudSync, /functions\.invoke\("study-material-engine"/);
+  assert.match(cloudSync, /sourceType:"teacher_resource"/);
+  assert.match(cloudSync, /prepareAssignedTeacherStudyPacks/);
+  assert.match(preview, /pdfPreview/);
+  assert.match(preview, /studyMaterialText/);
+});
