@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
-import { syncStudentWorkspace } from "./lib/cloudSync";
+import { prepareAssessmentProgramme, prepareAssignedTeacherStudyPacks, syncStudentWorkspace } from "./lib/cloudSync";
 import { EDUCATION_LEVEL_VALUES, isEducationLevel, isTertiaryLevel } from "./lib/educationPathways";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
@@ -337,6 +337,30 @@ export default function App() {
 
   const profileReady = Boolean(cloudUserId && profile && profileOwnerId === cloudUserId);
   const profileProgressReady = Boolean(profileReady && ready);
+
+  // Maintain the learner's stored assessment queue and assigned study packs even when
+  // Study & Exams or the Library is not opened manually.
+  useEffect(() => {
+    if (!profileProgressReady || !cloudUserId || termsAccepted !== true || expiredAccess || accessStatusError || !supabase) return;
+    void prepareAssessmentProgramme();
+    void prepareAssignedTeacherStudyPacks();
+    const interval = window.setInterval(() => {
+      void prepareAssessmentProgramme();
+      void prepareAssignedTeacherStudyPacks();
+    }, 15 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void prepareAssessmentProgramme();
+        void prepareAssignedTeacherStudyPacks();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [cloudUserId, profileProgressReady, termsAccepted, expiredAccess, accessStatusError]);
+
 
   useEffect(() => {
     if (!profileProgressReady || !cloudUserId) {
@@ -1013,7 +1037,7 @@ export default function App() {
       <div className="onboarding-brand"><span className="onboarding-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></span><span>studyspace<span className="brand-dot">.</span></span></div>
       <div className="eyebrow"><LockKeyhole size={14}/> ACCESS PAUSED</div>
       <div className="onboarding-heading">
-        <h1>Your 7-day free trial has ended.</h1>
+        <h1>Your 48-hour free trial has ended.</h1>
         <p>Your account and Student ID are saved. Restore access with a renewal PIN or request a plan below. Once access is restored, you can finish setting up your study profile.</p>
       </div>
       <StudentSubscription onAccessRestored={() => setAccessRetry(value => value + 1)}/>
