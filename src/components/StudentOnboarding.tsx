@@ -15,6 +15,7 @@ export type StudentProfile = {
   level: string;
   grade: string;
   curriculum: string;
+  preferredLanguage: string;
   academicYear: string;
   termCount: string;
   goals: string;
@@ -30,7 +31,7 @@ export type StudentProfile = {
 
 const emptyProfile: StudentProfile = {
   fullName: "", preferredName: "", country: "", institution: "", course: "", institutionType: "", qualificationLevel: "", level: "",
-  grade: "", curriculum: "", academicYear: String(new Date().getFullYear()), termCount: "3",
+  grade: "", curriculum: "", preferredLanguage: "English", academicYear: String(new Date().getFullYear()), termCount: "3",
   goals: "Improve my marks", targetMark: "75", weeklyHours: "6", preferredDays: ["Saturday", "Sunday"], subjects: []
 };
 
@@ -224,6 +225,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
         <label className="field-label">Preferred name <span className="field-optional">OPTIONAL</span><input value={profile.preferredName} onChange={e => update("preferredName", e.target.value)} placeholder="What should we call you?" maxLength={60}/></label>
         <label className="field-label">Country<input value={profile.country} onChange={e => update("country", e.target.value)} placeholder="e.g. Eswatini" maxLength={80}/></label>
         <label className="field-label">School or institution <span className="field-optional">OPTIONAL</span><input value={profile.institution} onChange={e => update("institution", e.target.value)} placeholder="Enter school or institution" maxLength={120}/></label>
+        <label className="field-label">Learning and assessment language<select value={profile.preferredLanguage || "English"} onChange={e => update("preferredLanguage", e.target.value)}><option value="English">English</option><option value="SiSwati">SiSwati</option></select><small>MIΛ, study guides, assessment questions, answer choices and instructions will use this language. Exact past-paper questions keep their original source language when required by the paper.</small></label>
       </div>}
 
       {step === 1 && <div className="onboarding-fields">
