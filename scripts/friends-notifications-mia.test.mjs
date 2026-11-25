@@ -52,6 +52,9 @@ test("student settings include friend-request notification preferences", () => {
 test("MIΛ is a dedicated full-screen learning workspace with clear grouped entry points", () => {
   assert.match(miaLayout, /\.app-shell-mia/);
   assert.match(miaLayout, /100dvh/);
+  assert.match(miaLayout, /position: fixed !important/);
+  assert.match(miaLayout, /flex: 1 1 0 !important/);
+  assert.match(miaLayout, /overflow-y: auto !important/);
   assert.match(miaLayout, /safe-area-inset-bottom/);
   assert.match(miaLayout, /mia-help-groups/);
   assert.match(mia, /Understand and learn/);
