@@ -165,7 +165,7 @@ jobs:
           if (!onboarding.includes('avatarFile') || !onboarding.includes('accept="image/png,image/jpeg,image/webp"')) throw new Error('Optional profile-photo onboarding is incomplete.')
           if (!onboarding.includes('stored privately') || !profileEditor.includes('Private to you and authorised administrators')) throw new Error('Learners must be told that uploaded profile photos are private.')
           if (!accountSecurity.includes('scope: "others"') || !accountSecurity.includes('change-student-password') || !studentApp.includes('must_change_password') || !studentApp.includes('StudentAccountSecurity required')) throw new Error('Learner account security must use the authenticated self-service password endpoint and require temporary-password changes.')
-          console.log('Terms v8, connected learner homework, server-owned fallback timing and enabled public enrolment validation checks passed.')
+          console.log('Terms v9, connected learner homework, server-owned fallback timing and enabled public enrolment validation checks passed.')
           NODE
       - name: Build app
         env:
