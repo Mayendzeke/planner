@@ -26,7 +26,7 @@ jobs:
         run: node --test scripts/mia-study-materials-bridge.test.mjs
       - name: Verify student password authentication and error handling
         run: node --test scripts/change-student-password-auth.test.mjs
-      - name: Verify seven-day free trial and guardian activation
+      - name: Verify the 48-hour free trial and guardian activation
         run: node --test scripts/free-trial-duration.test.mjs
       - name: Verify subject and assigned-module lab eligibility
         run: node --test scripts/subject-labs-eligibility.test.mjs
