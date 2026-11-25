@@ -18,6 +18,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
   const [dailyLimit,setDailyLimit]=useState("120");
   const [questionCount,setQuestionCount]=useState("10");
   const [timezone,setTimezone]=useState("Africa/Mbabane");
+  const [language,setLanguage]=useState("English");
   const [items,setItems]=useState<ScheduleItem[]>([]);
   const [monthlyItems,setMonthlyItems]=useState<ScheduleItem[]>([]);
   const [quarterlyItems,setQuarterlyItems]=useState<ScheduleItem[]>([]);
@@ -103,12 +104,13 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
       if(!alive)return;
       setLearnerId(auth.user.id);
       const {data:preferences,error:preferencesError}=await supabase.from("assessment_schedule_preferences")
-        .select("available_windows,daily_minutes_limit,timezone,question_count").eq("learner_id",auth.user.id).maybeSingle();
+        .select("available_windows,daily_minutes_limit,timezone,question_count,language").eq("learner_id",auth.user.id).maybeSingle();
       if(preferencesError){setError(preferencesError.message);setLoading(false);return;}
       if(preferences){
         setDailyLimit(String(preferences.daily_minutes_limit||120));
         setQuestionCount(String(preferences.question_count||10));
         setTimezone(String(preferences.timezone||"Africa/Mbabane"));
+        setLanguage(String(preferences.language||"English"));
         const saved=Array.isArray(preferences.available_windows)?preferences.available_windows as Record<string,unknown>[]:[];
         setWindows(weekdays.map(day=>{
           const row=saved.find(item=>Number(item.day)===day.day);
@@ -131,7 +133,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
     try{
       const available_windows=selectedDays.map(item=>({day:item.day,start:item.start,end:item.end}));
       const {error:saveError}=await supabase.from("assessment_schedule_preferences").upsert({
-        learner_id:learnerId,timezone,available_windows,
+        learner_id:learnerId,timezone,language,available_windows,
         preferred_assessment_days:selectedDays.map(item=>item.day),
         daily_minutes_limit:Number(dailyLimit),question_count:Number(questionCount),updated_at:new Date().toISOString(),
       },{onConflict:"learner_id"});
@@ -164,6 +166,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
         <div className="assessment-preference-footer">
           <label>Daily assessment workload<select value={dailyLimit} onChange={event=>setDailyLimit(event.target.value)}><option value="60">Up to 1 hour</option><option value="90">Up to 1.5 hours</option><option value="120">Up to 2 hours</option><option value="180">Up to 3 hours</option><option value="240">Up to 4 hours</option></select></label>
           <label>Questions per subject test<select value={questionCount} onChange={event=>setQuestionCount(event.target.value)}><option value="5">5 questions</option><option value="10">10 questions</option><option value="15">15 questions</option><option value="20">20 questions</option><option value="25">25 questions</option><option value="30">30 questions</option></select></label>
+          <label>Questions &amp; instructions language<select value={language} onChange={event=>setLanguage(event.target.value)}><option>English</option><option>SiSwati</option><option>French</option><option>Portuguese</option><option>Afrikaans</option><option>Arabic</option><option>Mandarin Chinese</option><option>Spanish</option></select></label>
           <label>Time zone<select value={timezone} onChange={event=>setTimezone(event.target.value)}><option value="Africa/Mbabane">Eswatini (Africa/Mbabane)</option><option value="Africa/Johannesburg">South Africa (Africa/Johannesburg)</option><option value="UTC">UTC</option></select></label>
           <button type="submit" className="primary-button" disabled={saving||generating}>{saving||generating?"Saving…":"Save availability & build plan"}</button>
         </div>
