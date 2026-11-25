@@ -296,7 +296,7 @@ export default function App() {
       setAccessStatusError("");
       setAccessLoading(false);
 
-      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialStart + 6 * 24 * 60 * 60 * 1000) {
+      if (hasTrial && acceptedCurrentTerms && !data.trial_reminder_shown_at && now >= trialExpiry - 24 * 60 * 60 * 1000) {
         const { data: marked, error: reminderError } = await supabase!.rpc("mark_studyspace_trial_reminder_shown");
         if (alive && !reminderError && marked === true) setTrialReminder(true);
       }
