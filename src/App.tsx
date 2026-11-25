@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Component, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlarmClock, ArrowDownRight, BookOpen, CalendarDays, Check, Cloud, RefreshCw,
   ChevronRight, CircleHelp, Clock3, Download, GraduationCap, ClipboardList, LayoutDashboard, LockKeyhole,
@@ -44,6 +44,30 @@ import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./c
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 import { runLogoHandoff } from "./lib/logoTransition";
+
+class MiaChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("[MIΛ] The learning companion failed to render:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <section className="mia-render-error" role="alert">
+        <div className="mia-render-error-mark">Λ</div>
+        <h2>MIΛ could not open correctly</h2>
+        <p>Your learning records are still saved. Reload the student app to try opening MIΛ again.</p>
+        <button type="button" onClick={() => window.location.reload()}>Reload MIΛ</button>
+      </section>;
+    }
+    return this.props.children;
+  }
+}
 
 type Page = "Overview" | "Today's Session" | "Labs" | "MIΛ" | "Learning Studio" | "Subjects" | "Planner" | "Timetable" | "Study & Exams" | "Study Materials & Resources" | "Academic Calendar" | "Progress" | "Messages" | "Friends" | "Testimonials" | "Help & feedback" | "My profile" | "Settings" | "Subscription";
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
@@ -1096,7 +1120,7 @@ export default function App() {
           <div className="glass-panel week-panel"><div className="section-heading"><div><h2>Study time</h2><p>Minutes you have logged this week.</p></div><Clock3 size={20}/></div><div className="week-summary"><div><strong>{Math.floor(weekMinutes/60)}h {weekMinutes%60}m</strong><span>recorded this week</span></div><span className="week-trend">{Math.min(100,Math.round(weeklyHours/Math.max(1,goal)*100))}% of goal</span></div><div className="goal-track"><span style={{width:Math.min(100,weeklyHours/Math.max(1,goal)*100)+"%"}}/></div><div className="goal-label"><span>0h</span><span>{goal}h weekly goal</span></div><div className="session-actions"><label>Log a session<select id="quick-session-subject" defaultValue=""><option value="">General study</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,25);}}>+25 min</button><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,50);}}>+50 min</button></div><p className="subtle-note">Sessions are logged when you choose a duration. This does not run a background timer.</p></div></section>
           <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your Studyspace data travels with your account.</strong> Subjects, tasks, study sessions, academic calendar records and personal files sync to your private Studyspace account when online. This device keeps an offline copy so you can continue studying without a connection.</p><span className="note-pill">CLOUD + OFFLINE</span></section></>}
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
-        {page==="MIΛ"&&profile&&<MiaChat profile={profile} subjects={subjects} variant="studio" onMenuClick={() => setMobileMenu(true)} onNavigate={destination=>{setPage(destination as Page);setMobileMenu(false);}} initialAttachment={miaResourceStart?.file} initialPrompt={miaResourceStart?.prompt} onAttachmentConsumed={consumeMiaResourceStart}/>}
+        {page==="MIΛ"&&profile&&<MiaChatErrorBoundary><MiaChat profile={profile} subjects={subjects} variant="studio" onMenuClick={() => setMobileMenu(true)} onNavigate={destination=>{setPage(destination as Page);setMobileMenu(false);}} initialAttachment={miaResourceStart?.file} initialPrompt={miaResourceStart?.prompt} onAttachmentConsumed={consumeMiaResourceStart}/></MiaChatErrorBoundary>}
         {page==="Learning Studio"&&profile&&<LearningStudio subjects={subjects} learnerLevel={profile.level} grade={profile.grade} curriculum={profile.curriculum} onAskMia={startMiaWithPrompt} onOpenAssessments={()=>setPage("Study & Exams")} onOpenMaterials={()=>setPage("Study Materials & Resources")}/>}
         {page==="Labs"&&<SubjectLabs subjects={subjects} studentId={cloudUserId}/>}
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
