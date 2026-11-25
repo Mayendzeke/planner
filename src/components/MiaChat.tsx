@@ -70,6 +70,33 @@ const helpOptions: HelpOption[] = [
   { id: "coding", title: "Coding & ICT help", description: "Understand code and solve learning exercises.", icon: Sparkles, prompt: "Help me learn a computing or coding concept. Explain it at my level, inspect any code or error I provide, identify the cause, show a corrected example and explain each important change. Use safe educational examples and do not ask for passwords, API keys or private credentials." },
 ];
 
+const helpOptionGroups = [
+  {
+    id: "learn",
+    title: "Understand and learn",
+    description: "Get a clear explanation, guided help or feedback on your work.",
+    options: ["topic", "homework", "language", "writing", "coding"],
+  },
+  {
+    id: "practise",
+    title: "Practise and prepare",
+    description: "Strengthen difficult topics and get ready for tests and examinations.",
+    options: ["practice", "weak-areas", "revision"],
+  },
+  {
+    id: "study-tools",
+    title: "Build your study tools",
+    description: "Turn your learning into notes, flashcards and organised materials.",
+    options: ["flashcards", "notes", "materials"],
+  },
+  {
+    id: "plan",
+    title: "Plan and research",
+    description: "Organise your study time or develop academic research skills.",
+    options: ["plan", "research"],
+  },
+] as const;
+
 function extractOfficeText(buffer: ArrayBuffer, extension: string): string {
   const archive = unzipSync(new Uint8Array(buffer));
   const readXml = (path: string) => {
@@ -502,15 +529,24 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
     {messages.length === 0 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
-      <div className="mia-help-options-heading"><div><span className="eyebrow">YOUR LEARNING, YOUR WAY</span><strong>What would you like help with?</strong><small>Choose a starting point. MIΛ will use your registered subjects, curriculum and learning progress to tailor the support.</small></div><span className="mia-help-options-context">{subjects.length} subjects</span></div>
-      <div className="mia-help-options-grid">
-        {helpOptions.filter(option => !option.tertiaryOnly || isTertiaryLearner).map(option=>{
-          const Icon=option.icon;
-          return <button type="button" className="mia-help-option" key={option.id} disabled={busy} aria-busy={busy} onClick={()=>{void sendMessage(option.prompt);}}>
-            <span className={"mia-help-option-icon "+option.id}><Icon size={18}/></span>
-            <span className="mia-help-option-copy"><strong>{option.title}</strong><small>{option.description}</small></span>
-            <span className="mia-help-option-arrow" aria-hidden="true">↗</span>
-          </button>;
+      <div className="mia-help-options-heading"><div><span className="eyebrow">YOUR LEARNING, YOUR WAY</span><strong>What are we learning today?</strong><small>Choose what you need. MIΛ uses your level, subjects, curriculum and learning progress to tailor its support.</small></div><span className="mia-help-options-context">{subjects.length} subjects</span></div>
+      <div className="mia-help-groups">
+        {helpOptionGroups.map(group => {
+          const options = helpOptions.filter(option => group.options.includes(option.id as never) && (!option.tertiaryOnly || isTertiaryLearner));
+          if (!options.length) return null;
+          return <section className="mia-help-group" key={group.id}>
+            <div className="mia-help-group-heading"><strong>{group.title}</strong><span>{group.description}</span></div>
+            <div className="mia-help-options-grid">
+              {options.map(option=>{
+                const Icon=option.icon;
+                return <button type="button" className="mia-help-option" key={option.id} disabled={busy} aria-busy={busy} onClick={()=>{void sendMessage(option.prompt);}}>
+                  <span className={"mia-help-option-icon "+option.id}><Icon size={18}/></span>
+                  <span className="mia-help-option-copy"><strong>{option.title}</strong><small>{option.description}</small></span>
+                  <span className="mia-help-option-arrow" aria-hidden="true">↗</span>
+                </button>;
+              })}
+            </div>
+          </section>;
         })}
       </div>
       {subjects.length>0&&<p className="mia-help-options-subjects">Ready to support: {subjects.map(subject=>subject.name).join(" · ")}</p>}
