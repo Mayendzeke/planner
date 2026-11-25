@@ -393,3 +393,30 @@
   .app-shell-mia .mia-help-group .mia-help-options-grid{grid-template-columns:1fr}
   .app-shell-mia .mia-help-group-heading strong{font-size:12px}
 }
+
+/* Ensure the full-screen MIΛ workspace owns a real vertical flex layout.
+   Without this, the transcript can collapse when the app shell hides its
+   normal top bar and the chat children cannot claim the remaining height. */
+.app-shell-mia .page-content > .mia-studio-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+.app-shell-mia .mia-studio-shell > .mia-messages {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.app-shell-mia .mia-studio-shell > .mia-composer,
+.app-shell-mia .mia-studio-shell > .mia-footnote {
+  flex-shrink: 0;
+}
