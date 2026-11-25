@@ -243,7 +243,7 @@ Deno.serve(async request => {
     success: true,
     studentId,
     accountStatus: "active",
-    trialHours: 48,
+    trialHours: 168,
     message: invitation
       ? "Account created. Sign in with your Student ID and password."
       : "Your StudySpace account is ready. Keep your generated Student ID safe and use it with your password to sign in.",
