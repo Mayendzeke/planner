@@ -258,12 +258,13 @@ async function invokeMiaAssistant(body: Record<string, unknown>) {
   return invoke(refreshed.data.session.access_token);
 }
 
-export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onMenuClick, initialAttachment, initialPrompt, onAttachmentConsumed }: {
+export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onMenuClick, navigationOpen = false, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
   onClose?: () => void;
   onMenuClick?: () => void;
+  navigationOpen?: boolean;
   onNavigate?: (page: string) => void;
   initialAttachment?: File | null;
   initialPrompt?: string;
@@ -546,7 +547,7 @@ export default function MiaChat({ profile, subjects: suppliedSubjects, variant =
       <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · STUDY SPACE</span></div>
       <div className="mia-header-actions">
         <button type="button" className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
-        {onMenuClick && <button type="button" className="mia-icon-button mia-navigation-menu" onClick={onMenuClick} aria-label="Open StudySpace menu" title="Open StudySpace menu"><Menu size={19}/></button>}
+        {onMenuClick && <button type="button" className="mia-icon-button mia-navigation-menu" onClick={onMenuClick} aria-expanded={navigationOpen} aria-controls="student-navigation-drawer" aria-label={navigationOpen ? "StudySpace menu open" : "Open StudySpace menu"} title="Open StudySpace menu"><Menu size={19}/></button>}
         {onClose && <button type="button" className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
     </header>
