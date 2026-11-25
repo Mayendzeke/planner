@@ -227,16 +227,26 @@ async function invokeMiaAssistant(body: Record<string, unknown>) {
   const current = await supabase.auth.getSession();
   if (current.error) throw current.error;
   let session = current.data.session;
-  if (!session || (session.expires_at && session.expires_at * 1000 <= Date.now() + 60_000)) {
+  if (!session || (session.expires_at && session.expires_at * 1000 <= Date.now() + 120_000)) {
     const refreshed = await supabase.auth.refreshSession();
     if (refreshed.error) throw refreshed.error;
     session = refreshed.data.session;
   }
   if (!session?.access_token) throw new Error("Your StudySpace session has expired. Sign in again to use MIΛ.");
-  return supabase.functions.invoke("mia-assistant", {
+
+  const invoke = (accessToken: string) => supabase!.functions.invoke("mia-assistant", {
     body,
-    headers: { Authorization: "Bearer " + session.access_token },
+    headers: { Authorization: "Bearer " + accessToken },
   });
+  const firstAttempt = await invoke(session.access_token);
+  const firstStatus = (firstAttempt.error as { context?: Response } | null)?.context?.status;
+  if (firstStatus !== 401) return firstAttempt;
+
+  // A session can be revoked or rotated between getSession() and the Edge Function call.
+  // Refresh once and retry so a stale token never leaves MIΛ stuck for the whole session.
+  const refreshed = await supabase.auth.refreshSession();
+  if (refreshed.error || !refreshed.data.session?.access_token) return firstAttempt;
+  return invoke(refreshed.data.session.access_token);
 }
 
 export default function MiaChat({ profile, subjects, variant = "studio", onClose, onMenuClick, onNavigate, initialAttachment, initialPrompt, onAttachmentConsumed }: {
@@ -256,6 +266,9 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [attachment, setAttachment] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [restoring, setRestoring] = useState(true);
+  const [restoreNotice, setRestoreNotice] = useState("");
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [draft, setDraft] = useState<TimetableEntry[]>([]);
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
@@ -300,30 +313,46 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   useEffect(() => {
     let alive = true;
     async function restore() {
+      setRestoring(true);
+      setRestoreNotice("");
       if (!supabase) {
-        if (alive) setError("MIΛ could not connect to StudySpace. Refresh the app and try again.");
+        if (alive) setRestoreNotice("MIΛ cannot reach StudySpace right now. You can still retry or contact your administrator.");
+        if (alive) setRestoring(false);
         return;
       }
       try {
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const current = await supabase.auth.getSession();
+        if (current.error) throw current.error;
+        let session = current.data.session;
+        if (!session || (session.expires_at && session.expires_at * 1000 <= Date.now() + 120_000)) {
+          const refreshed = await supabase.auth.refreshSession();
+          if (refreshed.error) throw refreshed.error;
+          session = refreshed.data.session;
+        }
+        if (!session?.access_token) throw new Error("Your sign-in has expired. Sign in again to use MIΛ.");
+        const { data: userData, error: userError } = await supabase.auth.getUser(session.access_token);
         if (userError) throw userError;
         const userId = userData.user?.id;
-        if (!userId) {
-          if (alive) setError("Your StudySpace session has expired. Sign in again to use MIΛ.");
-          return;
-        }
+        if (!userId) throw new Error("Your sign-in has expired. Sign in again to use MIΛ.");
+
         const { data: conv, error: conversationError } = await supabase.from("mia_conversations").select("id")
           .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
         if (conversationError) throw conversationError;
-        if (!alive || !conv?.id) return;
+        if (!alive) return;
+        if (!conv?.id) {
+          setConversationId(null);
+          setMessages([]);
+          return;
+        }
         const { data, error: messagesError } = await supabase.from("mia_messages").select("id,role,content")
           .eq("conversation_id", conv.id).eq("learner_id", userId)
-          .order("created_at", { ascending: true }).limit(20);
+          .order("created_at", { ascending: false }).limit(20);
         if (messagesError) throw messagesError;
         if (!alive) return;
         setConversationId(conv.id);
         if (data?.length) {
-          const restored = data.map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content }));
+          // Fetch the newest messages first, then display them in chronological order.
+          const restored = [...data].reverse().map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content }));
           const latestCardReply = [...restored].reverse().find(row => row.role === "assistant" && extractFlashcards(row.content).length);
           if (latestCardReply) {
             setFlashcards(extractFlashcards(latestCardReply.content));
@@ -333,12 +362,17 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
           setMessages(restored.filter(row => !(row.role === "assistant" && extractFlashcards(row.content).length)));
         }
       } catch (reason) {
-        if (alive) setError(reason instanceof Error ? "MIΛ could not restore your previous chat: " + reason.message : "MIΛ could not restore your previous chat. You can still start a new learning chat.");
+        if (alive) {
+          const detail = reason instanceof Error ? reason.message : "Your previous chat could not be restored.";
+          setRestoreNotice("Your saved chat could not be loaded. Your learning space is still available; retry loading your history or start a new chat. " + detail);
+        }
+      } finally {
+        if (alive) setRestoring(false);
       }
     }
     void restore();
     return () => { alive = false; };
-  }, []);
+  }, [restoreAttempt]);
 
   useEffect(() => {
     const fadeTimer = window.setTimeout(() => setLearningNoticeFading(true), 4200);
@@ -487,7 +521,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
 
   function newChat() {
     keepTranscriptAtBottomRef.current = false;
-    setConversationId(null); setMessages([]); setDraft([]); setError(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
+    setConversationId(null); setMessages([]); setDraft([]); setError(""); setRestoreNotice(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
   }
 
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
@@ -532,6 +566,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
           />}
         </div>
       </article>)}
+      {restoring && messages.length === 0 && <div className="mia-message-row is-assistant" role="status"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> Preparing your learning space…</div></div>}
+      {restoreNotice && <div className="mia-error mia-restore-notice" role="status"><span>{restoreNotice}</span><button type="button" onClick={() => setRestoreAttempt(value => value + 1)}>Retry</button><button type="button" onClick={() => setRestoreNotice("")} aria-label="Dismiss message">Dismiss</button></div>}
       {busy && <div className="mia-message-row is-assistant"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> MIΛ is thinking…</div></div>}
       {draft.length > 0 && <section className="mia-timetable-review">
         <div className="mia-review-heading"><CalendarDays size={17}/><div><strong>Review extracted timetable</strong><span>{draft.length} entries detected · Nothing saved yet</span></div></div>
@@ -562,7 +598,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       </section>}
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
-    {messages.length === 0 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
+    {!restoring && messages.length === 0 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
       <div className="mia-help-options-heading"><div><span className="eyebrow">YOUR LEARNING, YOUR WAY</span><strong>What are we learning today?</strong><small>Choose what you need. MIΛ uses your level, subjects, curriculum and learning progress to tailor its support.</small></div><span className="mia-help-options-context">{subjects.length} subjects</span></div>
       <div className="mia-help-groups">
         {helpOptionGroups.map(group => {
