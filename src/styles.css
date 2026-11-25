@@ -2915,3 +2915,42 @@ textarea:focus-visible {
 /* Central saved-practice workflow */
 .practice-request-workspace{display:grid;gap:16px}.practice-request-card,.practice-request-history{display:grid;gap:14px;padding:18px;border:1px solid var(--border);border-radius:18px;background:var(--panel);box-shadow:var(--shadow-sm)}.practice-request-heading{display:flex;align-items:flex-start;gap:12px}.practice-request-icon{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:13px;background:color-mix(in srgb,var(--accent) 12%,var(--panel));color:var(--accent)}.practice-request-heading h3,.practice-request-history-heading h3{font:800 15px Manrope,sans-serif;margin:4px 0}.practice-request-heading p{max-width:780px;margin:0;color:var(--muted);font-size:10px;line-height:1.65}.practice-request-form{display:grid;grid-template-columns:1.2fr 1.8fr .65fr 1fr;gap:10px;align-items:end}.practice-request-form label{display:grid;gap:6px;font-size:10px;font-weight:800;color:var(--muted)}.practice-request-form input,.practice-request-form select{width:100%;min-width:0;min-height:40px;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel-strong);color:var(--text);font:inherit;font-size:11px}.practice-request-submit{grid-column:1/-1;justify-self:start;display:inline-flex;align-items:center;gap:8px}.practice-request-spin{animation:practice-spin 1s linear infinite}@keyframes practice-spin{to{transform:rotate(360deg)}}.practice-request-message{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border-radius:10px;font-size:10px;line-height:1.5}.practice-request-message.success{background:rgba(46,160,120,.1);color:#278368}.practice-request-message.error{background:rgba(220,80,80,.1);color:#b44b4b}.practice-request-history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.practice-request-history-heading h3{margin-bottom:0}.practice-request-history-heading .text-button{display:inline-flex;align-items:center;gap:6px}.practice-request-list{display:grid;gap:8px}.practice-request-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 13px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--panel) 88%,var(--accent) 3%)}.practice-request-row>div{min-width:0}.practice-request-row strong{font-size:11px;overflow-wrap:anywhere}.practice-request-row p{font-size:9px;color:var(--muted);margin:4px 0 0}.practice-request-row small{display:block;font-size:9px;color:#b44b4b;margin-top:5px}.practice-request-status{display:inline-flex;align-items:center;gap:6px;flex:none;font-size:9px;font-weight:800;color:var(--muted);text-align:right}.practice-request-status i{width:7px;height:7px;border-radius:50%;background:currentColor}.practice-request-status.status-ready{color:#258467}.practice-request-status.status-waiting_for_material,.practice-request-status.status-waiting_for_study_pack,.practice-request-status.status-queued{color:#b17b29}.practice-request-status.status-failed{color:#b44b4b}.practice-request-empty{min-height:72px;display:flex;align-items:center;justify-content:center;gap:9px;padding:18px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);font-size:10px;text-align:center}.practice-request-footnote{margin:0;color:var(--muted);font-size:9px;line-height:1.5}.practice-quick-revision{display:grid;gap:12px;margin:20px 0 10px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--panel)}.practice-quick-revision h3{font:800 14px Manrope,sans-serif;margin:4px 0}.practice-quick-revision p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
 @media(max-width:860px){.practice-request-form{grid-template-columns:1fr 1fr}.practice-request-submit{grid-column:1/-1}}@media(max-width:600px){.practice-request-card,.practice-request-history{padding:14px}.practice-request-form{grid-template-columns:1fr}.practice-request-submit{width:100%;justify-content:center}.practice-request-row{align-items:flex-start;flex-direction:column}.practice-request-status{text-align:left}}
+
+
+/* MIΛ recovery surface: never leave the learning tab visually blank after a render failure. */
+.mia-render-error{
+  display:grid;
+  justify-items:start;
+  gap:12px;
+  width:100%;
+  min-height:280px;
+  padding:clamp(22px,4vw,36px);
+  border:1px solid var(--border);
+  border-radius:20px;
+  background:var(--panel);
+  color:var(--text);
+  box-shadow:var(--shadow);
+}
+.mia-render-error-mark{
+  display:grid;
+  place-items:center;
+  width:48px;
+  height:48px;
+  border-radius:15px;
+  background:linear-gradient(145deg,#31234e,#1b3150);
+  color:#e5d8ff;
+  font-size:26px;
+  font-weight:800;
+}
+.mia-render-error h2{margin:4px 0 0;font:800 19px Manrope,sans-serif}
+.mia-render-error p{max-width:520px;margin:0;color:var(--muted);font-size:12px;line-height:1.7}
+.mia-render-error button{
+  min-height:42px;
+  padding:10px 16px;
+  border:1px solid rgba(121,226,196,.45);
+  border-radius:10px;
+  background:linear-gradient(135deg,#a3f0d7,#80d9c2);
+  color:#102c2c;
+  font-size:11px;
+  font-weight:800;
+}
