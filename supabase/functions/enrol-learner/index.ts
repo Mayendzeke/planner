@@ -114,7 +114,7 @@ Deno.serve(async request => {
   const acceptedByName = String(body.acceptedByName ?? "").trim();
   const acceptanceRole = String(body.acceptanceRole ?? "");
   if (isAdult) {
-    if (body.termsAccepted !== true || body.termsVersion !== "2026-11-09-v8") {
+    if (body.termsAccepted !== true || body.termsVersion !== "2026-11-24-v9") {
       return json(400, { error: "Read and personally accept the current StudySpace Terms and Conditions before creating your account." });
     }
     if (acceptedByName !== fullName || acceptanceRole !== "adult_learner") {
@@ -252,7 +252,7 @@ Deno.serve(async request => {
     success: true,
     studentId,
     accountStatus: "active",
-    trialHours: 168,
+    trialHours: 48,
     message: invitation
       ? "Account created. Sign in with your Student ID and password."
       : "Your StudySpace account is ready. Keep your generated Student ID safe and use it with your password to sign in.",
