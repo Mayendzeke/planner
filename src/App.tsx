@@ -421,7 +421,7 @@ export default function App() {
         // Always refresh from the cloud when online. A local cache must not
         // silently overwrite profile changes made on another signed-in device.
         const [profileResult, goalResult, subjectsResult] = await Promise.all([
-          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,institution_type,qualification_level,grade,curriculum,academic_year,avatar_path,date_of_birth,sex,profile_setup_dismissed_at").eq("id", cloudUserId).single(),
+          supabase.from("profiles").select("full_name,preferred_name,country,institution,course,education_level,institution_type,qualification_level,grade,curriculum,preferred_language,academic_year,avatar_path,date_of_birth,sex,profile_setup_dismissed_at").eq("id", cloudUserId).single(),
           supabase.from("student_goals").select("goal_text,target_mark,weekly_hours,preferred_days").eq("learner_id", cloudUserId).maybeSingle(),
           supabase.from("student_subjects").select("name").eq("learner_id", cloudUserId).order("name"),
         ]);
@@ -474,6 +474,7 @@ export default function App() {
           qualificationLevel: String(cloud.qualification_level || ""),
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
+          preferredLanguage: cloud.preferred_language === "SiSwati" ? "SiSwati" : "English",
           academicYear: String(cloud.academic_year || new Date().getFullYear()),
           avatarPath: String(cloud.avatar_path || ""),
           dateOfBirth: String(cloud.date_of_birth || ""),
@@ -717,6 +718,8 @@ export default function App() {
             profileError = result.error;
           }
           if (profileError) throw new Error("Your cloud profile could not be saved: " + profileError.message);
+          const { error: languageError } = await supabase.rpc("set_studyspace_preferred_language", { p_language: profileToSave.preferredLanguage || "English" });
+          if (languageError) throw new Error("Your profile was saved, but your learning language could not be saved: " + languageError.message);
           if (profileToSave.subjects.length) {
             const { error: subjectsError } = await supabase.from("student_subjects").upsert(
               profileToSave.subjects.map(name => ({ learner_id: authState.session!.user.id, name })),
