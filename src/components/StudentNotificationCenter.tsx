@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Bell, BookOpen, CalendarDays, Check, CheckCheck, ClipboardCheck,
+  Bell, BookOpen, CalendarDays, CheckCheck, ClipboardCheck,
   MessageCircle, Megaphone, RefreshCw, UserPlus, Users, X
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
