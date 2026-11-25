@@ -29,6 +29,8 @@ jobs:
         run: npm install
       - name: Verify transient student MIΛ welcome
         run: node --test scripts/mia-welcome.test.mjs
+      - name: Verify student MIΛ session recovery and chat loading
+        run: node --test scripts/mia-session-recovery.test.mjs
       - name: Verify Study Materials & Resources and student navigation
         run: node --test scripts/study-materials-ui.test.mjs
       - name: Verify Friends, notifications and full-screen MIΛ
