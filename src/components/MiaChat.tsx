@@ -47,9 +47,17 @@ function extractFlashcards(reply: string): Flashcard[] {
 type TimetableEntry = { day_of_week: number; subject_name: string; title: string; starts_at: string; ends_at: string; location: string; notes: string };
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const createWelcome = (profile: StudentProfile, subjects: Subject[]): string => {
-  const name = profile.preferredName?.trim() || profile.fullName?.trim().split(/\s+/)[0] || "";
-  const subjectNames = subjects.map(subject => subject.name).filter(Boolean).slice(0, 5);
-  const context = [profile.level, profile.grade].filter(Boolean).join(" · ") || "your studies";
+  // Profile data may come from older offline caches. Treat it as untrusted so a
+  // malformed optional field cannot crash the entire MIΛ screen during render.
+  const preferredName = typeof profile?.preferredName === "string" ? profile.preferredName.trim() : "";
+  const fullName = typeof profile?.fullName === "string" ? profile.fullName.trim() : "";
+  const name = preferredName || fullName.split(/\s+/)[0] || "";
+  const subjectNames = (Array.isArray(subjects) ? subjects : [])
+    .filter((subject): subject is Subject => Boolean(subject && typeof subject.name === "string"))
+    .map(subject => subject.name.trim()).filter(Boolean).slice(0, 5);
+  const level = typeof profile?.level === "string" ? profile.level.trim() : "";
+  const grade = typeof profile?.grade === "string" ? profile.grade.trim() : "";
+  const context = [level, grade].filter(Boolean).join(" · ") || "your studies";
   return "Hello" + (name ? " " + name : "") + ". I’m MIΛ, your personal learning companion. I’m ready to help with " + context + (subjectNames.length ? " in " + subjectNames.join(", ") : "") + ". Choose the kind of help you need below, or ask me anything related to your learning.";
 };
 type HelpOption = { id: string; title: string; description: string; icon: typeof BookOpen; prompt: string; tertiaryOnly?: boolean };
@@ -250,7 +258,7 @@ async function invokeMiaAssistant(body: Record<string, unknown>) {
   return invoke(refreshed.data.session.access_token);
 }
 
-export default function MiaChat({ profile, subjects, variant = "studio", onClose, onMenuClick, onNavigate, initialAttachment, initialPrompt, onAttachmentConsumed }: {
+export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onMenuClick, onNavigate, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
@@ -261,6 +269,13 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   initialPrompt?: string;
   onAttachmentConsumed?: () => void;
 }) {
+  // Guard all rendering paths against stale or partially migrated offline data.
+  const subjects: Subject[] = Array.isArray(suppliedSubjects)
+    ? suppliedSubjects.filter((subject): subject is Subject => Boolean(subject && typeof subject.name === "string"))
+    : [];
+  const learnerLevel = typeof profile?.level === "string" ? profile.level : "";
+  const learnerGrade = typeof profile?.grade === "string" ? profile.grade : "";
+  const learnerCurriculum = typeof profile?.curriculum === "string" ? profile.curriculum : "";
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -281,7 +296,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const keepTranscriptAtBottomRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const isFloating = variant === "floating";
-  const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
+  const isTertiaryLearner = /college|university|tertiary/i.test(learnerLevel);
   const welcomeText = createWelcome(profile, subjects);
   const [learningNoticeVisible, setLearningNoticeVisible] = useState(true);
   const [learningNoticeFading, setLearningNoticeFading] = useState(false);
@@ -535,7 +550,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
         {onClose && <button type="button" className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
     </header>
-    <div className="mia-context-strip"><BookOpen size={14}/><span>{profile.level} · {profile.grade} · {profile.curriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
+    <div className="mia-context-strip"><BookOpen size={14}/><span>{learnerLevel || "Your learning"} · {learnerGrade || "Grade not set"} · {learnerCurriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
     {learningNoticeVisible && <div className={"mia-learning-only-notice" + (learningNoticeFading ? " is-fading" : "")} role="note"><strong>Educational use only.</strong> Use MIΛ for learning, subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information, or use MIΛ for unrelated personal advice.</div>}
     {welcomeVisible && <div className={"mia-welcome-toast" + (welcomeFading ? " is-fading" : "")} role="status" aria-live="polite">
       <span className="mia-welcome-toast-mark"><Sparkles size={16}/></span>
