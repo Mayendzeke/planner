@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Clock3, MessageCircle, Users, BookOpen, ClipboardCheck, CalendarDays, AlarmClock, Megaphone, ShieldCheck, Sparkles } from "lucide-react";
+import { Bell, BellOff, Clock3, MessageCircle, Users, BookOpen, ClipboardCheck, CalendarDays, AlarmClock, Megaphone, ShieldCheck, Sparkles, UserPlus } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import type { StudyspaceNotificationPreferences } from "../lib/studyspaceNotifications";
 
 const defaults: StudyspaceNotificationPreferences = {
   master_enabled: true, direct_messages: true, group_messages: true, group_activity: true,
   homework_assignments: true, assessment_updates: true, timetable_updates: true,
-  study_reminders: true, system_announcements: true, quiet_hours_enabled: false,
+  study_reminders: true, system_announcements: true, friend_requests: true, quiet_hours_enabled: false,
   quiet_hours_start: "22:00", quiet_hours_end: "07:00",
   mia_daily_nudges_enabled: false, mia_morning_time: "07:15", mia_afternoon_time: "15:30", mia_evening_time: "19:15", mia_nudge_timezone: "Africa/Mbabane",
 };
@@ -20,6 +20,7 @@ const categories = [
   { key: "timetable_updates", title: "Timetable and class updates", description: "Changes to lessons, classroom sessions and schedules.", icon: CalendarDays },
   { key: "study_reminders", title: "Study reminders", description: "Your planned study sessions and personal reminders.", icon: AlarmClock },
   { key: "system_announcements", title: "StudySpace announcements", description: "Important platform notices and service announcements.", icon: Megaphone },
+  { key: "friend_requests", title: "Friends and connection requests", description: "New friend requests and accepted connections.", icon: UserPlus },
 ] as const;
 
 type CategoryKey = typeof categories[number]["key"];
