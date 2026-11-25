@@ -381,3 +381,15 @@
     transition: none;
   }
 }
+
+.app-shell-mia .mia-help-groups{display:grid;gap:22px}
+.app-shell-mia .mia-help-group{display:grid;gap:10px}
+.app-shell-mia .mia-help-group-heading{display:grid;gap:4px;padding:0 2px}
+.app-shell-mia .mia-help-group-heading strong{font:800 13px/1.3 Manrope,system-ui,sans-serif;color:var(--text)}
+.app-shell-mia .mia-help-group-heading span{font-size:10px;line-height:1.5;color:var(--muted)}
+.app-shell-mia .mia-help-group .mia-help-options-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))}
+@media(max-width:640px){
+  .app-shell-mia .mia-help-groups{gap:18px}
+  .app-shell-mia .mia-help-group .mia-help-options-grid{grid-template-columns:1fr}
+  .app-shell-mia .mia-help-group-heading strong{font-size:12px}
+}
