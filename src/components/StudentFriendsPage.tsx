@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Check, Clock3, GraduationCap, MapPin, MessageCircle, RefreshCw,
+  Check, Clock3, MessageCircle, RefreshCw,
   Search, ShieldCheck, Sparkles, UserCheck, UserPlus, Users, X
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
@@ -15,8 +15,8 @@ type FriendRecord = {
   grade: string;
   curriculum: string;
   country: string;
-  status: "pending" | "accepted";
-  direction: "incoming" | "outgoing" | "friend";
+  status: "pending" | "accepted" | "rejected";
+  direction: "incoming" | "outgoing" | "friend" | "closed";
   created_at: string;
 };
 type LearnerSuggestion = {
@@ -159,6 +159,7 @@ export default function StudentFriendsPage({ onOpenMessages }: { onOpenMessages:
     const connection = currentConnection(person.learner_id);
     const connected = connection?.status === "accepted";
     const pending = connection?.status === "pending";
+    const closed = connection?.status === "rejected";
     return <article className="student-friend-card" key={person.learner_id}>
       <span className="student-friend-avatar" aria-hidden="true">{initials(person.display_name)}</span>
       <div className="student-friend-copy">
@@ -174,7 +175,9 @@ export default function StudentFriendsPage({ onOpenMessages }: { onOpenMessages:
           ? <span className="student-friend-status"><UserCheck size={14}/> Friends</span>
           : pending
             ? <span className="student-friend-status is-pending"><Clock3 size={14}/> Request pending</span>
-            : !person.can_invite
+            : closed
+              ? <span className="student-friend-status is-muted"><X size={14}/> Request closed</span>
+              : !person.can_invite
               ? <span className="student-friend-status is-muted"><ShieldCheck size={14}/> Not available yet</span>
               : <button type="button" className="primary-button" disabled={busyId === person.learner_id || Boolean(busyId)} onClick={() => void sendRequest(person)}>
                   <UserPlus size={15}/>{busyId === person.learner_id ? "Sending…" : "Add friend"}
