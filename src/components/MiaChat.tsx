@@ -51,6 +51,9 @@ const createWelcome = (profile: StudentProfile, subjects: Subject[]): string => 
   const name = profile.preferredName?.trim() || profile.fullName?.trim().split(/\s+/)[0] || "";
   const subjectNames = subjects.map(subject => subject.name).filter(Boolean).slice(0, 5);
   const context = [profile.level, profile.grade].filter(Boolean).join(" · ") || "your studies";
+  if (profile.preferredLanguage === "SiSwati") {
+    return "Sawubona" + (name ? " " + name : "") + ". Ngingu-MIΛ, umsiti wakho wekufundza. Ngikulungele kukusita nge " + context + (subjectNames.length ? ": " + subjectNames.join(", ") : "") + ". Khetsa lusito loludingako lapha, noma ungibute umbuto losemfundvweni yakho.";
+  }
   return "Hello" + (name ? " " + name : "") + ". I’m MIΛ, your personal learning companion. I’m ready to help with " + context + (subjectNames.length ? " in " + subjectNames.join(", ") : "") + ". Choose the kind of help you need below, or ask me anything related to your learning.";
 };
 type HelpOption = { id: string; title: string; description: string; icon: typeof BookOpen; prompt: string; tertiaryOnly?: boolean };
@@ -239,6 +242,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const [attachment, setAttachment] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [restoreLoading, setRestoreLoading] = useState(true);
   const [draft, setDraft] = useState<TimetableEntry[]>([]);
   const [timetableKind, setTimetableKind] = useState<"school" | "personal" | "">("");
   const [saved, setSaved] = useState(false);
@@ -250,6 +254,9 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   const keepTranscriptAtBottomRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const isFloating = variant === "floating";
+  const isSiSwati = profile.preferredLanguage === "SiSwati";
+  const visibleMessages = messages.filter(message => typeof message.content === "string" && message.content.trim().length > 0);
+  const hasVisibleMessages = visibleMessages.length > 0;
   const isTertiaryLearner = /college|university|tertiary/i.test(profile.level || "");
   const welcomeText = createWelcome(profile, subjects);
   const [learningNoticeVisible, setLearningNoticeVisible] = useState(true);
@@ -283,20 +290,32 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   useEffect(() => {
     let alive = true;
     async function restore() {
-      if (!supabase) return;
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-      if (!userId) return;
-      const { data: conv } = await supabase.from("mia_conversations").select("id")
-        .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
-      if (!alive || !conv?.id) return;
-      const { data } = await supabase.from("mia_messages").select("id,role,content")
-        .eq("conversation_id", conv.id).eq("learner_id", userId)
-        .order("created_at", { ascending: true }).limit(20);
-      if (!alive) return;
-      setConversationId(conv.id);
-      if (data?.length) {
-        const restored = data.map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content }));
+      setRestoreLoading(true);
+      if (!supabase) {
+        if (alive) {
+          setError(isSiSwati ? "MIΛ ayikakhoni kuchumana ne-StudySpace. Hlola inthanethi bese uzama futsi." : "MIΛ is not connected to StudySpace. Check your connection and try again.");
+          setRestoreLoading(false);
+        }
+        return;
+      }
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        const userId = userData.user?.id;
+        if (!userId) throw new Error("Your StudySpace session has expired. Sign in again.");
+        const { data: conv, error: conversationError } = await supabase.from("mia_conversations").select("id")
+          .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+        if (conversationError) throw conversationError;
+        if (!alive || !conv?.id) return;
+        const { data, error: messageError } = await supabase.from("mia_messages").select("id,role,content")
+          .eq("conversation_id", conv.id).eq("learner_id", userId)
+          .order("created_at", { ascending: true }).limit(30);
+        if (messageError) throw messageError;
+        if (!alive) return;
+        setConversationId(conv.id);
+        const restored = (data || [])
+          .filter(row => typeof row.content === "string" && row.content.trim().length > 0)
+          .map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: String(row.content) }));
         const latestCardReply = [...restored].reverse().find(row => row.role === "assistant" && extractFlashcards(row.content).length);
         if (latestCardReply) {
           setFlashcards(extractFlashcards(latestCardReply.content));
@@ -304,11 +323,20 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
           setFlashcardFlipped(false);
         }
         setMessages(restored.filter(row => !(row.role === "assistant" && extractFlashcards(row.content).length)));
+        setError("");
+      } catch (reason) {
+        if (alive) {
+          setError(isSiSwati
+            ? "Ingxoxo leyigcinwe ngaphambilini ayikakhoni kuvulwa. Usengacala kufundza lapha ngezansi."
+            : "Your saved MIΛ conversation could not be restored. You can still start learning below.");
+        }
+      } finally {
+        if (alive) setRestoreLoading(false);
       }
     }
     void restore();
     return () => { alive = false; };
-  }, []);
+  }, [isSiSwati]);
 
   useEffect(() => {
     const fadeTimer = window.setTimeout(() => setLearningNoticeFading(true), 4200);
@@ -341,7 +369,11 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
 
   async function sendMessage(overrideText?: string) {
     const value = (overrideText ?? text).trim();
-    if ((!value && !attachment) || busy || !supabase) return;
+    if ((!value && !attachment) || busy) return;
+    if (!supabase) {
+      setError(isSiSwati ? "MIΛ ayikaxhunywa. Hlola inthanethi bese uzama futsi." : "MIΛ is not connected. Check your internet connection and try again.");
+      return;
+    }
     setError("");
     setBusy(true);
     setText("");
@@ -354,7 +386,7 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       const uploaded = file ? await filePayload(file) : null;
       if (uploaded?.textContent && !value) setText("");
       const { data, error: invokeError } = await supabase.functions.invoke("mia-assistant", {
-        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded?.data ? uploaded : null, conversationId },
+        body: { action: "chat", message: displayMessage + (uploaded?.textContent ? "\n\nATTACHED FILE (" + uploaded.name + "):\n" + uploaded.textContent : ""), attachment: uploaded?.data ? uploaded : null, conversationId, preferredLanguage: profile.preferredLanguage || "English" },
       });
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
@@ -474,13 +506,13 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       <span className="mia-welcome-toast-copy">{welcomeText}</span>
       <button type="button" className="mia-icon-button" onClick={dismissWelcome} aria-label="Dismiss welcome message"><X size={15}/></button>
     </div>}
-    {messages.length > 0 && <nav className="mia-quick-actions" aria-label="MIΛ learning actions">
+    {hasVisibleMessages && <nav className="mia-quick-actions" aria-label="MIΛ learning actions">
       {helpOptions.filter(option => !option.tertiaryOnly || isTertiaryLearner).map(option => (
         <button type="button" key={option.id} disabled={busy} title={option.description} onClick={() => { void sendMessage(option.prompt); }}>{option.title}</button>
       ))}
     </nav>}
     <div className="mia-messages" ref={scrollRef} onScroll={handleTranscriptScroll} tabIndex={0} aria-label="MIΛ conversation history">
-      {messages.map(message => <article key={message.id} className={"mia-message-row " + (message.role === "user" ? "is-user" : "is-assistant")}>
+      {visibleMessages.map(message => <article key={message.id} className={"mia-message-row " + (message.role === "user" ? "is-user" : "is-assistant")}>
         {message.role === "assistant" && <div className="mia-message-avatar">Λ</div>}
         <div className="mia-message-bubble">
           {message.content}
@@ -498,7 +530,8 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
           />}
         </div>
       </article>)}
-      {busy && <div className="mia-message-row is-assistant"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> MIΛ is thinking…</div></div>}
+      {restoreLoading && !hasVisibleMessages && <div className="mia-start-loading" role="status">{isSiSwati ? "MIΛ iyavula sikhala sakho sekufundza…" : "Preparing your learning space…"}</div>}
+      {busy && <div className="mia-message-row is-assistant"><div className="mia-message-avatar">Λ</div><div className="mia-message-bubble mia-thinking"><LoaderCircle size={15}/> {isSiSwati ? "MIΛ iyacabanga…" : "MIΛ is thinking…"}</div></div>}
       {draft.length > 0 && <section className="mia-timetable-review">
         <div className="mia-review-heading"><CalendarDays size={17}/><div><strong>Review extracted timetable</strong><span>{draft.length} entries detected · Nothing saved yet</span></div></div>
         <div className="mia-table-scroll"><table><thead><tr><th>Day</th><th>Subject / activity</th><th>Time</th></tr></thead><tbody>{draft.map((entry,i)=><tr key={i}>
@@ -528,20 +561,20 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
       </section>}
       {saved && <div className="mia-saved-note"><CheckCircle2 size={15}/> Timetable saved successfully.</div>}
       {error && <div className="mia-error" role="alert">{error}</div>}
-    {messages.length === 0 && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
-      <div className="mia-help-options-heading"><div><span className="eyebrow">YOUR LEARNING, YOUR WAY</span><strong>What are we learning today?</strong><small>Choose what you need. MIΛ uses your level, subjects, curriculum and learning progress to tailor its support.</small></div><span className="mia-help-options-context">{subjects.length} subjects</span></div>
+    {!hasVisibleMessages && draft.length === 0 && <section className="mia-help-options" aria-label="Choose MIΛ learning support">
+      <div className="mia-help-options-heading"><div><span className="eyebrow">{isSiSwati ? "INDLELA YAKHO YEKUFUNDZA" : "YOUR LEARNING, YOUR WAY"}</span><strong>{isSiSwati ? "Yini lofuna kufundza ngayo lamuhla?" : "What would you like to learn today?"}</strong><small>{isSiSwati ? "Khetsa lusito. MIΛ isebentisa libanga lakho, tifundvo, ikharikhulamu kanye nekufundza kwakho kwanyalo." : "Choose what you need. MIΛ uses your level, subjects, curriculum and learning progress to tailor its support."}</small></div><span className="mia-help-options-context">{subjects.length} {isSiSwati ? "tifundvo" : "subjects"} · {profile.preferredLanguage || "English"}</span></div>
       <div className="mia-help-groups">
         {helpOptionGroups.map(group => {
           const options = helpOptions.filter(option => group.options.includes(option.id as never) && (!option.tertiaryOnly || isTertiaryLearner));
           if (!options.length) return null;
           return <section className="mia-help-group" key={group.id}>
-            <div className="mia-help-group-heading"><strong>{group.title}</strong><span>{group.description}</span></div>
+            <div className="mia-help-group-heading"><strong>{isSiSwati ? ({learn:"Fundza futsi uvisise",practise:"Tilolonge ulungiselele", "study-tools":"Yakha emathulusi akho ekufundza",plan:"Hlela sikhatsi sekufundza"} as Record<string,string>)[group.id] : group.title}</strong><span>{isSiSwati ? ({learn:"Chaza sifundvo, siza ngemsebenti noma ulungise kubhala.",practise:"Cinisekisa lwati lwakho ulungiselele tivivinyo nekuhlolwa.", "study-tools":"Yenta emanotsi, emakhadi ekukhumbula kanye nemathuluzi ekufundza.",plan:"Hlela liviki lakho lekufundza."} as Record<string,string>)[group.id] : group.description}</span></div>
             <div className="mia-help-options-grid">
               {options.map(option=>{
                 const Icon=option.icon;
                 return <button type="button" className="mia-help-option" key={option.id} disabled={busy} aria-busy={busy} onClick={()=>{void sendMessage(option.prompt);}}>
                   <span className={"mia-help-option-icon "+option.id}><Icon size={18}/></span>
-                  <span className="mia-help-option-copy"><strong>{option.title}</strong><small>{option.description}</small></span>
+                  <span className="mia-help-option-copy"><strong>{isSiSwati ? ({topic:"Visisa sihloko",homework:"Lusito ngemsebenti wesikolo",revision:"Kubuyeketa kuhlolwa",practice:"Imibuto yekutilolonga", "weak-areas":"Tfola lapho udzinga khona lusito",materials:"Tincwadzi takho tekufundza",plan:"Hlela liviki lekufundza",research:"Lucwaningo nemareferensi",flashcards:"Yenta emakhadi ekukhumbula",notes:"Yenta emanotsi ekubuyeketa",language:"Kutilolonga lulwimi",writing:"Lungisa kubhala",coding:"Lusito lwekhompyutha"} as Record<string,string>)[option.id] : option.title}</strong><small>{isSiSwati ? ({topic:"Tincazelo letinyatselo ngetinyatselo.",homework:"Sebenta umbuto uvisise indlela yekuwuphendvula.",revision:"Gcilata etihlokweni letidzinga kutilolonga.",practice:"Phendvula imibuto utfole imphendvulo yekulungisa.", "weak-areas":"Sebentisa imiphumela yakho yakamuva.",materials:"Tfola tincwadzi lelabelwe wena.",plan:"Hlela sikhatsi sakho netinjongo.",research:"Fundza kutfola nekuhlola imithombo yelwati.",flashcards:"Gucula sihloko sibe ngemakhadi ekukhumbula.",notes:"Hlela emaciniso, tinchazelo netibonelo.",language:"Tfutfukisa silulumagama nelulwimi.",writing:"Tfola lusito ngesakhiwo, lulwimi nekuhleleka.",coding:"Visisa ikhodi nemisebenti ye-ICT."} as Record<string,string>)[option.id] : option.description}</small></span>
                   <span className="mia-help-option-arrow" aria-hidden="true">↗</span>
                 </button>;
               })}
@@ -549,16 +582,16 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
           </section>;
         })}
       </div>
-      {subjects.length>0&&<p className="mia-help-options-subjects">Ready to support: {subjects.map(subject=>subject.name).join(" · ")}</p>}
+      {subjects.length>0&&<p className="mia-help-options-subjects">{isSiSwati ? "Ngilungele kukusita ku:" : "Ready to support:"} {subjects.map(subject=>subject.name).join(" · ")}</p>}
     </section>}
     </div>
     {attachment && <div className="mia-attachment-preview"><Paperclip size={15}/><span>{attachment.name}</span>{attachment.type.startsWith("image/") && <button type="button" onClick={()=>void reviewTimetable()} title="Import this image as a timetable">Read timetable</button>}<button type="button" onClick={()=>setAttachment(null)} aria-label="Remove attachment"><X size={14}/></button></div>}
     <form className="mia-composer" onSubmit={event=>{event.preventDefault(); void sendMessage();}}>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/markdown,text/csv,application/json,application/xml,.txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.pptx,.xlsx" hidden onChange={event=>{const file=event.target.files?.[0];if(file){const ext=file.name.split(".").pop()?.toLowerCase()||"";const allowed=file.type.startsWith("image/")&&["image/jpeg","image/png","image/webp"].includes(file.type)||["pdf","txt","md","csv","json","xml","html","docx","pptx","xlsx"].includes(ext);if(!allowed){setError("Attach an image, PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV, JSON or XML file.");}else if(file.size>4*1024*1024){setError("Choose a file smaller than 4 MB.");}else{setError("");setAttachment(file);}}event.currentTarget.value="";}}/>
       <button type="button" className="mia-attach-button" onClick={()=>fileRef.current?.click()} title="Attach an image, PDF or text file" aria-label="Attach a file"><Paperclip size={19}/></button>
-      <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder="Message MIΛ about your studies…" rows={1} maxLength={3000}/>
+      <textarea ref={inputRef} value={text} onChange={event=>setText(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void sendMessage();}}} placeholder={isSiSwati ? "Buta MIΛ ngalesifundvo sakho…" : "Message MIΛ about your studies…"} rows={1} maxLength={3000}/>
       <button type="submit" className="mia-send-button" disabled={busy || (!text.trim() && !attachment)} title={attachment ? "Send attachment" : "Send message"} aria-label={attachment ? "Send attachment" : "Send message"}>{busy?<LoaderCircle size={18} className="mia-spin"/>:<Send size={18}/>}</button>
     </form>
-    <div className="mia-footnote">Study-focused · Short answers · Learning support</div>
+    <div className="mia-footnote">{isSiSwati ? "Kufundza kuphela · Timphendvulo leticacile · Lusito lwekufundza" : "Study-focused · Clear answers · Learning support"}</div>
   </section>;
 }
