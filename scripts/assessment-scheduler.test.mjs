@@ -18,7 +18,9 @@ test("Study & Exams opens on the programme and prepares assessments automaticall
   assert.match(examsPage, /useState<AssessmentTab>\("programme"\)/);
   assert.match(programme, /question_count:Number\(questionCount\)/);
   assert.match(programme, /setQuestionCount\(String\(preferences\.question_count\|\|10\)\)/);
-  assert.match(programme, /for\(let batch=0;batch<12;batch\+\+\)/);
+  const cloudSync = readFileSync("src/lib/cloudSync.ts", "utf8");
+  assert.match(cloudSync, /for\(let batch=0;batch<12;batch\+\+\)/);
+  assert.match(programme, /prepareAssessmentProgramme/);
   assert.doesNotMatch(programme, /Prepare next batch/i);
 });
 
@@ -26,7 +28,8 @@ test("programme displays weekly, monthly and quarterly assessment periods", () =
   const programme = readFileSync("src/components/AssessmentProgramme.tsx", "utf8");
   assert.match(programme, /Monthly comprehensive tests/);
   assert.match(programme, /Quarterly examinations/);
-  assert.match(programme, /data\.hasMore/);
+  const cloudSync = readFileSync("src/lib/cloudSync.ts", "utf8");
+  assert.match(cloudSync, /data\.hasMore/);
   assert.match(programme, /assessment_schedule_runs/);
 });
 
