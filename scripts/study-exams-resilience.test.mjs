@@ -25,13 +25,14 @@ test("Assessment workspace separates practice, teacher assignments and school he
   assert.match(page, /role="tablist"/);
   assert.match(page, /role="tabpanel"/);
   assert.match(page, /<WeeklyTest subjects=\{subjects\} \/>/);
-  assert.match(page, /<AssignedAssessments \/>/);
+  assert.match(page, /<AssignedAssessments assignmentType="non_practice" \/>/);
   assert.match(page, /<SchoolHomeworkHelp \/>/);
 });
 
 test("Teacher assignments are mounted once, not duplicated inside the practice panel", () => {
   assert.doesNotMatch(weekly, /AssignedAssessments/);
-  assert.match(page, /activeTab === "assigned" && <AssignedAssessments \/>/);
+  assert.match(page, /activeTab === "assigned" && <AssignedAssessments assignmentType="non_practice" \/>/);
+  assert.match(page, /<AssignedAssessments assignmentType="practice" refreshKey=\{practiceRefreshKey\} \/>/);
   assert.match(assigned, /refreshInFlight/);
   assert.match(assigned, /hasLoadedOnce/);
   assert.match(assigned, /Try again/);

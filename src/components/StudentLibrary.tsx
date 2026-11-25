@@ -6,16 +6,21 @@ import {
 import PdfViewer from "./PdfViewer";
 import { plannerDb, type StudentResource, type Subject } from "../data/db";
 import { supabase } from "../lib/supabase";
+import { prepareAssignedTeacherStudyPacks } from "../lib/cloudSync";
 import { readStudyMaterialPreview, type StudyMaterialPreview } from "../lib/studyMaterialPreview";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_BATCH_SIZE = 100 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".pdf", ".pptx", ".ppt", ".docx", ".doc", ".xlsx", ".xls", ".csv", ".jpg", ".jpeg", ".png", ".webp", ".txt", ".rtf"];
 type ResourceType = NonNullable<StudentResource["resourceType"]>;
+type LearnerStudyPack = {
+  id:string; subject_name:string; topic?:string; file_name?:string; status:string;
+  content:Record<string,any>; error_message?:string; updated_at:string; source_type:string;
+  personal_resource_id?:string; learning_resource_id?:string;
+};
 type TeacherResource = {
   id: string; title: string; description: string; subject_name: string; topic?: string;
-  resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string;
-  education_level?: string; grade?: string; curriculum?: string; course?: string; academic_year?: string; language?: string;
+  resource_type?: string; storage_path: string; mime_type: string; file_size: number; created_at: string; updated_at?: string;
 };
 type PreviewState = StudyMaterialPreview | { kind: "loading" } | { kind: "pdf" } | { kind: "image" } | { kind: "powerpoint" } | { kind: "word" };
 type StorageStatus = { used_bytes: number; quota_bytes: number; reserved_bytes: number; available_bytes: number; used_percent: number };
@@ -68,6 +73,9 @@ function canStudyWithMia(name: string, size: number) {
 export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?: Subject[]; onAskMia: (file: File, prompt: string) => void }) {
   const [files, setFiles] = useState<StudentResource[]>([]);
   const [teacherFiles, setTeacherFiles] = useState<TeacherResource[]>([]);
+  const [studyPacks, setStudyPacks] = useState<LearnerStudyPack[]>([]);
+  const [studyPacksLoading, setStudyPacksLoading] = useState(true);
+  const [selectedStudyPack, setSelectedStudyPack] = useState<LearnerStudyPack | null>(null);
   const [teacherLoading, setTeacherLoading] = useState(true);
   const [teacherBusyId, setTeacherBusyId] = useState("");
   const [message, setMessage] = useState("");
@@ -127,22 +135,42 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
       const ids = (assignments ?? []).map(row => row.resource_id).filter(Boolean);
       if (!ids.length) { setTeacherFiles([]); return; }
       const { data, error } = await supabase.from("learning_resources")
-        .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at,education_level,grade,curriculum,course,academic_year,language")
+        .select("id,title,description,subject_name,topic,resource_type,storage_path,mime_type,file_size,created_at,updated_at")
         .in("id", ids).order("created_at", { ascending: false });
       if (error) throw error;
       setTeacherFiles((data ?? []) as TeacherResource[]);
+      void prepareAssignedTeacherStudyPacks();
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "Teacher resources could not be loaded.");
       setMessageIsError(true);
     } finally { setTeacherLoading(false); }
   }
 
+  async function refreshStudyPacks() {
+    if (!supabase) { setStudyPacksLoading(false); return; }
+    try {
+      const { data: authState, error: authError } = await supabase.auth.getUser();
+      if (authError || !authState.user) { setStudyPacks([]); return; }
+      const { data, error } = await supabase.from("learner_study_packs")
+        .select("id,subject_name,topic,file_name,status,content,error_message,updated_at,source_type,personal_resource_id,learning_resource_id")
+        .eq("learner_id", authState.user.id)
+        .neq("status", "superseded")
+        .order("updated_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      setStudyPacks((data ?? []) as LearnerStudyPack[]);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Generated study packs could not be loaded.");
+      setMessageIsError(true);
+    } finally { setStudyPacksLoading(false); }
+  }
+
   useEffect(() => {
     void refresh();
     void refreshTeacherFiles();
     void refreshStorageStatus();
-    const interval = window.setInterval(() => { void refreshTeacherFiles(); void refreshStorageStatus(); }, 60000);
-    const onVisible = () => { if (document.visibilityState === "visible") { void refreshTeacherFiles(); void refreshStorageStatus(); } };
+    void refreshStudyPacks();
+    const interval = window.setInterval(() => { void refresh(); void refreshTeacherFiles(); void refreshStorageStatus(); void refreshStudyPacks(); }, 60000);
+    const onVisible = () => { if (document.visibilityState === "visible") { void refresh(); void refreshTeacherFiles(); void refreshStorageStatus(); void refreshStudyPacks(); } };
     const onStorageUpdated = () => void refreshStorageStatus();
     window.addEventListener("focus", onVisible);
     window.addEventListener("studyspace-storage-updated", onStorageUpdated);
@@ -401,6 +429,7 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
   };
   const visibleTeacherFiles = filterSource === "Personal" ? [] : teacherFiles.filter(item =>
     matchesFilters(item.title, item.subject_name || "General", item.resource_type || "Other"));
+  const visibleStudyPacks=studyPacks.filter(pack=>filterSource==="All"||(filterSource==="Personal"&&pack.source_type==="uploaded_resource")||(filterSource==="Teacher"&&pack.source_type==="teacher_resource"));
   const visiblePersonalFiles = filterSource === "Teacher" ? [] : files.filter(item =>
     matchesFilters(item.name, subjectName(item, subjects), item.resourceType || "Study notes"));
 
@@ -412,10 +441,11 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         <div className="library-hero-copy">
           <span className="library-hero-kicker"><BookOpen size={13}/> YOUR STUDY MATERIALS</span>
           <h2>Everything you need to learn, in one place.</h2>
-          <p>Keep teacher-assigned resources and your own study files together. Preview supported documents, organise them by subject and continue studying when you are offline.</p>
+          <p>Keep teacher-assigned resources and your own school files together. Study Space turns readable uploads into summaries, key terms, flashcards, worked examples and practice questions.</p>
           <div className="library-hero-stats">
             <span><strong>{teacherFiles.length}</strong> teacher resources</span>
             <span><strong>{files.length}</strong> personal materials</span>
+            <span><strong>{studyPacks.filter(pack=>pack.status==="ready").length}</strong> generated study packs</span>
             <span><ShieldCheck size={12}/> Private to your account</span>
           </div>
         </div>
@@ -497,13 +527,22 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
         <div className="library-section-heading"><div><h3>From your teacher</h3><p>{visibleTeacherFiles.length} assigned resource(s) shown · opens only for your account</p></div><BookOpen size={19}/></div>
         {teacherLoading?<div className="library-empty"><strong>Loading assigned materials…</strong></div>:visibleTeacherFiles.length?<div className="library-files">{visibleTeacherFiles.map(file=><article className="library-file" key={file.id}>
           <span className="library-file-icon"><FileText size={18}/></span>
-          <div className="library-file-copy"><strong>{file.title}</strong><span>{file.subject_name||"General"} · {formatCategory(file.resource_type)} · {fileType(file.title)} · {formatSize(Number(file.file_size))}</span><span>{[file.education_level,file.grade,file.course,file.curriculum,file.language].filter(Boolean).join(" · ") || "Academic level not specified"} · Produced {new Date(file.created_at).toLocaleDateString()}{file.academic_year?" · Academic year "+file.academic_year:""}</span>{file.description&&<span>{file.description}</span>}</div>
+          <div className="library-file-copy"><strong>{file.title}</strong><span>{file.subject_name||"General"} · {formatCategory(file.resource_type)} · {fileType(file.title)} · {formatSize(Number(file.file_size))}</span>{file.description&&<span>{file.description}</span>}</div>
           <div className="library-file-actions">
             <button type="button" className="icon-button" aria-label={"Download "+file.title} title="Download original file" disabled={teacherBusyId===file.id} onClick={()=>void (async()=>{if(!supabase)return;setTeacherBusyId(file.id);try{const {data,error}=await supabase.storage.from("studyspace-resources").download(file.storage_path);if(error)throw error;downloadFile({file:data,name:file.title});}catch(reason){setMessage(reason instanceof Error?reason.message:"The file could not be downloaded.");setMessageIsError(true);}finally{setTeacherBusyId("");}})()}><Download size={15}/></button>
             {canStudyWithMia(file.title, Number(file.file_size))&&<button type="button" className="icon-button" aria-label={"Study "+file.title+" with MIΛ"} title="Study with MIΛ · summarise, explain and practise" disabled={teacherBusyId===file.id} onClick={()=>void studyTeacherFileWithMia(file)}><Brain size={15}/></button>}
             <button type="button" className="icon-button" aria-label={"Preview "+file.title} title="Preview material" disabled={teacherBusyId===file.id} onClick={()=>void viewTeacherFile(file)}><Eye size={15}/></button>
           </div>
         </article>)}</div>:<div className="library-empty"><div><BookOpen size={23}/></div><strong>No teacher materials match</strong><p>When your teacher assigns materials, they will appear here. Try changing the filters if you expected to see a file.</p></div>}
+      </section>}
+
+      {(filterSource==="All"||filterSource==="Personal"||filterSource==="Teacher")&&<section className="glass-panel library-list study-packs-list">
+        <div className="library-section-heading"><div><h3>Study packs prepared from your files</h3><p>Generated privately from your uploaded or teacher-assigned school materials.</p></div><Brain size={19}/></div>
+        {studyPacksLoading?<div className="library-empty"><strong>Loading your study packs…</strong></div>:visibleStudyPacks.length?<div className="library-files">{visibleStudyPacks.map(pack=><article className="library-file study-pack-row" key={pack.id}>
+          <span className="library-file-icon"><BookOpen size={18}/></span>
+          <div className="library-file-copy"><strong>{pack.content?.title||pack.subject_name+" study pack"}</strong><span>{pack.subject_name} · {pack.file_name||"School material"}{pack.topic?" · "+pack.topic:""}</span><span>{pack.status==="ready"?"Summary, concepts, flashcards and practice questions are ready.":pack.status==="generating"?"Study Space is preparing this pack.":pack.status==="needs_ocr"?"This file appears scanned; readable text is needed.":pack.status==="failed"?"The pack could not be prepared yet; it will retry on a later sync.":"This file format cannot be converted into a study pack yet."}</span></div>
+          <div className="library-file-actions">{pack.status==="ready"?<button type="button" className="secondary-button" onClick={()=>setSelectedStudyPack(pack)}>Open pack</button>:<span className={"library-study-status status-"+pack.status}>{pack.status==="generating"?"Preparing":pack.status==="needs_ocr"?"Needs readable text":pack.status==="failed"?"Retry pending":"Unsupported"}</span>}</div>
+        </article>)}</div>:<div className="library-empty"><div><Brain size={23}/></div><strong>Your first study pack will appear here</strong><p>Upload your school notes or open an assigned school resource. If a subject has no readable material, Study Space requests a curriculum-based guide for Monitor approval; once approved, the guide appears here automatically.</p></div>}
       </section>}
 
       {(filterSource==="All"||filterSource==="Personal")&&<section className="glass-panel library-list">
@@ -519,6 +558,22 @@ export default function StudentLibrary({ subjects = [], onAskMia }: { subjects?:
           </div>
         </article>)}</div>:<div className="library-empty"><div><FolderOpen size={23}/></div><strong>Your personal library is ready</strong><p>Save notes, presentations, worksheets, images and spreadsheets here. Choose files above to begin building your own study collection.</p></div>}
       </section>}
+
+      {selectedStudyPack&&<div className="modal-backdrop study-pack-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setSelectedStudyPack(null);}}>
+        <section className="study-pack-viewer" role="dialog" aria-modal="true" aria-label={selectedStudyPack.content?.title||"Study pack"}>
+          <header className="study-pack-viewer-header"><div><span>STUDYSPACE STUDY PACK</span><h2>{selectedStudyPack.content?.title||selectedStudyPack.subject_name+" study pack"}</h2><p>{selectedStudyPack.subject_name} · {selectedStudyPack.file_name||"School material"} · {selectedStudyPack.content?.estimated_minutes||30} minute study guide</p></div><button type="button" className="icon-button" aria-label="Close study pack" onClick={()=>setSelectedStudyPack(null)}><X size={18}/></button></header>
+          <div className="study-pack-viewer-content">
+            <section><h3>Overview</h3><p>{selectedStudyPack.content?.summary}</p></section>
+            {Array.isArray(selectedStudyPack.content?.learning_objectives)&&<section><h3>What you should learn</h3><ul>{selectedStudyPack.content.learning_objectives.map((item:string,index:number)=><li key={index}>{item}</li>)}</ul></section>}
+            {Array.isArray(selectedStudyPack.content?.key_terms)&&<section><h3>Key terms</h3><dl>{selectedStudyPack.content.key_terms.map((item:any,index:number)=><div key={index}><dt>{item.term}</dt><dd>{item.definition}</dd></div>)}</dl></section>}
+            {Array.isArray(selectedStudyPack.content?.concept_sections)&&<section><h3>Learn the concepts</h3>{selectedStudyPack.content.concept_sections.map((item:any,index:number)=><article className="study-pack-concept" key={index}><h4>{item.heading}</h4><p>{item.explanation}</p>{item.example&&<blockquote>{item.example}</blockquote>}</article>)}</section>}
+            {Array.isArray(selectedStudyPack.content?.worked_examples)&&selectedStudyPack.content.worked_examples.length>0&&<section><h3>Worked examples</h3>{selectedStudyPack.content.worked_examples.map((item:any,index:number)=><article className="study-pack-example" key={index}><h4>{item.title}</h4><p>{item.problem}</p>{Array.isArray(item.steps)&&<ol>{item.steps.map((step:string,stepIndex:number)=><li key={stepIndex}>{step}</li>)}</ol>}<details><summary>Show final answer</summary><p>{item.answer}</p></details></article>)}</section>}
+            {Array.isArray(selectedStudyPack.content?.common_mistakes)&&selectedStudyPack.content.common_mistakes.length>0&&<section><h3>Common mistakes to avoid</h3><ul>{selectedStudyPack.content.common_mistakes.map((item:any,index:number)=><li key={index}><strong>{item.mistake}</strong><p>{item.correction}</p></li>)}</ul></section>}
+            {Array.isArray(selectedStudyPack.content?.flashcards)&&<section><h3>Flashcards</h3>{selectedStudyPack.content.flashcards.map((item:any,index:number)=><details className="study-pack-flashcard" key={index}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</section>}
+            {Array.isArray(selectedStudyPack.content?.practice_questions)&&<section><h3>Practice questions</h3>{selectedStudyPack.content.practice_questions.map((item:any,index:number)=><article className="study-pack-question" key={index}><strong>{index+1}. {item.prompt}</strong>{Array.isArray(item.options)&&<ol type="A">{item.options.map((option:string,optionIndex:number)=><li key={optionIndex}>{option}</li>)}</ol>}<details><summary>Reveal answer and explanation</summary><p><strong>Answer:</strong> {item.correct_answer}</p><p>{item.explanation}</p></details></article>)}</section>}
+          </div>
+        </section>
+      </div>}
 
       {viewing&&<div className={"modal-backdrop library-viewer-backdrop" + (fullscreenPreview ? " is-fullscreen" : "")} onMouseDown={event=>{if(event.target===event.currentTarget)closePreview();}}>
         <section ref={viewerDialogRef} className={"library-viewer" + (fullscreenPreview ? " is-fullscreen" : "") + (landscapeFallback ? " is-landscape-fallback" : "")} role="dialog" aria-modal="true" aria-label={"Previewing "+viewing.name}>

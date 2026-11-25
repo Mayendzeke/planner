@@ -13,6 +13,7 @@ import {
   type StudentResource,
 } from "../data/db";
 import { getStudentStorageOwner, studentStorageKeyForUser } from "./studentStorage";
+import { readStudyMaterialPreview, studyMaterialText } from "./studyMaterialPreview";
 import { supabase } from "./supabase";
 
 type CloudRow = Record<string, any>;
@@ -236,6 +237,56 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
   let downloaded = 0;
   let uploaded = 0;
 
+  const scheduleStudyPackGeneration = (resource:StudentResource,resourceId:string,force=false) => {
+    const subjectName=resource.subjectId==null?"":(subjects.find(subject=>subject.id===resource.subjectId)?.name||"");
+    if(!subjectName||!resource.file)return;
+    const lastAttempt=timestamp(resource.studyPackLastAttemptAt);
+    const age=Date.now()-lastAttempt;
+    if(!force&&resource.studyPackStatus==="ready"&&resource.studyPackHash)return;
+    if(!force&&resource.studyPackStatus==="needs_ocr"&&resource.studyPackHash)return;
+    if(!force&&resource.studyPackStatus==="unsupported"&&age<24*60*60*1000)return;
+    if(!force&&resource.studyPackStatus==="failed"&&age<60*60*1000)return;
+    if(!force&&resource.studyPackStatus==="generating"&&age<10*60*1000)return;
+    void (async()=>{
+      const attemptedAt=new Date().toISOString();
+      try{
+        const preview=await readStudyMaterialPreview(resource.file,resource.name);
+        const extractedText=studyMaterialText(preview);
+        if(!extractedText.trim()){
+          const imageLike=/\.(pdf|png|jpe?g|webp)$/i.test(resource.name);
+          const status=preview.kind==="unsupported"&&(imageLike||preview.message.toLowerCase().includes("scanned"))?"needs_ocr":"unsupported";
+          const {data,error}=await supabase!.functions.invoke("study-material-engine",{
+            body:{resourceId,extractedText:"",subjectName,topic:resource.topic||"",force,unsupported:status==="unsupported"},
+          });
+          await pause(()=>table.update(resource.id,{
+            studyPackHash:String(data?.sourceHash||resource.studyPackHash||""),
+            studyPackStatus:!error&&data?.success?data.status:"failed",
+            studyPackLastAttemptAt:attemptedAt,
+          }));
+          if(!error&&data?.success)void prepareAssessmentProgramme();
+          return;
+        }
+        await pause(()=>table.update(resource.id,{studyPackStatus:"generating",studyPackLastAttemptAt:attemptedAt}));
+        const {data,error}=await supabase!.functions.invoke("study-material-engine",{
+          body:{resourceId,extractedText,subjectName,topic:resource.topic||"",force},
+        });
+        if(error||!data?.success){
+          await pause(()=>table.update(resource.id,{studyPackStatus:"failed",studyPackLastAttemptAt:attemptedAt}));
+          return;
+        }
+        await pause(()=>table.update(resource.id,{
+          studyPackHash:String(data.sourceHash||resource.studyPackHash||""),
+          studyPackStatus:data.status==="ready"?"ready":data.status==="needs_ocr"?"needs_ocr":"generating",
+          studyPackLastAttemptAt:attemptedAt,
+        }));
+        if(data.status==="ready")void prepareAssessmentProgramme();
+      }catch(error){
+        console.warn("Study pack preparation will retry later:",error);
+        await pause(()=>table.update(resource.id,{studyPackStatus:"failed",studyPackLastAttemptAt:attemptedAt}));
+      }
+    })();
+  };
+
   const persistRemote = async (remote: CloudRow, localId: number, existing?: StudentResource) => {
     if (!existing) {
       const { data, error } = await supabase!.storage.from("studyspace-resources").download(remote.storage_path);
@@ -256,6 +307,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
       };
       await pause(() => table.put(resource));
       downloaded += 1;
+      scheduleStudyPackGeneration(resource,String(remote.id));
     } else {
       const remoteStamp = String(remote.updated_at || remote.created_at);
       const needsFileRefresh = timestamp(remoteStamp) > timestamp(existing.cloudUpdatedAt || existing.localUpdatedAt);
@@ -279,6 +331,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         cloudUpdatedAt: remoteStamp,
       }));
       downloaded += 1;
+      if(needsFileRefresh||!existing.studyPackHash)scheduleStudyPackGeneration({...existing,...filePatch},String(remote.id),needsFileRefresh);
     }
   };
 
@@ -313,6 +366,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
         const stamp = String(data.updated_at || data.created_at);
         await pause(() => table.update(local.id, { cloudUpdatedAt: stamp, localUpdatedAt: stamp }));
         uploaded += 1;
+        scheduleStudyPackGeneration({...local,cloudUpdatedAt:stamp,localUpdatedAt:stamp},String(data.id),true);
       } else {
         await persistRemote(remote, local.id, local);
       }
@@ -350,6 +404,7 @@ async function syncPersonalResources(db: ReturnType<typeof getPlannerDatabaseFor
     }));
     handled.add(cloudId);
     uploaded += 1;
+    scheduleStudyPackGeneration({...local,cloudId,cloudUpdatedAt:stamp,localUpdatedAt:stamp},cloudId);
   }
 
   for (const remote of remoteRows) {
@@ -427,6 +482,83 @@ async function syncPracticeProgress(userId:string, subjects:Subject[]):Promise<{
   }
   if(downloaded>0) window.dispatchEvent(new Event("studyspace-cloud-practice-updated"));
   return {downloaded,uploaded};
+}
+
+export type AssessmentPreparationResult = { data:Record<string,any>|null; error?:string };
+let assessmentPreparationPromise:Promise<AssessmentPreparationResult>|null=null;
+
+export function prepareAssessmentProgramme():Promise<AssessmentPreparationResult> {
+  if(assessmentPreparationPromise)return assessmentPreparationPromise;
+  assessmentPreparationPromise=(async()=>{
+    if(!supabase)return {data:null,error:"StudySpace cloud services are not configured."};
+    for(let batch=0;batch<12;batch++){
+      const {data,error}=await supabase.functions.invoke("assessment-scheduler",{body:{action:"process_practice_requests"}});
+      if(error)return {data:null,error:error.message||"Queued practice tests could not be prepared."};
+      if(!data?.success)return {data:null,error:String(data?.error||"Queued practice tests could not be prepared.")};
+      if(!data.hasMore)break;
+    }
+    let lastData:Record<string,any>|null=null;
+    for(let batch=0;batch<12;batch++){
+      const {data,error}=await supabase.functions.invoke("assessment-scheduler",{body:{}});
+      if(error)return {data:lastData,error:error.message||"The assessment programme could not be prepared."};
+      if(!data?.success)return {data:lastData,error:String(data?.error||"The assessment programme could not be prepared.")};
+      lastData=data as Record<string,any>;
+      if(!data.hasMore)break;
+    }
+    return {data:lastData};
+  })().catch(error=>({data:null,error:error instanceof Error?error.message:"Automatic assessment preparation failed."}))
+    .finally(()=>{assessmentPreparationPromise=null;});
+  return assessmentPreparationPromise;
+}
+
+let teacherPackPreparationPromise:Promise<void>|null=null;
+
+export function prepareAssignedTeacherStudyPacks():Promise<void> {
+  if(teacherPackPreparationPromise)return teacherPackPreparationPromise;
+  teacherPackPreparationPromise=(async()=>{
+    if(!supabase)return;
+    const {data:authState,error:authError}=await supabase.auth.getUser();
+    if(authError||!authState.user)return;
+    const learnerId=authState.user.id;
+    const {data:assignments,error:assignmentError}=await supabase.from("resource_assignments")
+      .select("resource_id").eq("learner_id",learnerId);
+    if(assignmentError)return;
+    const ids=(assignments||[]).map(row=>row.resource_id).filter(Boolean);
+    if(!ids.length)return;
+    const [{data:resources,error:resourceError},{data:packs,error:packError}]=await Promise.all([
+      supabase.from("learning_resources").select("id,title,subject_name,topic,storage_path,mime_type,file_size,created_at,updated_at").in("id",ids),
+      supabase.from("learner_study_packs").select("learning_resource_id,status,updated_at")
+        .eq("learner_id",learnerId).not("learning_resource_id","is",null).order("updated_at",{ascending:false}),
+    ]);
+    if(resourceError||packError)return;
+    const latest=new Map<string,{status:string;updated_at:string}>();
+    for(const pack of packs||[])if(pack.learning_resource_id&&!latest.has(String(pack.learning_resource_id)))latest.set(String(pack.learning_resource_id),{status:String(pack.status),updated_at:String(pack.updated_at)});
+    const candidates=(resources||[]).filter(resource=>{
+      if(!resource.subject_name||!resource.storage_path)return false;
+      const pack=latest.get(String(resource.id));
+      if(!pack)return true;
+      const packTime=new Date(pack.updated_at).getTime();
+      const resourceTime=new Date(resource.updated_at||resource.created_at).getTime();
+      if((pack.status==="ready"||pack.status==="needs_ocr")&&packTime>=resourceTime)return false;
+      if(pack.status==="generating"&&Date.now()-packTime<10*60*1000)return false;
+      if(pack.status==="failed"&&Date.now()-packTime<60*60*1000)return false;
+      return true;
+    }).slice(0,2);
+    for(const resource of candidates){
+      try{
+        const {data:file,error:downloadError}=await supabase.storage.from("studyspace-resources").download(resource.storage_path);
+        if(downloadError||!file)continue;
+        const preview=await readStudyMaterialPreview(file,resource.title);
+        const extractedText=studyMaterialText(preview);
+        const unsupported=!extractedText.trim()&&!/\.(pdf|png|jpe?g|webp)$/i.test(resource.title);
+        const {data:generated,error:generationError}=await supabase.functions.invoke("study-material-engine",{
+          body:{sourceType:"teacher_resource",resourceId:resource.id,extractedText,subjectName:resource.subject_name,topic:resource.topic||"",unsupported},
+        });
+        if(!generationError&&generated?.success&&generated.status==="ready")await prepareAssessmentProgramme();
+      }catch(error){console.warn("Assigned teacher study pack preparation will retry later:",error);}
+    }
+  })().finally(()=>{teacherPackPreparationPromise=null;});
+  return teacherPackPreparationPromise;
 }
 
 const inFlightStudentSyncs = new Map<string, Promise<StudentSyncResult>>();
