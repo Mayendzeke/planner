@@ -29,7 +29,7 @@ test("public enrolment preserves age, capacity, rate-limit and adult terms contr
   assert.match(edge, /studyspace_enrolment_capacity_available/);
   assert.match(edge, /byId\.count \?\? 0\) >= 5/);
   assert.match(edge, /bySource\.count \?\? 0\) >= 12/);
-  assert.match(edge, /termsVersion !== "2026-11-09-v8"/);
+  assert.match(edge, /termsVersion !== "2026-11-24-v9"/);
   assert.match(edge, /pending_guardian_verification/);
 });
 
