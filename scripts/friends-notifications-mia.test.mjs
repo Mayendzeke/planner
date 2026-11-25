@@ -72,3 +72,16 @@ test("MIΛ is mounted behind a recoverable render boundary and tolerates stale l
   assert.match(mia, /Array\.isArray\(suppliedSubjects\)/);
   assert.match(mia, /typeof profile\?\.preferredName === "string"/);
 });
+
+
+test("MIΛ mobile navigation opens a visible drawer above its blur scrim", () => {
+  const appStyles = read("src/components/MiaFullscreen.css");
+  assert.match(app, /id="student-navigation-drawer" className=\{"sidebar glass-panel /);
+  assert.match(app, /navigationOpen=\{mobileMenu\} onMenuClick=\{\(\) => setMobileMenu\(true\)\}/);
+  assert.match(mia, /aria-expanded=\{navigationOpen\} aria-controls="student-navigation-drawer"/);
+  assert.match(mia, /aria-label=\{navigationOpen \? "StudySpace menu open" : "Open StudySpace menu"\}/);
+  assert.match(app, /<button className="mobile-scrim" aria-label="Close navigation overlay" onClick=\{\(\)=>setMobileMenu\(false\)\}/);
+  assert.match(appStyles, /\.app-shell-mia > \.sidebar\.glass-panel\s*\{[^}]*position:\s*fixed !important;[^}]*z-index:\s*140 !important;[^}]*backdrop-filter:\s*none !important;/s);
+  assert.match(appStyles, /\.app-shell-mia > \.sidebar\.glass-panel\.sidebar-open\s*\{[^}]*transform:\s*translateX\(0\) !important;[^}]*visibility:\s*visible;[^}]*pointer-events:\s*auto;/s);
+  assert.match(appStyles, /\.app-shell-mia > \.mobile-scrim\s*\{[^}]*z-index:\s*130 !important;/s);
+});
