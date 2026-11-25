@@ -25,7 +25,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
   avatarUrl?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<StudentProfile>({ ...profile, level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" });
+  const [draft, setDraft] = useState<StudentProfile>({ ...profile, preferredLanguage: profile.preferredLanguage || "English", level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" });
   const [otherGradeSelected, setOtherGradeSelected] = useState(() => Boolean(profile.grade && !isStandardGrade(profile.grade, profile.level || "Secondary High")));
   const [customSubject, setCustomSubject] = useState("");
   const [saving, setSaving] = useState(false);
@@ -120,6 +120,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         p_qualification_level: isTertiaryLevel(draft.level) ? draft.qualificationLevel : "",
       });
       if (profileError) throw new Error("Your profile could not be updated: " + profileError.message);
+      const { error: languageError } = await supabase.rpc("set_studyspace_preferred_language", { p_language: draft.preferredLanguage || "English" });
+      if (languageError) throw new Error("Your academic profile was saved, but your learning language was not updated: " + languageError.message);
 
       const { data: currentGoal, error: currentGoalError } = await supabase.from("student_goals")
         .select("reminder_settings").eq("learner_id", learnerId).maybeSingle();
@@ -277,6 +279,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
           <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)} placeholder="e.g. Diploma in IT, BBA, MSc Education"/></label>
         </>}
         <label className="field-label">Curriculum / awarding framework<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}><option value="">Choose curriculum / framework</option>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select>{isTertiaryLevel(draft.level) && <span className="field-optional"> OPTIONAL</span>}</label>
+        <label className="field-label">Learning and assessment language<select value={draft.preferredLanguage || "English"} onChange={event => update("preferredLanguage", event.target.value)}><option value="English">English</option><option value="SiSwati">SiSwati</option></select><small>MIΛ explanations, study guides, question wording, answer options and instructions will follow this language.</small></label>
         <label className="field-label">Academic year<input maxLength={30} value={draft.academicYear} onChange={event => update("academicYear", event.target.value)}/></label>
         <label className="field-label">Number of terms<select value={draft.termCount} onChange={event => update("termCount", event.target.value)}><option value="1">1 academic year</option><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="custom">Other / not sure</option></select></label>
       </div>
