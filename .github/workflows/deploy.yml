@@ -11,7 +11,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # Isolate the repaired release queue from an earlier stalled Pages run.
+  group: pages-release-v2
   cancel-in-progress: true
 
 jobs:
