@@ -15,7 +15,7 @@ const readContactIds=(key:string):string[]=>{try{const value=JSON.parse(localSto
 const allowed=["image/jpeg","image/png","image/webp","application/pdf","text/plain"];
 const ext=(file:File)=>({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","application/pdf":"pdf","text/plain":"txt"} as Record<string,string>)[file.type]||"";
 
-export default function StudentMessagesPage(){
+export default function StudentMessagesPage({ initialContactId }: { initialContactId?: string }){
   const [userId,setUserId]=useState("");
   const [mailbox,setMailbox]=useState<"inbox"|"sent"|"groups">("inbox");
   const [conversationFilter,setConversationFilter]=useState<ConversationFilter>("all");
@@ -66,12 +66,13 @@ export default function StudentMessagesPage(){
       ]);
       const failure=[c.error,m.error,p.error,co.error,d.error].find(Boolean);if(failure)throw failure;
       const contactRows=(c.data??[]) as Contact[];
-      setContacts(contactRows);setSelected(current=>current&&contactRows.some(x=>x.contact_id===current)?current:(contactRows[0]?.contact_id??""));
+      setContacts(contactRows);setSelected(current=>initialContactId&&contactRows.some(x=>x.contact_id===initialContactId)?initialContactId:current&&contactRows.some(x=>x.contact_id===current)?current:(contactRows[0]?.contact_id??""));
       const rows=(m.data??[]) as Message[];setMessages(rows);setHiddenMessageIds((d.data??[]).map(x=>x.message_id));const undelivered=rows.filter(x=>x.recipient_id===id&&!x.delivered_at);if(undelivered.length)void supabase.from("direct_messages").update({delivered_at:new Date().toISOString()}).in("id",undelivered.map(x=>x.id));setPending((p.data??[]) as Invite[]);setConnections((co.data??[]) as Connection[]);const {data:presenceRows}=await supabase.from("studyspace_user_presence").select("user_id,last_seen_at").in("user_id",contactRows.map(x=>x.contact_id));const pmap:Record<string,string>={};(presenceRows??[]).forEach((x:any)=>pmap[x.user_id]=Date.now()-new Date(x.last_seen_at).getTime()<120000?"online":x.last_seen_at);setPresence(pmap);
     }catch(reason){setError(reason instanceof Error?reason.message:"Your messages could not be loaded.");}
     finally{setLoading(false);}
   };
   useEffect(()=>{void refresh();},[]);
+  useEffect(()=>{if(initialContactId&&contacts.some(x=>x.contact_id===initialContactId))setSelected(initialContactId);},[initialContactId,contacts]);
   useEffect(()=>{
     if(!userId)return;
     setPinnedIds(readContactIds("studyspace:"+userId+":messages:pinned"));
