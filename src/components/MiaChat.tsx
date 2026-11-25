@@ -258,7 +258,7 @@ async function invokeMiaAssistant(body: Record<string, unknown>) {
   return invoke(refreshed.data.session.access_token);
 }
 
-export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onMenuClick, onNavigate, initialAttachment, initialPrompt, onAttachmentConsumed }: {
+export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onMenuClick, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
