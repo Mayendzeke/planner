@@ -5,6 +5,7 @@ import { showStudyspaceNotification } from "../lib/studyspaceNotifications";
 type DirectMessageEvent = { id?: string; sender_id?: string; body?: string; attachment_name?: string };
 type GroupMessageEvent = { id?: string; group_id?: string; sender_id?: string; body?: string; attachment_name?: string };
 type GroupInviteEvent = { id?: string; group_id?: string };
+type FriendConnectionEvent = { id?: string; requester_id?: string; addressee_id?: string; status?: string };
 type AnnouncementEvent = { id?: string; title?: string; body?: string; created_by?: string; is_published?: boolean; expires_at?: string | null };
 
 export default function StudyspaceNotificationListener() {
@@ -28,6 +29,27 @@ export default function StudyspaceNotificationListener() {
   useEffect(() => {
     if (!supabase || !userId) return;
     const channel = supabase.channel("studyspace-notifications-" + userId)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "student_connections",
+      }, payload => {
+        const row = (payload.new || {}) as FriendConnectionEvent;
+        if (!row.id) return;
+        if (payload.eventType === "INSERT" && row.addressee_id === userId && row.status === "pending") {
+          void showStudyspaceNotification(
+            userId, "friend_requests", "New friend request",
+            "A StudySpace learner wants to connect with you.",
+            "studyspace-friend-request-" + row.id,
+            import.meta.env.BASE_URL + "favicon.svg",
+          );
+        } else if (payload.eventType === "UPDATE" && row.requester_id === userId && row.status === "accepted") {
+          void showStudyspaceNotification(
+            userId, "friend_requests", "Friend request accepted",
+            "Your StudySpace friend request was accepted.",
+            "studyspace-friend-accepted-" + row.id,
+            import.meta.env.BASE_URL + "favicon.svg",
+          );
+        }
+      })
       .on("postgres_changes", {
         event: "INSERT", schema: "public", table: "direct_messages",
         filter: "recipient_id=eq." + userId,
