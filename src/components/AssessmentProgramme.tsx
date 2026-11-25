@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, RefreshCw, Settings2, ShieldAlert, Sparkles } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { prepareAssessmentProgramme } from "../lib/cloudSync";
 import "./AssessmentProgramme.css";
 
 const weekdays=[{day:1,label:"Monday"},{day:2,label:"Tuesday"},{day:3,label:"Wednesday"},{day:4,label:"Thursday"},{day:5,label:"Friday"}];
 type WindowDraft={day:number;enabled:boolean;start:string;end:string};
 type ScheduleItem={id:string;subject_name:string;assessment_type:string;scheduled_at:string;duration_minutes:number;question_count:number;status:string;exercise_assignment_id:string|null;metadata:Record<string,unknown>};
-type Conflict={subjectName?:string;reason:string;day?:string;requiredMinutes?:number;limitMinutes?:number};
+type Conflict={subjectName?:string;reason:string;day?:string;requiredMinutes?:number;limitMinutes?:number;periodType?:string};
 const emptyWindows=():WindowDraft[]=>weekdays.map(item=>({day:item.day,enabled:false,start:"",end:""}));
 const timeLabel=(value:string)=>new Date(value).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+const dateLabel=(value:string)=>new Date(value).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
 
 export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignments:()=>void}) {
   const [learnerId,setLearnerId]=useState("");
@@ -17,6 +19,8 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
   const [questionCount,setQuestionCount]=useState("10");
   const [timezone,setTimezone]=useState("Africa/Mbabane");
   const [items,setItems]=useState<ScheduleItem[]>([]);
+  const [monthlyItems,setMonthlyItems]=useState<ScheduleItem[]>([]);
+  const [quarterlyItems,setQuarterlyItems]=useState<ScheduleItem[]>([]);
   const [conflicts,setConflicts]=useState<Conflict[]>([]);
   const [weekStart,setWeekStart]=useState("");
   const [programmeStatus,setProgrammeStatus]=useState("");
@@ -27,55 +31,68 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
   const [notice,setNotice]=useState("");
 
   const selectedDays=useMemo(()=>windows.filter(item=>item.enabled),[windows]);
-  const refreshItems=useCallback(async(runId?:string)=>{
+  const nextAssessment=useMemo(()=>[...items,...monthlyItems,...quarterlyItems]
+    .filter(item=>item.exercise_assignment_id&&item.status!=="completed")
+    .sort((a,b)=>new Date(a.scheduled_at).getTime()-new Date(b.scheduled_at).getTime())[0]||null,[items,monthlyItems,quarterlyItems]);
+  const periodItemStatus=(item:ScheduleItem)=>{
+    if(item.status==="completed")return "Completed";
+    if(item.exercise_assignment_id)return new Date(item.scheduled_at).getTime()>Date.now()?"Stored":"Ready";
+    if(item.metadata?.waiting_for_material_approval)return "Awaiting material approval";
+    if(item.metadata?.waiting_for_study_pack)return "Preparing study material";
+    if(item.metadata?.material_request_error)return "Material preparation failed";
+    return "Scheduled";
+  };
+  const renderPeriodItem=(item:ScheduleItem)=> <div className="assessment-scheduled-item" key={item.id}>
+    <div><strong>{item.subject_name}</strong><small>{dateLabel(item.scheduled_at)} · {timeLabel(item.scheduled_at)} · {item.duration_minutes} min · {item.question_count} questions</small></div>
+    <span className={"assessment-item-status status-"+item.status}>{periodItemStatus(item)}</span>
+  </div>;
+  const refreshItems=useCallback(async(learnerIdOverride?:string)=>{
     if(!supabase)return;
-    let id=runId;
-    if(!id){
-      const {data:run}=await supabase.from("assessment_schedule_runs").select("id,period_start,status")
-        .eq("learner_id",learnerId).eq("period_type","weekly").order("period_start",{ascending:false}).limit(1).maybeSingle();
-      if(!run){setItems([]);return;}
-      id=run.id;setWeekStart(run.period_start);setProgrammeStatus(run.status);
-    }
+    const activeLearnerId=learnerIdOverride||learnerId;
+    if(!activeLearnerId)return;
+    const {data:runs,error:runError}=await supabase.from("assessment_schedule_runs")
+      .select("id,period_type,period_start,status,conflicts")
+      .eq("learner_id",activeLearnerId).in("period_type",["weekly","monthly","quarterly"])
+      .order("period_start",{ascending:false});
+    if(runError)throw runError;
+    const latestByType=new Map<string,any>();
+    for(const run of runs||[])if(!latestByType.has(String(run.period_type)))latestByType.set(String(run.period_type),run);
+    const weeklyRun=latestByType.get("weekly");
+    if(weeklyRun){setWeekStart(String(weeklyRun.period_start));setProgrammeStatus(String(weeklyRun.status||"planned"));}
+    const runIds=[...latestByType.values()].map((run:any)=>run.id).filter(Boolean);
+    if(!runIds.length){setItems([]);setMonthlyItems([]);setQuarterlyItems([]);setConflicts([]);return;}
     const {data,error:queryError}=await supabase.from("assessment_schedule_items")
       .select("id,subject_name,assessment_type,scheduled_at,duration_minutes,question_count,status,exercise_assignment_id,metadata")
-      .eq("schedule_run_id",id).order("scheduled_at");
+      .in("schedule_run_id",runIds).order("scheduled_at");
     if(queryError)throw queryError;
-    setItems((data||[]) as ScheduleItem[]);
+    const rows=(data||[]) as ScheduleItem[];
+    setItems(rows.filter(item=>item.assessment_type==="weekly_subject"));
+    setMonthlyItems(rows.filter(item=>item.assessment_type==="monthly_subject"));
+    setQuarterlyItems(rows.filter(item=>item.assessment_type==="quarterly_exam"));
+    setConflicts((runs||[]).flatMap((run:any)=>(Array.isArray(run.conflicts)?run.conflicts:[]).map((item:any)=>({...item,periodType:run.period_type}))) as Conflict[]);
   },[learnerId]);
 
-  const runScheduler=useCallback(async(showProgress=true,learnerIdOverride?:string,timezoneOverride?:string)=>{
+  const runScheduler=useCallback(async(showProgress=true,learnerIdOverride?:string)=>{
     const activeLearnerId=learnerIdOverride||learnerId;
-    const activeTimezone=timezoneOverride||timezone;
     if(!supabase||!activeLearnerId||generating)return;
     if(showProgress)setGenerating(true);
     setError("");setNotice("");
     try{
-      let latestData:any=null;
-      let pendingCount=0;
-      let lastGeneratedCount=0;
-      for(let batch=0;batch<12;batch++){
-        const {data,error:invokeError}=await supabase.functions.invoke("assessment-scheduler",{body:{timezone:activeTimezone}});
-        if(invokeError)throw invokeError;
-        if(!data?.success)throw new Error(data?.error||"The assessment programme could not be created.");
-        latestData=data;
-        lastGeneratedCount=Number(data.generatedCount||0);
-        setProgrammeStatus(String(data.status||"planned"));
-        setConflicts(Array.isArray(data.conflicts)?data.conflicts as Conflict[]:[]);
-        if(data.weekStart)setWeekStart(String(data.weekStart));
-        if(data.scheduleRunId)await refreshItems(String(data.scheduleRunId));
-        pendingCount=Array.isArray(data.items)
-          ?data.items.filter((item:any)=>!item.exercise_assignment_id&&item.status==="scheduled").length
-          :0;
-        if(data.status==="needs_availability"||data.status==="no_subjects"||pendingCount===0||lastGeneratedCount===0)break;
-      }
-      if(latestData?.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
-      else if(latestData?.status==="no_subjects")setNotice("Add your registered subjects before creating your assessment programme.");
-      else if(pendingCount>0)setNotice("Your programme is saved. Study Space will continue preparing the remaining assessments automatically.");
-      else setNotice("Your programme and stored assessments are ready. You do not need to prepare tests manually.");
+      const result=await prepareAssessmentProgramme();
+      if(result.error)throw new Error(result.error);
+      const data=result.data;
+      if(data?.status)setProgrammeStatus(String(data.status));
+      if(Array.isArray(data?.conflicts))setConflicts(data.conflicts as Conflict[]);
+      if(data?.weekStart)setWeekStart(String(data.weekStart));
+      await refreshItems(activeLearnerId);
+      if(data?.status==="needs_availability")setNotice("Set your available study periods below, or mark free periods in your personal timetable as ready for study.");
+      else if(data?.status==="no_subjects")setNotice("Add your registered subjects before creating your assessment programme.");
+      else if(data?.hasMore)setNotice("Your programme is saved. Study Space will continue preparing the remaining near-term assessments automatically.");
+      else setNotice(String(data?.message||"Your programme and stored assessments are ready."));
     }catch(reason){
       setError(reason instanceof Error?reason.message:"The assessment programme could not be loaded.");
     }finally{if(showProgress)setGenerating(false);}
-  },[learnerId,timezone,generating,refreshItems]);
+  },[learnerId,generating,refreshItems]);
 
   useEffect(()=>{
     let alive=true;
@@ -99,7 +116,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
         }));
       }
       setLoading(false);
-      if(alive)await runScheduler(true,auth.user.id,String(preferences?.timezone||"Africa/Mbabane"));
+      if(alive)await runScheduler(true,auth.user.id);
     }
     void load();
     return()=>{alive=false;};
@@ -132,7 +149,7 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
 
   return <section className="assessment-programme">
     <header className="assessment-programme-hero glass-panel">
-      <div><span className="eyebrow">YOUR PERSONAL ASSESSMENT PLAN</span><h2>Weekly assessment programme</h2><p>Every registered subject is scheduled Monday–Friday. The system balances demanding modules, subject types, credit hours, recent results and your actual free periods.</p></div>
+      <div><span className="eyebrow">YOUR PERSONAL ASSESSMENT PLAN</span><h2>Your assessment programme</h2><p>Weekly subject tests are balanced across your available periods, with a comprehensive test for every subject each month and a quarterly examination every three months.</p></div>
       <div className="assessment-programme-hero-icon"><CalendarDays size={25}/></div>
     </header>
 
@@ -157,6 +174,10 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
     {error&&<p className="assessment-programme-error" role="alert">{error}</p>}
     {notice&&<p className="assessment-programme-notice" role="status">{notice}</p>}
 
+    {nextAssessment&&<section className="assessment-next-action glass-panel">
+      <div><span className="eyebrow">YOUR NEXT ASSESSMENT</span><h3>{nextAssessment.subject_name}</h3><p>{dateLabel(nextAssessment.scheduled_at)} at {timeLabel(nextAssessment.scheduled_at)} · {nextAssessment.question_count} questions · {nextAssessment.duration_minutes} minutes</p></div>
+      <button type="button" className="primary-button" onClick={onOpenAssignments}>Open assessment</button>
+    </section>}
     <section className="assessment-weekly-plan glass-panel">
       <div className="assessment-section-heading"><div><span className="eyebrow">BALANCED MONDAY–FRIDAY PLAN</span><h3>{weekStart?"Week of "+new Date(weekStart+"T12:00:00").toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"}):"Your weekly schedule"}</h3><p>{items.length} of your registered subject assessments scheduled. Each regular subject test contains {questionCount} questions.</p></div><button type="button" className="secondary-button" onClick={()=>void runScheduler(true)} disabled={generating||!learnerId}><RefreshCw size={15}/>{generating?"Preparing…":"Refresh programme"}</button></div>
       {programmeStatus==="needs_availability"&&<div className="assessment-programme-empty"><Clock3 size={22}/><strong>Availability needed</strong><span>Choose free study windows above or mark personal timetable periods as ready for study.</span></div>}
@@ -167,7 +188,19 @@ export default function AssessmentProgramme({onOpenAssignments}:{onOpenAssignmen
           <span className={"assessment-item-status status-"+item.status}>{item.status==="completed"?"Completed":item.exercise_assignment_id?(new Date(item.scheduled_at).getTime()>Date.now()?"Stored":"Ready"):item.metadata?.waiting_for_material_approval?"Awaiting material approval":item.metadata?.material_request_error?"Material preparation failed":item.status==="generated"?"Preparing":"Scheduled"}</span>
         </div>):<p className="assessment-no-test">No test allocated</p>}
       </article>)}</div>:programmeStatus!=="needs_availability"&&<div className="assessment-programme-empty"><Sparkles size={22}/><strong>Your weekly programme is not ready yet</strong><span>Save your availability to let StudySpace balance your subjects and create stored tests.</span></div>}
-      {conflicts.length>0&&<div className="assessment-conflicts"><strong>Scheduling capacity needs attention</strong>{conflicts.map((item,index)=><p key={index}>{item.reason==="daily_workload_limit_exceeded"?item.day+" exceeds your daily workload target ("+item.requiredMinutes+" minutes planned; target "+item.limitMinutes+" minutes).":(item.subjectName||"A subject")+" could not be scheduled within the available periods"+(item.requiredMinutes?" ("+item.requiredMinutes+" minutes needed)":"")+". Add more free time or adjust your availability."}</p>)}</div>}
+      <div className="assessment-period-grid">
+        <section className="assessment-period-card">
+          <span className="eyebrow">EVERY MONTH</span><h3>Monthly comprehensive tests</h3>
+          <p>One comprehensive subject test for every registered subject, scheduled near the end of the month.</p>
+          {monthlyItems.length?monthlyItems.map(renderPeriodItem):<p className="assessment-no-test">Your monthly subject tests will appear here when the programme is created.</p>}
+        </section>
+        <section className="assessment-period-card">
+          <span className="eyebrow">EVERY THREE MONTHS</span><h3>Quarterly examinations</h3>
+          <p>One examination per registered subject, covering the wider term or quarter's learning.</p>
+          {quarterlyItems.length?quarterlyItems.map(renderPeriodItem):<p className="assessment-no-test">Your quarterly examinations will appear here when the programme is created.</p>}
+        </section>
+      </div>
+      {conflicts.length>0&&<div className="assessment-conflicts"><strong>Scheduling capacity needs attention</strong>{conflicts.map((item,index)=><p key={index}>{item.periodType==="monthly"?"Monthly: ":item.periodType==="quarterly"?"Quarterly: ":"Weekly: "}{item.reason==="daily_workload_limit_exceeded"?item.day+" exceeds your daily workload target ("+item.requiredMinutes+" minutes planned; target "+item.limitMinutes+" minutes).":(item.subjectName||"A subject")+" could not be scheduled within the available periods"+(item.requiredMinutes?" ("+item.requiredMinutes+" minutes needed)":"")+". Add more free time or adjust your availability."}</p>)}</div>}
       {generating&&<p className="assessment-next-batch-hint">Study Space is preparing your stored assessments automatically. You can continue using the app while this runs.</p>}
       <div className="assessment-plan-footer"><span><CheckCircle2 size={15}/> Your tests are stored independently of live MIΛ chat.</span><button type="button" className="text-button" onClick={onOpenAssignments}>Open my assessments →</button></div>
     </section>
