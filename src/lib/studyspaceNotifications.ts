@@ -8,7 +8,8 @@ export type StudyspaceNotificationCategory =
   | "assessment_updates"
   | "timetable_updates"
   | "study_reminders"
-  | "system_announcements";
+  | "system_announcements"
+  | "friend_requests";
 
 export type StudyspaceNotificationPreferences = Record<StudyspaceNotificationCategory, boolean> & {
   master_enabled: boolean;
@@ -32,6 +33,7 @@ const defaults: StudyspaceNotificationPreferences = {
   timetable_updates: true,
   study_reminders: true,
   system_announcements: true,
+  friend_requests: true,
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "07:00",
