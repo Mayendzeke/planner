@@ -283,27 +283,40 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
   useEffect(() => {
     let alive = true;
     async function restore() {
-      if (!supabase) return;
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-      if (!userId) return;
-      const { data: conv } = await supabase.from("mia_conversations").select("id")
-        .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
-      if (!alive || !conv?.id) return;
-      const { data } = await supabase.from("mia_messages").select("id,role,content")
-        .eq("conversation_id", conv.id).eq("learner_id", userId)
-        .order("created_at", { ascending: true }).limit(20);
-      if (!alive) return;
-      setConversationId(conv.id);
-      if (data?.length) {
-        const restored = data.map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content }));
-        const latestCardReply = [...restored].reverse().find(row => row.role === "assistant" && extractFlashcards(row.content).length);
-        if (latestCardReply) {
-          setFlashcards(extractFlashcards(latestCardReply.content));
-          setFlashcardIndex(0);
-          setFlashcardFlipped(false);
+      if (!supabase) {
+        if (alive) setError("MIΛ could not connect to StudySpace. Refresh the app and try again.");
+        return;
+      }
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        const userId = userData.user?.id;
+        if (!userId) {
+          if (alive) setError("Your StudySpace session has expired. Sign in again to use MIΛ.");
+          return;
         }
-        setMessages(restored.filter(row => !(row.role === "assistant" && extractFlashcards(row.content).length)));
+        const { data: conv, error: conversationError } = await supabase.from("mia_conversations").select("id")
+          .eq("learner_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+        if (conversationError) throw conversationError;
+        if (!alive || !conv?.id) return;
+        const { data, error: messagesError } = await supabase.from("mia_messages").select("id,role,content")
+          .eq("conversation_id", conv.id).eq("learner_id", userId)
+          .order("created_at", { ascending: true }).limit(20);
+        if (messagesError) throw messagesError;
+        if (!alive) return;
+        setConversationId(conv.id);
+        if (data?.length) {
+          const restored = data.map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content }));
+          const latestCardReply = [...restored].reverse().find(row => row.role === "assistant" && extractFlashcards(row.content).length);
+          if (latestCardReply) {
+            setFlashcards(extractFlashcards(latestCardReply.content));
+            setFlashcardIndex(0);
+            setFlashcardFlipped(false);
+          }
+          setMessages(restored.filter(row => !(row.role === "assistant" && extractFlashcards(row.content).length)));
+        }
+      } catch (reason) {
+        if (alive) setError(reason instanceof Error ? "MIΛ could not restore your previous chat: " + reason.message : "MIΛ could not restore your previous chat. You can still start a new learning chat.");
       }
     }
     void restore();
@@ -341,7 +354,11 @@ export default function MiaChat({ profile, subjects, variant = "studio", onClose
 
   async function sendMessage(overrideText?: string) {
     const value = (overrideText ?? text).trim();
-    if ((!value && !attachment) || busy || !supabase) return;
+    if ((!value && !attachment) || busy) return;
+    if (!supabase) {
+      setError("MIΛ is temporarily unavailable because the secure StudySpace connection could not be loaded. Refresh the app or contact your StudySpace administrator.");
+      return;
+    }
     setError("");
     setBusy(true);
     setText("");
