@@ -96,7 +96,7 @@ export default function StudentSubscription({ onAccessRestored }: { onAccessRest
       {loading ? <p className="subtle-note">Loading your subscription…</p> : <>
         <div className="subscription-current-grid">
           <div><span className="subscription-label">STUDENT ID</span><strong>{studentId || "Unavailable"}</strong></div>
-          <div><span className="subscription-label">CURRENT PLAN</span><strong>{tier || (trialExpiry ? "Free 48-hour trial" : "No active plan")}</strong></div>
+          <div><span className="subscription-label">CURRENT PLAN</span><strong>{tier || (trialExpiry ? "Free 7-day trial" : "No active plan")}</strong></div>
           <div><span className="subscription-label">ACCESS STATUS</span><strong className={currentExpired ? "subscription-expired" : "subscription-active"}>{currentExpired ? "Paused / expired" : "Active"}</strong></div>
           <div><span className="subscription-label">ACCESS ENDS</span><strong>{currentExpiry ? formatDate(currentExpiry) : "Not available"}</strong></div>
         </div>
