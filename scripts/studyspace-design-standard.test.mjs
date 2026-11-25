@@ -17,7 +17,8 @@ test("student Study Space brand control returns to the home page", () => {
 test("student MIΛ opens as a full-screen workspace with an accessible navigation menu", () => {
   assert.ok(app.includes("app-shell-mia"));
   assert.ok(app.includes("onMenuClick={() => setMobileMenu(true)}"));
-  assert.ok(mia.includes('aria-label="Open StudySpace menu"'));
+  assert.ok(mia.includes("aria-expanded={navigationOpen}"));
+  assert.ok(mia.includes('aria-controls="student-navigation-drawer"'));
   assert.ok(mia.includes("<Menu size={19}/>"));
   assert.ok(fullscreen.includes(".app-shell-mia"));
   assert.ok(fullscreen.includes("height: 100dvh"));
