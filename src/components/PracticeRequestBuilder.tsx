@@ -13,6 +13,7 @@ type PracticeRequest = {
   exercise_assignment_id: string | null;
   error_message: string | null;
   created_at: string;
+  language?: string;
 };
 
 const statusLabel: Record<string,string> = {
@@ -35,6 +36,7 @@ export default function PracticeRequestBuilder({
   const [topic,setTopic] = useState("");
   const [questionCount,setQuestionCount] = useState("10");
   const [difficulty,setDifficulty] = useState("adaptive");
+  const [language,setLanguage] = useState("English");
   const [requests,setRequests] = useState<PracticeRequest[]>([]);
   const [loading,setLoading] = useState(true);
   const [submitting,setSubmitting] = useState(false);
@@ -47,7 +49,7 @@ export default function PracticeRequestBuilder({
       const {data:authState,error:authError} = await supabase.auth.getUser();
       if (authError || !authState.user) { setRequests([]); return; }
       const {data,error:queryError} = await supabase.from("learner_practice_requests")
-        .select("id,subject_name,topic,question_count,status,exercise_assignment_id,error_message,created_at")
+        .select("id,subject_name,topic,question_count,language,status,exercise_assignment_id,error_message,created_at")
         .eq("learner_id",authState.user.id).order("created_at",{ascending:false}).limit(12);
       if (queryError) throw queryError;
       setRequests((data || []) as PracticeRequest[]);
@@ -61,6 +63,16 @@ export default function PracticeRequestBuilder({
   useEffect(() => {
     if (!subjects.some(item=>item.name===subjectName)) setSubjectName(subjects[0]?.name || "");
   },[subjects,subjectName]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    void (async()=>{
+      const {data:authState}=await supabase.auth.getUser();
+      if (!authState.user) return;
+      const {data:preferences}=await supabase.from("assessment_schedule_preferences").select("language").eq("learner_id",authState.user.id).maybeSingle();
+      if (preferences?.language) setLanguage(String(preferences.language));
+    })();
+  },[]);
 
   useEffect(() => {
     void loadRequests();
@@ -82,6 +94,7 @@ export default function PracticeRequestBuilder({
           topic:topic.trim(),
           questionCount:Number(questionCount),
           difficulty,
+          language,
         },
       });
       if(invokeError) {
@@ -137,6 +150,11 @@ export default function PracticeRequestBuilder({
             <option value="adaptive">Adapt to my progress</option><option value="foundation">Foundation</option><option value="standard">Standard</option><option value="challenge">Challenge</option>
           </select>
         </label>
+        <label>Questions &amp; instructions language
+          <select value={language} onChange={event=>setLanguage(event.target.value)}>
+            <option>English</option><option>SiSwati</option><option>French</option><option>Portuguese</option><option>Afrikaans</option><option>Arabic</option><option>Mandarin Chinese</option><option>Spanish</option>
+          </select>
+        </label>
         <button className="primary-button practice-request-submit" type="submit" disabled={submitting||!subjects.length}>
           {submitting?<><LoaderCircle size={15} className="practice-request-spin"/> Preparing request…</>:<><BookOpen size={15}/> Prepare practice test</>}
         </button>
@@ -148,7 +166,7 @@ export default function PracticeRequestBuilder({
       <div className="practice-request-history-heading"><div><span className="eyebrow">YOUR SAVED REQUESTS</span><h3>Practice test queue</h3></div><button className="text-button" type="button" onClick={()=>void loadRequests()}><RefreshCw size={14}/> Refresh</button></div>
       {loading?<div className="practice-request-empty"><LoaderCircle size={17}/> Loading your practice requests…</div>
       :requests.length?<div className="practice-request-list">{requests.map(item=><article key={item.id} className="practice-request-row">
-        <div><strong>{item.subject_name}{item.topic?" · "+item.topic:""}</strong><p>{item.question_count} questions · {formatDate(item.created_at)}</p>{item.error_message&&item.status==="failed"&&<small>{item.error_message}</small>}</div>
+        <div><strong>{item.subject_name}{item.topic?" · "+item.topic:""}</strong><p>{item.question_count} questions · {item.language||"English"} · {formatDate(item.created_at)}</p>{item.error_message&&item.status==="failed"&&<small>{item.error_message}</small>}</div>
         <span className={"practice-request-status status-"+item.status}><i/>{statusLabel[item.status]||item.status}</span>
       </article>)}</div>
       :<div className="practice-request-empty"><Clock3 size={18}/><span>Your requested practice tests will appear here after you submit one.</span></div>}
