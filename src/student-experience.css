@@ -1,0 +1,76 @@
+/* Study Space student shell: desktop-first navigation, page context and motion. */
+.desktop-sidebar-toggle{display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;border:1px solid var(--border);background:var(--panel);color:var(--muted);border-radius:11px}
+.desktop-sidebar-toggle:hover{border-color:color-mix(in srgb,var(--brand-primary) 42%,var(--border));color:var(--text);background:color-mix(in srgb,var(--panel) 80%,var(--brand-primary) 8%)}
+.breadcrumb{display:flex;align-items:center;min-width:0;gap:2px;line-height:1.3}
+.breadcrumb-home{border:0;background:transparent;color:var(--muted);padding:6px 4px;border-radius:6px;font:inherit;cursor:pointer}
+.breadcrumb-home:hover{color:var(--brand-primary)}
+.breadcrumb strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.breadcrumb-back{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:34px;padding:0 8px;border:1px solid var(--border);border-radius:9px;background:color-mix(in srgb,var(--panel) 90%,transparent);color:var(--muted);font-size:10px;font-weight:700;white-space:nowrap;transition:color .18s,border-color .18s,background .18s,transform .18s}
+.breadcrumb-back:hover{color:var(--text);border-color:color-mix(in srgb,var(--brand-primary) 42%,var(--border));background:color-mix(in srgb,var(--panel) 82%,var(--brand-primary) 8%);transform:translateX(-1px)}
+.nav-group{display:grid;gap:3px;margin:0 0 12px}
+.nav-group-label{margin:0 12px 5px;color:var(--subtle);font-size:8px;font-weight:800;letter-spacing:1.35px}
+.sidebar .nav-item{min-height:40px;border-radius:10px;transition:background .18s,border-color .18s,color .18s,transform .18s}
+.sidebar .nav-item:active{transform:scale(.985)}
+.sidebar .nav-item.active{border-color:color-mix(in srgb,var(--brand-primary) 28%,var(--border));background:linear-gradient(100deg,color-mix(in srgb,var(--brand-primary) 15%,transparent),color-mix(in srgb,var(--brand-secondary) 6%,transparent));box-shadow:inset 3px 0 0 var(--brand-primary)}
+.sidebar .nav-item.active svg{color:var(--brand-primary)}
+.sidebar .nav-item:focus-visible,.breadcrumb-home:focus-visible,.breadcrumb-back:focus-visible,.desktop-sidebar-toggle:focus-visible{outline:2px solid var(--brand-primary);outline-offset:3px}
+.sidebar .brand-home-link{min-width:0}
+.sidebar .brand-home-link:focus-visible{outline-offset:2px;border-radius:12px}
+.welcome-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.welcome-actions .secondary-button,.welcome-actions .primary-button{min-height:40px}
+.page-content{animation:studyspace-page-enter .24s cubic-bezier(.2,.75,.25,1) both;transform-origin:top center}
+@keyframes studyspace-page-enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.app-shell:not(.app-shell-mia) .topbar{gap:12px;min-height:72px}
+.app-shell:not(.app-shell-mia) .topbar-actions{gap:9px}
+.app-shell:not(.app-shell-mia) .page-content{padding-top:32px}
+.app-shell:not(.app-shell-mia) .welcome-row{gap:18px;margin-bottom:24px}
+.app-shell:not(.app-shell-mia) .welcome-row h1{letter-spacing:-1.25px;line-height:1.16}
+.app-shell:not(.app-shell-mia) .glass-panel{border-color:color-mix(in srgb,var(--border) 90%,var(--brand-primary) 5%)}
+@media(min-width:761px){
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar{width:76px;padding:19px 8px 12px;transition:width .24s cubic-bezier(.2,.75,.25,1),padding .24s ease}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .brand{justify-content:center;padding:0 0 20px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .brand-home-link{justify-content:center;width:100%}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .brand-home-link>div:last-child,
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .workspace-label,
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .profile-copy,
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .profile-open-icon,
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .nav-label,
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .nav-group-label,
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .streak-card>div:not(.streak-icon){display:none}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .profile-card{justify-content:center;width:48px;min-height:48px;margin:0 auto 18px;padding:6px;border-color:transparent;background:transparent}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .avatar{width:36px;height:36px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .sidebar-nav-slot{overflow-x:hidden;overflow-y:auto;scrollbar-width:none}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .sidebar-nav-slot::-webkit-scrollbar{display:none}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .nav-group{margin-bottom:9px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .nav-item{display:flex;align-items:center;justify-content:center;width:46px;min-height:43px;margin:0 auto;padding:0;gap:0;border-radius:12px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .nav-item>span{display:none}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .nav-item>svg{width:19px;height:19px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .streak-card{justify-content:center;width:46px;min-height:44px;margin:0 auto 10px;padding:6px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .streak-icon{width:32px;height:32px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .settings-link,.app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .install-app-link{margin-bottom:7px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .offline-status{justify-content:center;min-height:26px;padding:10px 0 2px;gap:0;font-size:0}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .offline-status .status-dot{width:7px;height:7px}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .sidebar .install-help{position:absolute;z-index:40;left:82px;bottom:18px;width:250px;padding:14px;border:1px solid var(--border);border-radius:13px;background:var(--panel-strong);box-shadow:var(--shadow)}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia)>.main-area{left:112px!important;margin-left:0!important}
+ .app-shell-sidebar-collapsed:not(.app-shell-mia) .desktop-sidebar-toggle{color:var(--brand-primary);border-color:color-mix(in srgb,var(--brand-primary) 36%,var(--border))}
+ .app-shell:not(.app-shell-sidebar-collapsed):not(.app-shell-mia) .sidebar{transition:width .24s cubic-bezier(.2,.75,.25,1)}
+}
+@media(min-width:761px) and (max-width:1120px){
+ .app-shell-sidebar-collapsed:not(.app-shell-mia)>.main-area{left:112px!important;padding-right:22px!important}
+}
+@media(max-width:760px){
+ .desktop-sidebar-toggle{display:none!important}
+ .mobile-menu-button{display:grid!important}
+ .app-shell:not(.app-shell-mia) .topbar{gap:7px;min-height:66px}
+ .app-shell:not(.app-shell-mia) .topbar-actions{gap:5px}
+ .breadcrumb-back{display:none}
+ .breadcrumb{flex:1}
+ .breadcrumb-home{padding:5px 2px}
+ .app-shell:not(.app-shell-mia) .page-content{padding-top:24px}
+ .welcome-actions{justify-content:flex-start;width:100%}
+ .welcome-actions .secondary-button,.welcome-actions .primary-button{flex:1}
+}
+:root[data-theme="light"] .breadcrumb-back,:root[data-theme="light"] .desktop-sidebar-toggle{background:rgba(255,255,255,.88);box-shadow:0 3px 12px rgba(44,57,87,.06)}
+:root[data-theme="light"] .sidebar .nav-item.active{color:#332c72;background:linear-gradient(100deg,rgba(113,100,216,.13),rgba(38,134,110,.055))}
+@media(prefers-reduced-motion:reduce){.page-content{animation:none!important}.sidebar .nav-item,.breadcrumb-back,.desktop-sidebar-toggle{transition:none!important;transform:none!important}}
+@media(prefers-reduced-transparency:reduce){.app-shell:not(.app-shell-mia) .sidebar,.app-shell:not(.app-shell-mia) .topbar{backdrop-filter:none;-webkit-backdrop-filter:none}}
