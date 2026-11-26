@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/student-experience.css", import.meta.url), "utf8");
+const mia = readFileSync(new URL("../src/components/MiaChat.tsx", import.meta.url), "utf8");
 
 test("desktop sidebar collapses to an icon rail and remembers the student's preference", () => {
   assert.match(app, /studyspace-sidebar-collapsed/);
@@ -77,4 +78,12 @@ test("dense workspaces retain responsive and touch-scroll layouts", () => {
   assert.match(styles, /overflow-x:auto/);
   assert.match(styles, /@media\(min-width:761px\) and \(max-width:1000px\)/);
   assert.match(styles, /@media\(max-width:760px\)/);
+});
+
+test("MIΛ keeps its approved interface, conversation history navigation and home return", () => {
+  assert.match(mia, /className="mia-exit-button"/);
+  assert.match(mia, /aria-label="Back to StudySpace home"/);
+  assert.match(mia, /className="mia-history-home"/);
+  assert.match(mia, /Search MIΛ history/);
+  assert.match(styles, /\.app-shell:not\(\.app-shell-mia\)/);
 });
