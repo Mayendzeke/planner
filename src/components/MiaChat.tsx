@@ -259,14 +259,11 @@ async function invokeMiaAssistant(body: Record<string, unknown>) {
   return invoke(refreshed.data.session.access_token);
 }
 
-export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onMenuClick, navigationOpen = false, initialAttachment, initialPrompt, onAttachmentConsumed }: {
+export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
   onClose?: () => void;
-  onMenuClick?: () => void;
-  navigationOpen?: boolean;
-  onNavigate?: (page: string) => void;
   initialAttachment?: File | null;
   initialPrompt?: string;
   onAttachmentConsumed?: () => void;
