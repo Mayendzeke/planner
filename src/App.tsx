@@ -44,7 +44,7 @@ import TermsAndConditions, { TERMS_VERSION, type TermsAcceptanceRole } from "./c
 import SplashScreen from "./components/SplashScreen";
 import { supabase } from "./lib/supabase";
 import { runLogoHandoff } from "./lib/logoTransition";
-import "./student-experience.css";
+
 
 class MiaChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
