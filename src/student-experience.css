@@ -326,3 +326,32 @@
   .app-shell > .sidebar:not(.sidebar-open){pointer-events:none}
   .app-shell > .sidebar.sidebar-open{pointer-events:auto}
 }
+
+
+/* Clean desktop-first toolbar: search, notifications and account only. */
+.app-shell:not(.app-shell-mia) .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 68px;
+  padding-inline: 2px;
+  border-bottom-color: color-mix(in srgb,var(--border) 80%,transparent);
+}
+.app-shell:not(.app-shell-mia) .topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+.app-shell:not(.app-shell-mia) .search-box { width: min(320px,38vw); }
+.app-shell:not(.app-shell-mia) .topbar .top-avatar-button {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb,var(--panel-strong) 88%,var(--brand-primary) 8%);
+}
+@media(max-width:760px) {
+  .app-shell:not(.app-shell-mia) .topbar { min-height: 62px; gap: 8px; }
+  .app-shell:not(.app-shell-mia) .topbar-actions { gap: 7px; }
+  .app-shell:not(.app-shell-mia) .search-box { width: min(230px,56vw); }
+}
