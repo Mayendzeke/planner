@@ -319,3 +319,10 @@
   background:linear-gradient(125deg,rgba(113,100,216,.085),rgba(38,134,110,.045)),var(--panel-strong);
 }
 :root[data-theme="light"] .app-shell:not(.app-shell-mia) .monitor-message-bubble.is-outgoing{color:#201b3a}
+
+
+/* A closing off-canvas drawer must stop catching taps immediately. */
+@media(max-width:760px){
+  .app-shell > .sidebar:not(.sidebar-open){pointer-events:none}
+  .app-shell > .sidebar.sidebar-open{pointer-events:auto}
+}
