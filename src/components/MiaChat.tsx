@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText, Target, Menu } from "lucide-react";
+import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText, Target, Menu, Search, Pencil, Trash2, PanelLeftClose, Clock3 } from "lucide-react";
 import "./MiaFullscreen.css";
 import { strFromU8, unzipSync } from "fflate";
 import * as pdfjs from "pdfjs-dist";
@@ -16,6 +16,7 @@ type ChatMessage = {
   searchSuggestionsHtml?: string;
 };
 type Flashcard = { front: string; back: string; visualCue?: string };
+type MiaConversation = { id: string; title: string; updated_at: string };
 type MiaAttachment = { name: string; mimeType: string; data?: string; textContent?: string };
 function extractFlashcards(reply: string): Flashcard[] {
   const cards: Flashcard[] = [];
@@ -258,14 +259,11 @@ async function invokeMiaAssistant(body: Record<string, unknown>) {
   return invoke(refreshed.data.session.access_token);
 }
 
-export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onMenuClick, navigationOpen = false, initialAttachment, initialPrompt, onAttachmentConsumed }: {
+export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
   onClose?: () => void;
-  onMenuClick?: () => void;
-  navigationOpen?: boolean;
-  onNavigate?: (page: string) => void;
   initialAttachment?: File | null;
   initialPrompt?: string;
   onAttachmentConsumed?: () => void;
@@ -278,6 +276,13 @@ export default function MiaChat({ profile, subjects: suppliedSubjects, variant =
   const learnerGrade = typeof profile?.grade === "string" ? profile.grade : "";
   const learnerCurriculum = typeof profile?.curriculum === "string" ? profile.curriculum : "";
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<MiaConversation[]>([]);
+  const [historySearch, setHistorySearch] = useState("");
+  const [navigationOpenLocal, setNavigationOpenLocal] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [historyError, setHistoryError] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -318,6 +323,72 @@ export default function MiaChat({ profile, subjects: suppliedSubjects, variant =
       welcomeDismissTimer.current = null;
     }, 420);
   }
+
+  async function refreshConversationHistory() {
+    if (!supabase) return;
+    setHistoryLoading(true);
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) throw userError || new Error("Sign in again to view your MIΛ history.");
+      const { data, error: listError } = await supabase.from("mia_conversations")
+        .select("id,title,updated_at").eq("learner_id", userData.user.id)
+        .order("updated_at", { ascending: false }).limit(100);
+      if (listError) throw listError;
+      setConversations((data || []) as MiaConversation[]);
+      setHistoryError("");
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : "Your conversation history could not be loaded.");
+    } finally { setHistoryLoading(false); }
+  }
+
+  async function openSavedConversation(id: string) {
+    if (!supabase || busy) return;
+    setBusy(true); setError(""); setHistoryError("");
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) throw userError || new Error("Sign in again to open this conversation.");
+      const { data: conversation, error: conversationError } = await supabase.from("mia_conversations")
+        .select("id,title").eq("id", id).eq("learner_id", userData.user.id).single();
+      if (conversationError || !conversation) throw conversationError || new Error("This conversation is no longer available.");
+      const { data, error: messagesError } = await supabase.from("mia_messages")
+        .select("id,role,content").eq("conversation_id", id).eq("learner_id", userData.user.id)
+        .order("created_at", { ascending: true }).limit(40);
+      if (messagesError) throw messagesError;
+      const restored = (data || []).map(row => ({ id: String(row.id), role: row.role as "user" | "assistant", content: row.content }));
+      const latestCardReply = [...restored].reverse().find(row => row.role === "assistant" && extractFlashcards(row.content).length);
+      setFlashcards(latestCardReply ? extractFlashcards(latestCardReply.content) : []);
+      setFlashcardIndex(0); setFlashcardFlipped(false);
+      setConversationId(id); setMessages(restored.filter(row => !(row.role === "assistant" && extractFlashcards(row.content).length)));
+      setDraft([]); setError(""); setRestoreNotice(""); setNavigationOpenLocal(false);
+      keepTranscriptAtBottomRef.current = true;
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : "This conversation could not be opened.");
+    } finally { setBusy(false); }
+  }
+
+  async function saveConversationTitle(id: string) {
+    if (!supabase) return;
+    const title = renameValue.trim().slice(0, 80);
+    if (!title) { setHistoryError("Enter a conversation title."); return; }
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return;
+    const { error: updateError } = await supabase.from("mia_conversations").update({ title, updated_at: new Date().toISOString() })
+      .eq("id", id).eq("learner_id", userData.user.id);
+    if (updateError) { setHistoryError(updateError.message); return; }
+    setRenamingId(null); setRenameValue(""); await refreshConversationHistory();
+  }
+
+  async function deleteSavedConversation(id: string) {
+    if (!supabase || !window.confirm("Delete this MIΛ conversation? This cannot be undone.")) return;
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return;
+    const { error: deleteError } = await supabase.from("mia_conversations").delete().eq("id", id).eq("learner_id", userData.user.id);
+    if (deleteError) { setHistoryError(deleteError.message); return; }
+    if (conversationId === id) newChat();
+    await refreshConversationHistory();
+  }
+
+  useEffect(() => { void refreshConversationHistory(); }, []);
 
   useEffect(() => {
     if (!initialAttachment && !initialPrompt) return;
@@ -444,6 +515,7 @@ export default function MiaChat({ profile, subjects: suppliedSubjects, variant =
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (!data?.success || typeof data.reply !== "string") throw new Error(data?.error || "MIΛ could not reply. Please try again.");
       setConversationId(data.conversationId);
+      void refreshConversationHistory();
       const providerNotice = typeof data.providerNotice === "string" && data.providerNotice.trim() ? [{ id: crypto.randomUUID(), role: "assistant" as const, content: data.providerNotice }] : [];
       const cards = extractFlashcards(data.reply);
       const groundingSources = Array.isArray(data.sources)
@@ -538,19 +610,43 @@ export default function MiaChat({ profile, subjects: suppliedSubjects, variant =
 
   function newChat() {
     keepTranscriptAtBottomRef.current = false;
+    setNavigationOpenLocal(false);
     setConversationId(null); setMessages([]); setDraft([]); setError(""); setRestoreNotice(""); setSaved(false); setFlashcards([]); setFlashcardIndex(0); setFlashcardFlipped(false);
   }
 
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
     <header className="mia-header">
-      <div className="mia-brand-mark">Λ</div>
-      <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · STUDY SPACE</span></div>
+      <div className="mia-header-leading">
+        <button type="button" className="mia-icon-button mia-navigation-menu" onClick={() => setNavigationOpenLocal(true)} aria-expanded={navigationOpenLocal} aria-controls="mia-history-drawer" aria-label="Open MIΛ navigation" title="Open navigation"><Menu size={19}/></button>
+        <div className="mia-brand-mark">Λ</div>
+        <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · STUDY SPACE</span></div>
+      </div>
       <div className="mia-header-actions">
-        <button type="button" className="mia-icon-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/></button>
-        {onMenuClick && <button type="button" className="mia-icon-button mia-navigation-menu" onClick={onMenuClick} aria-expanded={navigationOpen} aria-controls="student-navigation-drawer" aria-label={navigationOpen ? "StudySpace menu open" : "Open StudySpace menu"} title="Open StudySpace menu"><Menu size={19}/></button>}
+        <button type="button" className="mia-icon-button mia-new-chat-button" onClick={newChat} title="New chat" aria-label="Start a new chat"><Plus size={17}/><span>New chat</span></button>
         {onClose && <button type="button" className="mia-icon-button" onClick={onClose} aria-label="Close MIΛ"><X size={18}/></button>}
       </div>
     </header>
+    {navigationOpenLocal && <div className="mia-navigation-layer">
+      <button type="button" className="mia-navigation-backdrop" aria-label="Close MIΛ navigation" onClick={() => setNavigationOpenLocal(false)}/>
+      <aside id="mia-history-drawer" className="mia-history-drawer" aria-label="MIΛ navigation and conversation history">
+        <div className="mia-history-top"><div className="mia-history-brand"><span>Λ</span><div><strong>MIΛ</strong><small>STUDYSPACE</small></div></div><button type="button" className="mia-icon-button" onClick={() => setNavigationOpenLocal(false)} aria-label="Close navigation"><PanelLeftClose size={18}/></button></div>
+        <button type="button" className="mia-history-new" onClick={newChat}><Plus size={17}/> New chat</button>
+        <label className="mia-history-search"><Search size={16}/><input value={historySearch} onChange={event => setHistorySearch(event.target.value)} placeholder="Search conversations…" aria-label="Search MIΛ history"/></label>
+        <div className="mia-history-section-label"><span>RECENT</span><span>{conversations.length}</span></div>
+        <div className="mia-history-list">
+          {historyLoading && <div className="mia-history-empty">Loading your conversations…</div>}
+          {!historyLoading && conversations.filter(item => item.title.toLowerCase().includes(historySearch.trim().toLowerCase())).map(item => <div key={item.id} className={"mia-history-item" + (conversationId === item.id ? " is-current" : "")}>
+            {renamingId === item.id ? <form className="mia-history-rename" onSubmit={event => { event.preventDefault(); void saveConversationTitle(item.id); }}><input autoFocus value={renameValue} maxLength={80} onChange={event => setRenameValue(event.target.value)} aria-label="Conversation title"/><button type="submit" aria-label="Save title">Save</button><button type="button" onClick={() => setRenamingId(null)} aria-label="Cancel rename">×</button></form> : <>
+              <button type="button" className="mia-history-open" onClick={() => void openSavedConversation(item.id)} disabled={busy}><MessageCircle size={15}/><span>{item.title || "New MIΛ chat"}<small><Clock3 size={11}/> {new Date(item.updated_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</small></span></button>
+              <div className="mia-history-item-actions"><button type="button" onClick={() => {setRenamingId(item.id);setRenameValue(item.title);}} aria-label="Rename conversation" title="Rename"><Pencil size={13}/></button><button type="button" onClick={() => void deleteSavedConversation(item.id)} aria-label="Delete conversation" title="Delete"><Trash2 size={13}/></button></div>
+            </>}
+          </div>)}
+          {!historyLoading && conversations.filter(item => item.title.toLowerCase().includes(historySearch.trim().toLowerCase())).length === 0 && <div className="mia-history-empty">{historySearch ? "No conversations match your search." : "Your conversations will appear here after you chat with MIΛ."}</div>}
+        </div>
+        {historyError && <div className="mia-history-error" role="status">{historyError}<button type="button" onClick={() => setHistoryError("")}>Dismiss</button></div>}
+        <div className="mia-history-footer"><span className="mia-history-status-dot"/><span>Your history is private to your StudySpace account</span></div>
+      </aside>
+    </div>}
     <div className="mia-context-strip"><BookOpen size={14}/><span>{learnerLevel || "Your learning"} · {learnerGrade || "Grade not set"} · {learnerCurriculum || "Curriculum not set"}</span><span className="mia-context-dot"/> <span>{subjects.length} subjects</span></div>
     {learningNoticeVisible && <div className={"mia-learning-only-notice" + (learningNoticeFading ? " is-fading" : "")} role="note"><strong>Educational use only.</strong> Use MIΛ for learning, subjects, homework understanding, revision, exam preparation and study planning. Do not enter names, Student IDs, contact details or other personal information, or use MIΛ for unrelated personal advice.</div>}
     {welcomeVisible && <div className={"mia-welcome-toast" + (welcomeFading ? " is-fading" : "")} role="status" aria-live="polite">
