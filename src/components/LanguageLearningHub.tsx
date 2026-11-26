@@ -24,7 +24,7 @@ export default function LanguageLearningHub({ onStartPractice }: LanguageLearnin
 
   const start = () => {
     const sourceContext = language === "SiSwati"
-      ? ""StudySpace has verified metadata for the ECESWA EGCSE SiSwati " + courseFocus + " syllabus, 2027–2029, for Form 4/Form 5. First Language is for learners whose mother tongue is SiSwati; Second Language is for learners studying it as an additional language. The full PDF text is not included automatically, so do not claim to have read it or invent exact syllabus requirements. Use the official reference only as a source pointer and say when exact coverage cannot be verified. Some local book titles in the catalogue are only publisher-reported; never describe them as ECESWA-prescribed or confirmed set texts.""
+      ? "StudySpace has verified metadata for the ECESWA EGCSE SiSwati " + courseFocus + " syllabus, 2027–2029, for Form 4/Form 5. First Language is for learners whose mother tongue is SiSwati; Second Language is for learners studying it as an additional language. The full PDF text is not included automatically, so do not claim to have read it or invent exact syllabus requirements. Use the official reference only as a source pointer and say when exact coverage cannot be verified. Some local book titles in the catalogue are only publisher-reported; never describe them as ECESWA-prescribed or confirmed set texts."
       : "No dedicated official English language syllabus document is attached to this activity. Match practice to my StudySpace learner profile and clearly distinguish general practice from exact examination syllabus coverage.";
     const prompt = [
       "Act as my age-appropriate StudySpace language tutor.",
