@@ -211,7 +211,7 @@
 }
 .app-shell:not(.app-shell-mia) .timetable-entry-time,
 .app-shell:not(.app-shell-mia) .weekly-timetable-lesson{--blue:var(--brand-primary)}
-.app-shell:not(.app-shell-mia) .academic-period-marker{background:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .academic-period-marker:not(.period-holiday):not(.period-examination):not(.period-other){background:var(--brand-primary)}
 .app-shell:not(.app-shell-mia) .academic-empty .empty-icon{
   background:color-mix(in srgb,var(--brand-primary) 12%,var(--panel));
   color:var(--brand-primary);
