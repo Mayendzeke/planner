@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles.css";
+import "./student-experience.css";
 import { registerSW } from "virtual:pwa-register";
 
 registerSW({ immediate: true });
