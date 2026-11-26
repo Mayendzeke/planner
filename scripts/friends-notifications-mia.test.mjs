@@ -74,14 +74,17 @@ test("MIΛ is mounted behind a recoverable render boundary and tolerates stale l
 });
 
 
-test("MIΛ mobile navigation opens a visible drawer above its blur scrim", () => {
-  const appStyles = read("src/components/MiaFullscreen.css");
-  assert.match(app, /id="student-navigation-drawer" className=\{"sidebar glass-panel /);
-  assert.match(app, /navigationOpen=\{mobileMenu\} onMenuClick=\{\(\) => setMobileMenu\(true\)\}/);
-  assert.match(mia, /aria-expanded=\{navigationOpen\} aria-controls="student-navigation-drawer"/);
-  assert.match(mia, /aria-label=\{navigationOpen \? "StudySpace menu open" : "Open StudySpace menu"\}/);
-  assert.match(app, /<button className="mobile-scrim" aria-label="Close navigation overlay" onClick=\{\(\)=>setMobileMenu\(false\)\}/);
-  assert.match(appStyles, /\.app-shell-mia > \.sidebar\.glass-panel\s*\{[^}]*position:\s*fixed !important;[^}]*z-index:\s*140 !important;[^}]*backdrop-filter:\s*none !important;/s);
-  assert.match(appStyles, /\.app-shell-mia > \.sidebar\.glass-panel\.sidebar-open\s*\{[^}]*transform:\s*translateX\(0\) !important;[^}]*visibility:\s*visible;[^}]*pointer-events:\s*auto;/s);
-  assert.match(appStyles, /\.app-shell-mia > \.mobile-scrim\s*\{[^}]*z-index:\s*130 !important;/s);
+test("MIΛ has its own left-side history drawer without the blocking app-wide blur overlay", () => {
+  assert.match(mia, /aria-expanded=\{navigationOpenLocal\} aria-controls="mia-history-drawer"/);
+  assert.match(mia, /className="mia-navigation-layer"/);
+  assert.match(mia, /className="mia-history-drawer"/);
+  assert.match(mia, /className="mia-navigation-backdrop"/);
+  assert.match(mia, /Search conversations/);
+  assert.match(mia, /openSavedConversation/);
+  assert.match(mia, /saveConversationTitle/);
+  assert.match(mia, /deleteSavedConversation/);
+  assert.match(miaLayout, /\.mia-navigation-layer/);
+  assert.match(miaLayout, /pointer-events:auto/);
+  assert.match(miaLayout, /\.mia-history-drawer/);
+  assert.doesNotMatch(app, /navigationOpen=\{mobileMenu\} onMenuClick=/);
 });
