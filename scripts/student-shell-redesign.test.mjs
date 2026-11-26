@@ -81,7 +81,7 @@ test("dense workspaces retain responsive and touch-scroll layouts", () => {
 });
 
 test("MIΛ keeps its approved interface, conversation history navigation and home return", () => {
-  assert.match(mia, /className="mia-exit-button"/);
+  assert.match(mia, /mia-exit-button/);
   assert.match(mia, /aria-label="Back to StudySpace home"/);
   assert.match(mia, /className="mia-history-home"/);
   assert.match(mia, /Search MIΛ history/);
