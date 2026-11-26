@@ -43,3 +43,14 @@ test("learning pages expose contextual shortcuts without removing destinations",
     assert.ok(app.includes('name: "' + destination + '"') || app.includes('name:"' + destination + '"') || app.includes('names: ["' + destination), "Destination remains available: " + destination);
   }
 });
+
+test("dashboard launchpad groups learning, resources, planning and assessment destinations", () => {
+  for (const label of ["Choose your next step", "Learning Studio", "Ask MIΛ", "My subjects", "Resources", "Study planner", "Timetable", "Assessments", "My progress", "Messages"]) {
+    assert.ok(app.includes(label), "Missing dashboard shortcut: " + label);
+  }
+  assert.match(app, /dashboard-shortcut-grid/);
+  assert.match(styles, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles, /@media\(max-width:1120px\)/);
+  assert.match(styles, /@media\(max-width:760px\)/);
+  assert.match(styles, /@media\(max-width:420px\)/);
+});
