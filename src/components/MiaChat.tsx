@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText, Target, Menu, Search, Pencil, Trash2, PanelLeftClose, Clock3 } from "lucide-react";
+import { Paperclip, Send, X, Plus, LoaderCircle, CalendarDays, CheckCircle2, BookOpen, ChevronLeft, ChevronRight, RotateCw, Brain, Sparkles, MessageCircle, FileText, Target, Menu, Search, Pencil, Trash2, PanelLeftClose, Clock3, Home } from "lucide-react";
 import "./MiaFullscreen.css";
 import { strFromU8, unzipSync } from "fflate";
 import * as pdfjs from "pdfjs-dist";
@@ -259,11 +259,12 @@ async function invokeMiaAssistant(body: Record<string, unknown>) {
   return invoke(refreshed.data.session.access_token);
 }
 
-export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, initialAttachment, initialPrompt, onAttachmentConsumed }: {
+export default function MiaChat({ profile, subjects: suppliedSubjects, variant = "studio", onClose, onExit, initialAttachment, initialPrompt, onAttachmentConsumed }: {
   profile: StudentProfile;
   subjects: Subject[];
   variant?: "studio" | "floating";
   onClose?: () => void;
+  onExit?: () => void;
   initialAttachment?: File | null;
   initialPrompt?: string;
   onAttachmentConsumed?: () => void;
@@ -617,6 +618,7 @@ export default function MiaChat({ profile, subjects: suppliedSubjects, variant =
   return <section className={"mia-shell " + (isFloating ? "mia-floating-shell" : "mia-studio-shell")} aria-label="MIΛ learning assistant">
     <header className="mia-header">
       <div className="mia-header-leading">
+        {onExit && <button type="button" className="mia-icon-button mia-exit-button" onClick={onExit} aria-label="Back to StudySpace home" title="Back to StudySpace"><Home size={18}/><span>Study Space</span></button>}
         <button type="button" className="mia-icon-button mia-navigation-menu" onClick={() => setNavigationOpenLocal(true)} aria-expanded={navigationOpenLocal} aria-controls="mia-history-drawer" aria-label="Open MIΛ navigation" title="Open navigation"><Menu size={19}/></button>
         <div className="mia-brand-mark">Λ</div>
         <div className="mia-brand-copy"><strong>MIΛ</strong><span>YOUR LEARNING COMPANION · STUDY SPACE</span></div>
@@ -630,6 +632,7 @@ export default function MiaChat({ profile, subjects: suppliedSubjects, variant =
       <button type="button" className="mia-navigation-backdrop" aria-label="Close MIΛ navigation" onClick={() => setNavigationOpenLocal(false)}/>
       <aside id="mia-history-drawer" className="mia-history-drawer" aria-label="MIΛ navigation and conversation history">
         <div className="mia-history-top"><div className="mia-history-brand"><span>Λ</span><div><strong>MIΛ</strong><small>STUDYSPACE</small></div></div><button type="button" className="mia-icon-button" onClick={() => setNavigationOpenLocal(false)} aria-label="Close navigation"><PanelLeftClose size={18}/></button></div>
+        <button type="button" className="mia-history-home" onClick={() => { setNavigationOpenLocal(false); onExit?.(); }}><Home size={16}/> Back to StudySpace</button>
         <button type="button" className="mia-history-new" onClick={newChat}><Plus size={17}/> New chat</button>
         <label className="mia-history-search"><Search size={16}/><input value={historySearch} onChange={event => setHistorySearch(event.target.value)} placeholder="Search conversations…" aria-label="Search MIΛ history"/></label>
         <div className="mia-history-section-label"><span>RECENT</span><span>{conversations.length}</span></div>
