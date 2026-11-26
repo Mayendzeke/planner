@@ -97,3 +97,225 @@
 @media(max-width:420px){.dashboard-shortcuts-heading{flex-direction:column}.dashboard-shortcuts-heading>.secondary-button{width:100%}.dashboard-shortcut-grid{grid-template-columns:1fr}.dashboard-shortcut-card{min-height:150px}}
 @media(prefers-reduced-motion:reduce){.dashboard-shortcut-card,.dashboard-shortcut-actions button{transition:none!important;transform:none!important}}
 :root[data-theme="light"] .dashboard-shortcut-card{background:rgba(255,255,255,.78)}
+
+/* Student experience polish: shared component rhythm, purple actions and theme contrast.
+   MIΛ is intentionally excluded so its approved chat surface stays intact. */
+:root{--brand-button-text:#251d46}
+:root[data-theme="light"]{--brand-button-text:#fff}
+.app-shell:not(.app-shell-mia) .main-area{color:var(--text)}
+.app-shell:not(.app-shell-mia) .page-content{width:100%;max-width:1460px}
+.app-shell:not(.app-shell-mia) .page-content .eyebrow{font-size:10px;letter-spacing:1.05px}
+.app-shell:not(.app-shell-mia) .welcome-row{align-items:flex-end}
+.app-shell:not(.app-shell-mia) .welcome-row h1{max-width:900px;font-size:clamp(26px,2.65vw,36px);line-height:1.14}
+.app-shell:not(.app-shell-mia) .welcome-subtitle{max-width:790px;font-size:13px;line-height:1.65}
+.app-shell:not(.app-shell-mia) .primary-button{
+  border:1px solid color-mix(in srgb,var(--brand-primary) 75%,white 10%);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--brand-primary) 90%,white 10%),var(--brand-primary-strong));
+  color:var(--brand-button-text);
+  box-shadow:0 8px 22px color-mix(in srgb,var(--brand-primary) 21%,transparent);
+}
+.app-shell:not(.app-shell-mia) .primary-button:hover{filter:brightness(1.07);box-shadow:0 10px 26px color-mix(in srgb,var(--brand-primary) 28%,transparent)}
+.app-shell:not(.app-shell-mia) .secondary-button{
+  border-color:color-mix(in srgb,var(--border) 82%,var(--brand-primary) 12%);
+  background:color-mix(in srgb,var(--panel-strong) 92%,transparent);
+}
+.app-shell:not(.app-shell-mia) .secondary-button:hover{border-color:color-mix(in srgb,var(--brand-primary) 42%,var(--border))}
+.app-shell:not(.app-shell-mia) .glass-panel{
+  border-radius:18px;
+  border-color:color-mix(in srgb,var(--border) 88%,var(--brand-primary) 8%);
+  background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 98%,var(--brand-primary) 2%),var(--panel));
+}
+.app-shell:not(.app-shell-mia) .section-heading h2{font-size:17px;line-height:1.3}
+.app-shell:not(.app-shell-mia) .section-heading p{font-size:11px;line-height:1.6}
+.app-shell:not(.app-shell-mia) .stat-label{font-size:9px;letter-spacing:.9px}
+.app-shell:not(.app-shell-mia) .stat-caption{font-size:10px;line-height:1.45}
+.app-shell:not(.app-shell-mia) .task-copy strong{font-size:12px}
+.app-shell:not(.app-shell-mia) .task-copy>span{font-size:10px}
+.app-shell:not(.app-shell-mia) .task-due{font-size:10px}
+.app-shell:not(.app-shell-mia) .filter-tabs button{font-size:11px;min-height:36px}
+.app-shell:not(.app-shell-mia) .filter-tabs button.selected{
+  border-color:color-mix(in srgb,var(--brand-primary) 34%,var(--border));
+  background:color-mix(in srgb,var(--brand-primary) 12%,var(--panel));
+  color:var(--brand-primary);
+}
+.app-shell:not(.app-shell-mia) .count-chip,.app-shell:not(.app-shell-mia) .note-pill{
+  border-color:color-mix(in srgb,var(--brand-primary) 25%,var(--border));
+  background:color-mix(in srgb,var(--brand-primary) 10%,var(--panel));
+  color:var(--brand-primary);
+}
+.app-shell:not(.app-shell-mia) .text-button{color:var(--brand-primary);font-size:11px}
+.app-shell:not(.app-shell-mia) .text-button:hover{color:var(--text)}
+.app-shell:not(.app-shell-mia) .empty-state h3{font-size:16px}
+.app-shell:not(.app-shell-mia) .empty-state p{font-size:11px;line-height:1.65}
+.app-shell:not(.app-shell-mia) .subtle-note{font-size:11px;line-height:1.65}
+.app-shell:not(.app-shell-mia) .field-label,.app-shell:not(.app-shell-mia) .timetable-editor-grid label{font-size:11px;line-height:1.45}
+.app-shell:not(.app-shell-mia) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+.app-shell:not(.app-shell-mia) select,
+.app-shell:not(.app-shell-mia) textarea{
+  border-color:var(--border);
+  background-color:var(--panel-strong);
+  color:var(--text);
+}
+.app-shell:not(.app-shell-mia) input::placeholder,
+.app-shell:not(.app-shell-mia) textarea::placeholder{color:var(--subtle);opacity:1}
+.app-shell:not(.app-shell-mia) select option{background:var(--panel-strong);color:var(--text)}
+.app-shell:not(.app-shell-mia) input:disabled,
+.app-shell:not(.app-shell-mia) select:disabled,
+.app-shell:not(.app-shell-mia) textarea:disabled{background:color-mix(in srgb,var(--panel) 70%,var(--bg));color:var(--muted);opacity:.72}
+.app-shell:not(.app-shell-mia) .search-box input{background:transparent}
+.app-shell:not(.app-shell-mia) button:focus-visible,
+.app-shell:not(.app-shell-mia) input:focus-visible,
+.app-shell:not(.app-shell-mia) select:focus-visible,
+.app-shell:not(.app-shell-mia) textarea:focus-visible{outline-color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .theme-options button.chosen{
+  border-color:color-mix(in srgb,var(--brand-primary) 50%,var(--border));
+  background:color-mix(in srgb,var(--brand-primary) 12%,var(--panel));
+  color:var(--brand-primary);
+}
+/* Learning Studio, resources, timetable and academic calendar */
+.app-shell:not(.app-shell-mia) .learning-studio-hero,
+.app-shell:not(.app-shell-mia) .library-hero,
+.app-shell:not(.app-shell-mia) .session-hero{
+  border-color:color-mix(in srgb,var(--brand-primary) 28%,var(--border));
+  background:linear-gradient(125deg,color-mix(in srgb,var(--brand-primary) 11%,var(--panel)),color-mix(in srgb,var(--brand-secondary) 6%,var(--panel-strong)));
+}
+.app-shell:not(.app-shell-mia) .learning-studio-tabs button.active{
+  border-color:color-mix(in srgb,var(--brand-primary) 42%,var(--border));
+  background:color-mix(in srgb,var(--brand-primary) 12%,var(--panel-strong));
+}
+.app-shell:not(.app-shell-mia) .learning-studio-tabs button.active svg{color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .learning-studio-orbit div,
+.app-shell:not(.app-shell-mia) .learning-studio-orbit b{color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .learning-studio-link{color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .learning-studio-recall{
+  border-color:color-mix(in srgb,var(--brand-primary) 24%,var(--border));
+  background:linear-gradient(110deg,color-mix(in srgb,var(--brand-primary) 8%,var(--panel)),color-mix(in srgb,var(--brand-secondary) 5%,var(--panel)));
+}
+.app-shell:not(.app-shell-mia) .library-hero{border-color:color-mix(in srgb,var(--brand-primary) 30%,var(--border))}
+.app-shell:not(.app-shell-mia) .library-hero-kicker,
+.app-shell:not(.app-shell-mia) .library-dropzone>svg{color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .library-dropzone{
+  border-color:color-mix(in srgb,var(--brand-primary) 40%,var(--border));
+  background:color-mix(in srgb,var(--brand-primary) 5%,var(--panel-strong));
+}
+.app-shell:not(.app-shell-mia) .library-dropzone.is-dragging{
+  border-color:var(--brand-primary);
+  background:color-mix(in srgb,var(--brand-primary) 11%,var(--panel-strong));
+}
+.app-shell:not(.app-shell-mia) .library-file:hover,
+.app-shell:not(.app-shell-mia) .library-queue-item:hover{border-color:color-mix(in srgb,var(--brand-primary) 38%,var(--border))}
+.app-shell:not(.app-shell-mia) .timetable-hero-mark,
+.app-shell:not(.app-shell-mia) .academic-calendar-icon{
+  background:color-mix(in srgb,var(--brand-primary) 12%,var(--panel));
+  color:var(--brand-primary);
+}
+.app-shell:not(.app-shell-mia) .timetable-entry-time,
+.app-shell:not(.app-shell-mia) .weekly-timetable-lesson{--blue:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .academic-period-marker{background:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .academic-empty .empty-icon{
+  background:color-mix(in srgb,var(--brand-primary) 12%,var(--panel));
+  color:var(--brand-primary);
+}
+/* Assessment, labs and communication */
+.app-shell:not(.app-shell-mia) .study-exams-tabs .study-exams-tab.is-active{
+  border-color:color-mix(in srgb,var(--brand-primary) 42%,var(--border));
+  background:color-mix(in srgb,var(--brand-primary) 11%,var(--panel-strong));
+}
+.app-shell:not(.app-shell-mia) .study-exams-tab.is-active svg,
+.app-shell:not(.app-shell-mia) .study-exams-tab-intro>svg{color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .assessment-programme-hero-icon,
+.app-shell:not(.app-shell-mia) .subject-labs-card-icon{color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .subject-labs-card:hover{border-color:color-mix(in srgb,var(--brand-primary) 48%,var(--border))}
+.app-shell:not(.app-shell-mia) .student-friends-tabs button.is-active{
+  border-color:var(--border);
+  background:color-mix(in srgb,var(--brand-primary) 10%,var(--panel-strong));
+  color:var(--brand-primary);
+}
+.app-shell:not(.app-shell-mia) .student-friends-stats svg,
+.app-shell:not(.app-shell-mia) .student-friends-empty>svg{color:var(--brand-primary)}
+.app-shell:not(.app-shell-mia) .student-friend-avatar{
+  border-color:color-mix(in srgb,var(--brand-primary) 35%,var(--border));
+  background:linear-gradient(145deg,color-mix(in srgb,var(--brand-primary) 19%,var(--panel)),color-mix(in srgb,var(--brand-secondary) 12%,var(--panel)));
+}
+.app-shell:not(.app-shell-mia) .student-message-layout{border-radius:18px}
+.app-shell:not(.app-shell-mia) .student-message-contacts{background:var(--panel-strong)}
+.app-shell:not(.app-shell-mia) .monitor-conversation-head{background:var(--panel-strong)}
+.app-shell:not(.app-shell-mia) .monitor-contact-item:hover,
+.app-shell:not(.app-shell-mia) .monitor-contact-item.is-active{background:color-mix(in srgb,var(--brand-primary) 8%,var(--panel))}
+.app-shell:not(.app-shell-mia) .monitor-message-bubble.is-outgoing{
+  border-color:color-mix(in srgb,var(--brand-primary) 34%,var(--border));
+  background:color-mix(in srgb,var(--brand-primary) 10%,var(--panel-strong));
+}
+.app-shell:not(.app-shell-mia) .student-feedback-heading-icon{
+  background:color-mix(in srgb,var(--brand-primary) 12%,var(--panel-strong));
+  color:var(--brand-primary);
+}
+.app-shell:not(.app-shell-mia) .student-feedback-whatsapp{background:color-mix(in srgb,#25a56a 7%,var(--panel-strong))}
+/* Keep every dense workspace legible without removing its existing data controls. */
+.app-shell:not(.app-shell-mia) .library-section-heading h3,
+.app-shell:not(.app-shell-mia) .learning-studio-card-heading h3,
+.app-shell:not(.app-shell-mia) .assessment-section-heading h3{font-size:17px;line-height:1.35}
+.app-shell:not(.app-shell-mia) .library-section-heading p,
+.app-shell:not(.app-shell-mia) .learning-studio-card-heading p,
+.app-shell:not(.app-shell-mia) .timetable-footnote,
+.app-shell:not(.app-shell-mia) .academic-calendar-footnote{font-size:11px;line-height:1.6}
+.app-shell:not(.app-shell-mia) .student-progress-stat-grid article>span{font-size:9px}
+.app-shell:not(.app-shell-mia) .student-progress-stat-grid small,
+.app-shell:not(.app-shell-mia) .student-progress-assessment-list>article span,
+.app-shell:not(.app-shell-mia) .student-progress-assessment-list>article small{font-size:10px}
+.app-shell:not(.app-shell-mia) .student-progress-chart-caption{font-size:9px}
+.app-shell:not(.app-shell-mia) .monitor-conversation-head strong,
+.app-shell:not(.app-shell-mia) .monitor-message-bubble p{font-size:12px;line-height:1.6}
+.app-shell:not(.app-shell-mia) .monitor-message-compose-row textarea,
+.app-shell:not(.app-shell-mia) .student-homework-quick-request textarea{font-size:12px;line-height:1.55}
+.app-shell:not(.app-shell-mia) .student-feedback-page .student-feedback-header h2{font-size:22px}
+.app-shell:not(.app-shell-mia) .student-feedback-page .student-feedback-header p{font-size:12px;line-height:1.65}
+/* Breakpoints: preserve readable two-column workspaces until the layout genuinely narrows. */
+@media(min-width:761px) and (max-width:1000px){
+  .app-shell:not(.app-shell-mia) .student-message-layout{grid-template-columns:minmax(170px,.68fr) minmax(0,1.4fr)}
+  .app-shell:not(.app-shell-mia) .student-message-contact-head{padding:12px}
+  .app-shell:not(.app-shell-mia) .monitor-message-list{padding:12px}
+}
+@media(max-width:900px){
+  .app-shell:not(.app-shell-mia) .library-hero{grid-template-columns:minmax(0,1fr) auto}
+  .app-shell:not(.app-shell-mia) .student-progress-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .app-shell:not(.app-shell-mia) .welcome-row{align-items:flex-start;flex-direction:column}
+  .app-shell:not(.app-shell-mia) .welcome-row>.primary-button,
+  .app-shell:not(.app-shell-mia) .welcome-row>.secondary-button{width:100%;justify-content:center}
+  .app-shell:not(.app-shell-mia) .library-hero{grid-template-columns:1fr}
+  .app-shell:not(.app-shell-mia) .library-hero-art{display:none}
+  .app-shell:not(.app-shell-mia) .timetable-grid-scroll{
+    justify-content:flex-start;
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-x pan-y;
+  }
+  .app-shell:not(.app-shell-mia) .student-message-layout{grid-template-columns:1fr;min-height:0}
+  .app-shell:not(.app-shell-mia) .student-message-contact-list{max-height:260px}
+  .app-shell:not(.app-shell-mia) .monitor-conversation{min-height:460px}
+}
+@media(max-width:520px){
+  .app-shell:not(.app-shell-mia) .learning-studio-hero{align-items:flex-start;padding:18px}
+  .app-shell:not(.app-shell-mia) .student-progress-record-panel{padding:15px}
+  .app-shell:not(.app-shell-mia) .library-storage-card{padding:16px}
+  .app-shell:not(.app-shell-mia) .timetable-workspace{padding:14px}
+  .app-shell:not(.app-shell-mia) .student-feedback-page{padding:16px}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell:not(.app-shell-mia) .primary-button,
+  .app-shell:not(.app-shell-mia) .secondary-button,
+  .app-shell:not(.app-shell-mia) .subject-labs-card{transition:none!important}
+  .app-shell:not(.app-shell-mia) .primary-button:hover,
+  .app-shell:not(.app-shell-mia) .secondary-button:hover,
+  .app-shell:not(.app-shell-mia) .subject-labs-card:hover{transform:none!important}
+}
+:root[data-theme="light"] .app-shell:not(.app-shell-mia) .library-hero,
+:root[data-theme="light"] .app-shell:not(.app-shell-mia) .learning-studio-hero,
+:root[data-theme="light"] .app-shell:not(.app-shell-mia) .session-hero{
+  background:linear-gradient(125deg,rgba(113,100,216,.085),rgba(38,134,110,.045)),var(--panel-strong);
+}
+:root[data-theme="light"] .app-shell:not(.app-shell-mia) .monitor-message-bubble.is-outgoing{color:#201b3a}
