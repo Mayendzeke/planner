@@ -1146,7 +1146,36 @@ export default function App() {
           <Stat label="OVERDUE" value={String(overdue.length)} detail={overdue.length?"Needs your attention":"Nothing overdue"} icon={<AlarmClock size={17}/>} tone={overdue.length?"rose":"violet"}/>
           <Stat label="STUDY TIME THIS WEEK" value={weeklyHours.toFixed(1)+"h"} detail={"Goal: "+goal+"h per week"} icon={<Target size={17}/>} tone="blue"/>
           <Stat label="TASKS COMPLETED" value={String(completedTasks.length)} detail={tasks.length?Math.round(completedTasks.length/tasks.length*100)+"% of all tasks":"Add a task to begin"} icon={<Check size={17}/>} tone="violet"/>
-        </section><section className="dashboard-grid"><div className="glass-panel focus-panel"><div className="section-heading"><div><h2>Up next</h2><p>Your nearest deadlines and priorities.</p></div><button className="icon-button" aria-label="Open planner" onClick={()=>setPage("Planner")}><ChevronRight size={19}/></button></div>{openTasks.length?<TaskList tasks={openTasks.slice(0,5)} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<Check size={21}/>} title="Nothing waiting on you" text="Add a task when you have something to plan." action="Add your first task" onAction={()=>openNewTask()}/>}<button className="text-button" onClick={()=>setPage("Planner")}>Open full planner <ArrowDownRight size={15}/></button></div>
+        </section>
+          <section className="dashboard-shortcuts" aria-label="Study Space quick navigation">
+            <div className="dashboard-shortcuts-heading">
+              <div><span className="eyebrow">YOUR WORKSPACE</span><h2>Choose your next step</h2><p>Move between learning, planning and progress without searching through menus.</p></div>
+              <button type="button" className="secondary-button" onClick={()=>setPage("Messages")}><MessageCircle size={15}/> Messages</button>
+            </div>
+            <div className="dashboard-shortcut-grid">
+              <article className="dashboard-shortcut-card">
+                <div className="dashboard-shortcut-top"><span className="dashboard-shortcut-icon"><Target size={19}/></span><span className="dashboard-shortcut-index">01</span></div>
+                <h3>Learn</h3><p>Lessons, focused practice and personal study support.</p>
+                <div className="dashboard-shortcut-actions"><button type="button" onClick={()=>setPage("Learning Studio")}>Learning Studio <ChevronRight size={14}/></button><button type="button" onClick={()=>setPage("MIΛ")}>Ask MIΛ <Brain size={14}/></button></div>
+              </article>
+              <article className="dashboard-shortcut-card">
+                <div className="dashboard-shortcut-top"><span className="dashboard-shortcut-icon"><BookOpen size={19}/></span><span className="dashboard-shortcut-index">02</span></div>
+                <h3>Subjects &amp; resources</h3><p>Keep your subjects, class materials and personal notes together.</p>
+                <div className="dashboard-shortcut-actions"><button type="button" onClick={()=>setPage("Subjects")}>My subjects <ChevronRight size={14}/></button><button type="button" onClick={()=>setPage("Study Materials & Resources")}>Resources <ChevronRight size={14}/></button></div>
+              </article>
+              <article className="dashboard-shortcut-card">
+                <div className="dashboard-shortcut-top"><span className="dashboard-shortcut-icon"><CalendarDays size={19}/></span><span className="dashboard-shortcut-index">03</span></div>
+                <h3>Plan your week</h3><p>Bring deadlines, lessons and your study time into focus.</p>
+                <div className="dashboard-shortcut-actions"><button type="button" onClick={()=>setPage("Planner")}>Study planner <ChevronRight size={14}/></button><button type="button" onClick={()=>setPage("Timetable")}>Timetable <ChevronRight size={14}/></button></div>
+              </article>
+              <article className="dashboard-shortcut-card">
+                <div className="dashboard-shortcut-top"><span className="dashboard-shortcut-icon"><GraduationCap size={19}/></span><span className="dashboard-shortcut-index">04</span></div>
+                <h3>Assess &amp; improve</h3><p>Practise for assessments and understand your progress.</p>
+                <div className="dashboard-shortcut-actions"><button type="button" onClick={()=>setPage("Study & Exams")}>Assessments <ChevronRight size={14}/></button><button type="button" onClick={()=>setPage("Progress")}>My progress <ChevronRight size={14}/></button></div>
+              </article>
+            </div>
+          </section>
+          <section className="dashboard-grid"><div className="glass-panel focus-panel"><div className="section-heading"><div><h2>Up next</h2><p>Your nearest deadlines and priorities.</p></div><button className="icon-button" aria-label="Open planner" onClick={()=>setPage("Planner")}><ChevronRight size={19}/></button></div>{openTasks.length?<TaskList tasks={openTasks.slice(0,5)} subjects={subjectById} onToggle={toggleTask} onEdit={openEditTask} onDelete={deleteTask}/>:<Empty icon={<Check size={21}/>} title="Nothing waiting on you" text="Add a task when you have something to plan." action="Add your first task" onAction={()=>openNewTask()}/>}<button className="text-button" onClick={()=>setPage("Planner")}>Open full planner <ArrowDownRight size={15}/></button></div>
           <div className="glass-panel week-panel"><div className="section-heading"><div><h2>Study time</h2><p>Minutes you have logged this week.</p></div><Clock3 size={20}/></div><div className="week-summary"><div><strong>{Math.floor(weekMinutes/60)}h {weekMinutes%60}m</strong><span>recorded this week</span></div><span className="week-trend">{Math.min(100,Math.round(weeklyHours/Math.max(1,goal)*100))}% of goal</span></div><div className="goal-track"><span style={{width:Math.min(100,weeklyHours/Math.max(1,goal)*100)+"%"}}/></div><div className="goal-label"><span>0h</span><span>{goal}h weekly goal</span></div><div className="session-actions"><label>Log a session<select id="quick-session-subject" defaultValue=""><option value="">General study</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,25);}}>+25 min</button><button className="secondary-button" onClick={()=>{const el=document.getElementById("quick-session-subject") as HTMLSelectElement|null;void logSession(el?.value?Number(el.value):null,50);}}>+50 min</button></div><p className="subtle-note">Sessions are logged when you choose a duration. This does not run a background timer.</p></div></section>
           <UpcomingCalendar tasks={tasks} compact/>\n          <section className="bottom-note"><div className="note-icon"><Check size={15}/></div><p><strong>Your Studyspace data travels with your account.</strong> Subjects, tasks, study sessions, academic calendar records and personal files sync to your private Studyspace account when online. This device keeps an offline copy so you can continue studying without a connection.</p><span className="note-pill">CLOUD + OFFLINE</span></section></>}
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
