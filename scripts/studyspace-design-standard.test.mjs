@@ -16,10 +16,19 @@ test("student Study Space brand control returns to the home page", () => {
 
 test("student MIΛ opens as a full-screen workspace with an accessible navigation menu", () => {
   assert.ok(app.includes("app-shell-mia"));
-  assert.ok(app.includes("onMenuClick={() => setMobileMenu(true)}"));
-  assert.ok(mia.includes("aria-expanded={navigationOpen}"));
-  assert.ok(mia.includes('aria-controls="student-navigation-drawer"'));
+  assert.ok(mia.includes("aria-expanded={navigationOpenLocal}"));
+  assert.ok(mia.includes('aria-controls="mia-history-drawer"'));
   assert.ok(mia.includes("<Menu size={19}/>"));
+  assert.ok(mia.includes("mia-history-drawer"));
+  assert.ok(mia.includes("refreshConversationHistory"));
+  assert.ok(mia.includes("openSavedConversation"));
+  assert.ok(mia.includes("saveConversationTitle"));
+  assert.ok(mia.includes("deleteSavedConversation"));
+  assert.ok(mia.includes("Search conversations"));
+  assert.ok(!app.includes("onMenuClick={() => setMobileMenu(true)}"));
+  assert.ok(fullscreen.includes(".mia-navigation-layer"));
+  assert.ok(fullscreen.includes(".mia-navigation-backdrop"));
+  assert.ok(fullscreen.includes("pointer-events:auto"));
   assert.ok(fullscreen.includes(".app-shell-mia"));
   assert.ok(fullscreen.includes("height: 100dvh"));
   assert.ok(fullscreen.includes(".sidebar.sidebar-open"));
