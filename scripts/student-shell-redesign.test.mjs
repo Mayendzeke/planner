@@ -54,3 +54,27 @@ test("dashboard launchpad groups learning, resources, planning and assessment de
   assert.match(styles, /@media\(max-width:760px\)/);
   assert.match(styles, /@media\(max-width:420px\)/);
 });
+
+test("learning workspace headers have clear page titles and descriptions", () => {
+  assert.ok(app.includes('page==="Learning Studio"?"Your learning studio."'));
+  assert.ok(app.includes('page==="Settings"?"Your account and preferences."'));
+  assert.ok(app.includes('Study, practise, build visual understanding'));
+  assert.ok(app.includes('Manage your appearance, reminders, privacy'));
+});
+
+test("shared page controls use Study Space purple tokens and accessible theme surfaces", () => {
+  assert.match(styles, /--brand-button-text/);
+  assert.match(styles, /\.app-shell:not\(\.app-shell-mia\) \.primary-button/);
+  assert.match(styles, /background:var\(--panel-strong\)/);
+  assert.match(styles, /\.study-exams-tabs/);
+  assert.match(styles, /\.student-message-layout/);
+  assert.match(styles, /\.student-feedback-page/);
+  assert.match(styles, /prefers-reduced-motion:\s*reduce/);
+});
+
+test("dense workspaces retain responsive and touch-scroll layouts", () => {
+  assert.match(styles, /\.timetable-grid-scroll/);
+  assert.match(styles, /overflow-x:auto/);
+  assert.match(styles, /@media\(min-width:761px\) and \(max-width:1000px\)/);
+  assert.match(styles, /@media\(max-width:760px\)/);
+});
