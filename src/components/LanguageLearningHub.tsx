@@ -18,12 +18,13 @@ const skills = [
 
 export default function LanguageLearningHub({ onStartPractice }: LanguageLearningHubProps) {
   const [language, setLanguage] = useState<"SiSwati" | "English">("SiSwati");
+  const [courseFocus, setCourseFocus] = useState<"First Language" | "Second Language">("First Language");
   const [skill, setSkill] = useState<(typeof skills)[number]["value"]>(skills[0].value);
   const selectedSkill = skills.find(item => item.value === skill) ?? skills[0];
 
   const start = () => {
     const sourceContext = language === "SiSwati"
-      ? "StudySpace has a verified metadata reference for the official ECESWA First Language SiSwati EGCSE syllabus, 2027–2029, for Form 4/Form 5. The full PDF text is not included automatically, so do not claim to have read it or invent exact syllabus requirements. Use the official reference only as a source pointer and say when exact coverage cannot be verified. Some local book titles in the catalogue are only publisher-reported; never describe them as ECESWA-prescribed or confirmed set texts."
+      ? ""StudySpace has verified metadata for the ECESWA EGCSE SiSwati " + courseFocus + " syllabus, 2027–2029, for Form 4/Form 5. First Language is for learners whose mother tongue is SiSwati; Second Language is for learners studying it as an additional language. The full PDF text is not included automatically, so do not claim to have read it or invent exact syllabus requirements. Use the official reference only as a source pointer and say when exact coverage cannot be verified. Some local book titles in the catalogue are only publisher-reported; never describe them as ECESWA-prescribed or confirmed set texts.""
       : "No dedicated official English language syllabus document is attached to this activity. Match practice to my StudySpace learner profile and clearly distinguish general practice from exact examination syllabus coverage.";
     const prompt = [
       "Act as my age-appropriate StudySpace language tutor.",
@@ -63,6 +64,13 @@ export default function LanguageLearningHub({ onStartPractice }: LanguageLearnin
               <option value="English">English</option>
             </select>
           </label>
+          {language === "SiSwati" && <label>
+            <span>ECESWA course focus</span>
+            <select value={courseFocus} onChange={event => setCourseFocus(event.target.value as "First Language" | "Second Language")}>
+              <option value="First Language">First Language · 6870</option>
+              <option value="Second Language">Second Language · 6871</option>
+            </select>
+          </label>}
           <label>
             <span>Skill to practise</span>
             <select value={skill} onChange={event => setSkill(event.target.value as (typeof skills)[number]["value"])}>
@@ -80,11 +88,20 @@ export default function LanguageLearningHub({ onStartPractice }: LanguageLearnin
       <div className="language-resource-grid">
         <article className="language-resource-card language-official-card">
           <div className="language-resource-icon"><BookOpen size={18}/></div>
-          <span className="language-source-status">OFFICIAL ECESWA REFERENCE</span>
+          <span className="language-source-status">OFFICIAL ECESWA · 6870</span>
           <h3>First Language SiSwati</h3>
-          <p>EGCSE syllabus reference for the 2027–2029 examination cycle. Its stated scope is Form 4 and Form 5; other grades can still practise core language skills without assuming this exact syllabus applies.</p>
-          <a href="https://www.examscouncil.org.sz/upload-centre/syllabus/EGCSE%20First%20Language%20SiSwati%202027-2029%20Syllabus.pdf" target="_blank" rel="noreferrer">Open syllabus PDF <ArrowUpRight size={14}/></a>
-          <a href="https://www.examscouncil.org.sz/programmes/subject.php?id=43&programme=EGCSE" target="_blank" rel="noreferrer">ECESWA subject page <ArrowUpRight size={14}/></a>
+          <p>2027–2029 syllabus reference for Form 4 and Form 5. The official subject page also lists the current-cycle specimen question papers and mark schemes.</p>
+          <a href="https://www.examscouncil.org.sz/upload-centre/syllabus/EGCSE%20First%20Language%20SiSwati%202027-2029%20Syllabus.pdf" target="_blank" rel="noreferrer">Open 2027–2029 syllabus <ArrowUpRight size={14}/></a>
+          <a href="https://www.examscouncil.org.sz/programmes/subject.php?id=43&programme=EGCSE" target="_blank" rel="noreferrer">Syllabus, specimen papers and mark schemes <ArrowUpRight size={14}/></a>
+        </article>
+
+        <article className="language-resource-card language-official-card">
+          <div className="language-resource-icon"><BookOpen size={18}/></div>
+          <span className="language-source-status">OFFICIAL ECESWA · 6871</span>
+          <h3>SiSwati as a Second Language</h3>
+          <p>Separate 2027–2029 syllabus for learners studying SiSwati as an additional language. Do not use this route as a substitute for First Language preparation.</p>
+          <a href="https://www.examscouncil.org.sz/upload-centre/syllabus/EGCSE%20Siswati%20as%20a%20Second%20Language%202027-2029%20Syllabus.pdf" target="_blank" rel="noreferrer">Open 2027–2029 syllabus <ArrowUpRight size={14}/></a>
+          <a href="https://www.examscouncil.org.sz/programmes/subject.php?id=44&programme=EGCSE" target="_blank" rel="noreferrer">Past papers and course information <ArrowUpRight size={14}/></a>
         </article>
 
         <article className="language-resource-card">
