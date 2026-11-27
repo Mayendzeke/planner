@@ -8,7 +8,7 @@ import {
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
 import { prepareAssessmentProgramme, prepareAssignedTeacherStudyPacks, syncStudentWorkspace } from "./lib/cloudSync";
-import { EDUCATION_LEVEL_VALUES, isTertiaryLevel, normalizeEducationLevel, normalizeInstitutionType } from "./lib/educationPathways";
+import { isTertiaryLevel, normalizeEducationLevel, normalizeInstitutionType } from "./lib/educationPathways";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
 import StudentProfileEngagementCard from "./components/StudentProfileEngagementCard";
