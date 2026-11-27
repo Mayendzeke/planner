@@ -73,13 +73,14 @@ export function normalizeEducationLevel(value: string, grade = "", course = "", 
 }
 
 export function normalizeInstitutionType(level: string, value = ""): string {
+  if (!isTertiaryLevel(normalizeEducationLevel(level))) return "School";
   const current = value.trim();
   if (INSTITUTION_TYPES.includes(current as typeof INSTITUTION_TYPES[number]) && current !== "School") return current;
   const legacy = level.trim().toLowerCase();
   if (legacy === "college") return "College";
   if (legacy === "university") return "University";
   if (legacy === "technical / tvet" || legacy === "tvet") return "Technical / TVET";
-  return isTertiaryLevel(normalizeEducationLevel(level)) ? "Other" : "School";
+  return "Other";
 }
 
 export function educationLevelLabel(value: string): string {
