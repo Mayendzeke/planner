@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
-import { EDUCATION_PATHWAYS, ESWATINI_HIGHER_EDUCATION_INSTITUTIONS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, TERTIARY_SUBJECTS, curriculaFor, curriculumSubjectsFor, gradeOptionsFor, isTertiaryLevel, subjectCatalogNote } from "../lib/educationPathways";
+import { EDUCATION_PATHWAYS, ESWATINI_HIGHER_EDUCATION_INSTITUTIONS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, TERTIARY_SUBJECTS, ESWATINI_CURRICULUM_SOURCE_URL, curriculaFor, curriculumSubjectsFor, gradeOptionsFor, isTertiaryLevel, subjectCatalogNote } from "../lib/educationPathways";
 
 export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string; timetable_kind?: "school" | "personal" };
 
@@ -239,7 +239,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
 
       {step === 2 && <div className="onboarding-fields">
         <div className="subject-picker">
-          <div className="subject-picker-heading"><div><strong>Choose your subjects</strong><span>Choose from the current curriculum and examination register. Your school or institution decides which options it offers.</span></div><b>{profile.subjects.length} selected</b></div><p className="subtle-note">{subjectCatalogNote(profile.level, profile.curriculum, profile.grade)}</p>
+          <div className="subject-picker-heading"><div><strong>Choose your subjects</strong><span>Choose from the current curriculum and examination register. Your school or institution decides which options it offers.</span></div><b>{profile.subjects.length} selected</b></div><p className="subtle-note">{subjectCatalogNote(profile.level, profile.curriculum, profile.grade)} <a href={ESWATINI_CURRICULUM_SOURCE_URL} target="_blank" rel="noreferrer">Official ECESWA subject and syllabus register ↗</a></p>
           <label className="subject-picker-search"><BookOpen size={16}/><input value={subjectSearch} onChange={e => setSubjectSearch(e.target.value)} placeholder="Search subjects or courses…" aria-label="Search subjects and courses"/></label>
           <div className="subject-picker-list" role="group" aria-label="Available subjects">
             {filteredSubjects.map(name => { const meta = subjectMetadata.get(name); return <label className="subject-picker-option" key={name}><input type="checkbox" checked={profile.subjects.includes(name)} onChange={() => toggleSubject(name)}/><span>{name}{meta?.code ? <small> · {meta.code}</small> : null}<small className="subject-category">{meta?.category || "Additional"}</small></span><i>{profile.subjects.includes(name) ? "Selected" : "Add"}</i></label>; })}
