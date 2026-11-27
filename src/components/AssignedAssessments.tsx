@@ -170,7 +170,7 @@ export default function AssignedAssessments({assignmentType,refreshKey}:Assigned
 
   const isAnswered=(question:Question)=>{
     const value=answers[question.id];
-    if(["matching","match","match_the_following","drag_and_drop_matching"].includes(normalizeQuestionType(question.question_type))){
+    if(["matching","match","match_the_following","drag_and_drop_matching","matching_question","match_question","match_the_following_question"].includes(normalizeQuestionType(question.question_type))){
       const pairs=question.content?.pairs||[];
       if(!pairs.length)return String(value??"").trim().length>0;
       const record=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};
@@ -220,12 +220,12 @@ export default function AssignedAssessments({assignmentType,refreshKey}:Assigned
           const value=answers[question.id];
           const result=submission?.results?.[question.id];
           const questionType=normalizeQuestionType(question.question_type);
-          const isTrueFalse=["true_false","truefalse","true_or_false","boolean"].includes(questionType);
-          const isChoiceQuestion=isTrueFalse||["multiple_choice","multiplechoice","mcq","single_choice","single_select","select_one","objective"].includes(questionType);
+          const isTrueFalse=["true_false","truefalse","true_or_false","boolean","true_false_question","true_or_false_question","boolean_question"].includes(questionType);
+          const isChoiceQuestion=isTrueFalse||["multiple_choice","multiplechoice","mcq","single_choice","single_select","select_one","objective","multiple_choice_question","multiplechoice_question","mcq_question","single_choice_question","single_select_question","select_one_question","objective_question"].includes(questionType);
           const isMatchingQuestion=["matching","match","match_the_following","drag_and_drop_matching"].includes(questionType);
-          const isWordPuzzle=["word_puzzle","wordpuzzle","puzzle"].includes(questionType);
-          const isShortAnswer=["short_answer","shortanswer","written_response","open_ended","essay","long_answer"].includes(questionType);
-          const isFillBlank=["fill_in_the_blank","fill_blank","fillintheblank","cloze"].includes(questionType);
+          const isWordPuzzle=["word_puzzle","wordpuzzle","puzzle","word_puzzle_question"].includes(questionType);
+          const isShortAnswer=["short_answer","shortanswer","written_response","open_ended","essay","long_answer","short_answer_question","written_response_question","open_ended_question","essay_question","long_answer_question"].includes(questionType);
+          const isFillBlank=["fill_in_the_blank","fill_blank","fillintheblank","cloze","fill_in_the_blank_question","fill_blank_question","cloze_question"].includes(questionType);
           const choiceOptions=isTrueFalse?["True","False"]:getQuestionOptions(question);
           return <article className="assigned-question" id={"assigned-q-"+question.id} key={question.id}>
             <div className="assigned-question-top"><strong>Question {index+1}</strong><span>{question.points} marks</span></div>
