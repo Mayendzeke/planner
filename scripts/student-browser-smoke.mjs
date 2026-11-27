@@ -194,6 +194,7 @@ async function main() {
     const destinations = [
       "Today's Session",
       "Learning Studio",
+      "Languages",
       "MIΛ",
       "Subjects",
       "Labs",
@@ -221,6 +222,9 @@ async function main() {
         destination,
         `Navigation should open the ${destination} screen.`,
       );
+      if (destination === "Languages") {
+        await page.getByRole("heading", { name: "Learn in your language." }).waitFor({ state: "visible" });
+      }
     }
 
     await sidebar.getByRole("button", { name: "Settings and backup", exact: true }).click();
