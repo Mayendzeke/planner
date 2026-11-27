@@ -49,7 +49,7 @@ export function isTertiaryLevel(value: string): boolean {
  * year, course or institution. Ambiguous legacy school stages are classified
  * from the recorded grade/form before a conservative default is used.
  */
-export function normalizeEducationLevel(value: string, grade = "", course = "", institutionType = ""): EducationLevel {
+export function normalizeEducationLevel(value: string, grade = "", course = "", institutionType = ""): EducationLevel | "" {
   const stage = value.trim().toLowerCase().replace(/\s+/g, " ");
   const year = grade.trim().toLowerCase();
   const fromGrade = (): EducationLevel | null => {
@@ -69,7 +69,7 @@ export function normalizeEducationLevel(value: string, grade = "", course = "", 
   if (gradeStage) return gradeStage;
   if (["college", "university", "technical / tvet", "tvet"].includes(institutionType.trim().toLowerCase())) return "Tertiary";
   if (/\b(?:certificate|diploma|bachelor|master|doctorate|phd|degree)\b/i.test(course)) return "Tertiary";
-  return "Secondary High";
+  return "";
 }
 
 export function normalizeInstitutionType(level: string, value = ""): string {
