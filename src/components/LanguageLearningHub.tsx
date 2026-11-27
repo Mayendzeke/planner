@@ -21,11 +21,11 @@ type Props = {
 function languageChoicesFromProfile(subjects: string[]): LanguageChoice[] {
   const text = subjects.join(" | ").toLowerCase();
   const choices: LanguageChoice[] = [];
-  if (/siswati|si\\s*swati/.test(text)) choices.push("SiSwati");
+  if (/siswati|si\s*swati/.test(text)) choices.push("SiSwati");
   if (/english|language arts/.test(text)) choices.push("English");
   if (/french/.test(text)) choices.push("French");
   if (/portuguese/.test(text)) choices.push("Portuguese");
-  if (/\\b[a-z]+\\s+language\\b/.test(text) && !choices.length) choices.push("Other");
+  if (/\b[a-z]+\s+language\b/.test(text) && !choices.length) choices.push("Other");
   return choices;
 }
 
@@ -165,7 +165,7 @@ export default function LanguageLearningHub({
 
       <div className="language-profile-context">
         <span><strong>Profile pathway:</strong> {[educationLevel, grade, curriculum].filter(Boolean).join(" · ") || "Not set yet"}</span>
-        <span><strong>Language subjects:</strong> {subjects.filter(subject => /english|siswati|si\\s*swati|french|portuguese|language/i.test(subject)).join(", ") || "None selected in your profile"}</span>
+        <span><strong>Language subjects:</strong> {subjects.filter(subject => /english|siswati|si\s*swati|french|portuguese|language/i.test(subject)).join(", ") || "None selected in your profile"}</span>
       </div>
       {!hasLanguageSubject && <section className="language-syllabus-prompt" role="status">
         <BookOpen size={20}/>
