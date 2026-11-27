@@ -80,7 +80,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
 
   const availableSubjectEntries = useMemo(() => curriculumSubjectsFor(profile.level, profile.curriculum, profile.grade), [profile.level, profile.curriculum, profile.grade]);
   const availableSubjects = availableSubjectEntries.map(item => item.name);
-  const subjectMetadata = new Map(availableSubjectEntries.map(item => [item.name, item]));
+  const subjectMetadata = new Map<string, (typeof availableSubjectEntries)[number]>(availableSubjectEntries.map(item => [item.name, item] as const));
   const gradeOptions = gradeOptionsFor(profile.level);
   const curriculumOptions = curriculaFor(profile.level);
   const filteredSubjects = availableSubjects.filter(name => name.toLocaleLowerCase().includes(subjectSearch.trim().toLocaleLowerCase()));
