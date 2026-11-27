@@ -223,7 +223,7 @@ async function main() {
         `Navigation should open the ${destination} screen.`,
       );
       if (destination === "Languages") {
-        await page.getByRole("heading", { name: "Learn in your language." }).waitFor({ state: "visible" });
+        await page.getByRole("heading", { name: "Language learning, guided by the syllabus" }).waitFor({ state: "visible" });
       }
       if (destination === "MIΛ") {
         // MIΛ is intentionally full-screen and hides the main sidebar until the learner exits.
