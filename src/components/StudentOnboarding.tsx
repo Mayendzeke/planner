@@ -78,11 +78,11 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     setProfile(current => ({ ...current, [key]: value }));
   }
 
-  const availableSubjectEntries = useMemo(() => curriculumSubjectsFor(profile.level, profile.curriculum, profile.grade), [profile.level, profile.curriculum, profile.grade]);
+  const availableSubjectEntries = useMemo(() => curriculumSubjectsFor(profile.level, profile.curriculum, profile.grade, profile.country), [profile.level, profile.curriculum, profile.grade]);
   const availableSubjects = availableSubjectEntries.map(item => item.name);
   const subjectMetadata = new Map<string, (typeof availableSubjectEntries)[number]>(availableSubjectEntries.map(item => [item.name, item] as const));
   const gradeOptions = gradeOptionsFor(profile.level);
-  const curriculumOptions = curriculaFor(profile.level);
+  const curriculumOptions = curriculaFor(profile.level, profile.country);
   const filteredSubjects = availableSubjects.filter(name => name.toLocaleLowerCase().includes(subjectSearch.trim().toLocaleLowerCase()));
 
   function toggleSubject(name: string) {
@@ -239,7 +239,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
 
       {step === 2 && <div className="onboarding-fields">
         <div className="subject-picker">
-          <div className="subject-picker-heading"><div><strong>Choose your subjects</strong><span>Choose from the current curriculum and examination register. Your school or institution decides which options it offers.</span></div><b>{profile.subjects.length} selected</b></div><p className="subtle-note">{subjectCatalogNote(profile.level, profile.curriculum, profile.grade)} <a href={ESWATINI_CURRICULUM_SOURCE_URL} target="_blank" rel="noreferrer">Official ECESWA subject and syllabus register ↗</a></p>
+          <div className="subject-picker-heading"><div><strong>Choose your subjects</strong><span>Choose from the current curriculum and examination register. Your school or institution decides which options it offers.</span></div><b>{profile.subjects.length} selected</b></div><p className="subtle-note">{subjectCatalogNote(profile.level, profile.curriculum, profile.grade, profile.country)} {(!profile.country.trim() || /eswatini|swaziland/i.test(profile.country)) && <a href={ESWATINI_CURRICULUM_SOURCE_URL} target="_blank" rel="noreferrer">Official ECESWA subject and syllabus register ↗</a>}</p>
           <label className="subject-picker-search"><BookOpen size={16}/><input value={subjectSearch} onChange={e => setSubjectSearch(e.target.value)} placeholder="Search subjects or courses…" aria-label="Search subjects and courses"/></label>
           <div className="subject-picker-list" role="group" aria-label="Available subjects">
             {filteredSubjects.map(name => { const meta = subjectMetadata.get(name); return <label className="subject-picker-option" key={name}><input type="checkbox" checked={profile.subjects.includes(name)} onChange={() => toggleSubject(name)}/><span>{name}{meta?.code ? <small> · {meta.code}</small> : null}<small className="subject-category">{meta?.category || "Additional"}</small></span><i>{profile.subjects.includes(name) ? "Selected" : "Add"}</i></label>; })}
