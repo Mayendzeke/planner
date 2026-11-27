@@ -1,3 +1,4 @@
+import "./LanguageLearningHub.css";
 import { useState } from "react";
 import { ArrowRight, BookOpen, ExternalLink, Languages, Sparkles } from "lucide-react";
 import {
