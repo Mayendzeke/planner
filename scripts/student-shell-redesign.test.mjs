@@ -26,8 +26,8 @@ test("student toolbar is clean and keeps only essential controls", () => {
   assert.match(header, /Search tasks and subjects/);
   assert.match(header, /StudentNotificationCenter/);
   assert.match(header, /top-avatar-button/);
-  assert.match(header, /desktop-sidebar-toggle/);
-  assert.match(header, /mobile-menu-button/);
+  assert.match(header, /topbar-brand-home/);
+  assert.doesNotMatch(header, /desktop-sidebar-toggle|mobile-menu-button|hamburger|menu-button/);
 });
 
 test("route transitions are subtle and respect reduced motion", () => {
@@ -69,7 +69,8 @@ test("learning workspace headers include the new language studio", () => {
   assert.ok(app.includes('Practise SiSwati vocabulary, grammar, reading, writing'));
   assert.ok(app.includes('Study, practise, build visual understanding'));
   assert.ok(app.includes('Manage your appearance, reminders, privacy'));
-  assert.match(app, /page==="Languages"&&<LanguageLearningHub onStartPractice=\{startMiaWithPrompt\}\/\>/);
+  assert.match(app, /page==="Languages"&&<LanguageLearningHub onStartPractice=\{startMiaWithPrompt\} educationLevel=/);
+  assert.match(app, /onOpenProfile=\{\(\)=>setPage\("My profile"\)\}/);
 });
 
 test("shared page controls use Study Space purple tokens and accessible theme surfaces", () => {
