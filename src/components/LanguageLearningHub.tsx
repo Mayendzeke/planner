@@ -83,7 +83,7 @@ export default function LanguageLearningHub({
       "",
       "Teaching rules:",
       "1. Use the selected official syllabus and its verified coverage as the primary curriculum whenever a verified ECESWA PDF is listed.",
-      "2. Never invent syllabus topics, prescribed set texts, paper weightings, paper durations, assessment objectives or exam requirements.",
+      "2. This catalogue embeds verified summaries and official links, not every page of every PDF. Do not claim to have read a full PDF unless the learner attaches it; ask for the current PDF or teacher outline for details not included here. Never invent syllabus topics, prescribed set texts, paper weightings, paper durations, assessment objectives or exam requirements.",
       "3. If this catalogue says only an official subject page is available, explain that the detailed syllabus breakdown is not verified here. Ask the learner to attach the current school PDF or teacher outline before creating an exam-specific test.",
       "4. If this is Portuguese or another independent-practice course, do not claim ECESWA alignment. Teach general language skills and ask for the school's syllabus before exam-specific work.",
       "5. Learners may attach class notes, textbooks or teacher handouts in the MIΛ chat. Treat these as supplementary learning material, extract their actual content, and compare them with the official syllabus. If a note conflicts with the official syllabus, identify the conflict and prioritise the official syllabus. Do not pretend to have read a file that was not attached.",
