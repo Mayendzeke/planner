@@ -468,10 +468,11 @@ export default function App() {
         const preferredName = String(cloud.preferred_name || "");
         const cloudSubjects = (subjectsResult.data || []).map(item => String(item.name)).filter(Boolean);
         const educationLevel = String(cloud.education_level || "").trim();
-        const tertiary = isTertiaryLevel(educationLevel);
+        const normalizedEducationLevel = normalizeEducationLevel(educationLevel, String(cloud.grade || ""), String(cloud.course || ""), String(cloud.institution_type || ""));
+        const tertiary = isTertiaryLevel(normalizedEducationLevel);
         const academicSetupComplete = Boolean(
           (fullName.trim() || preferredName.trim())
-          && EDUCATION_LEVEL_VALUES.includes(normalizeEducationLevel(educationLevel, String(cloud.grade || ""), String(cloud.course || ""), String(cloud.institution_type || "")))
+          && EDUCATION_LEVEL_VALUES.includes(normalizedEducationLevel)
           && String(cloud.grade || "").trim()
           && String(cloud.academic_year || "").trim()
           && cloudSubjects.length > 0
