@@ -80,7 +80,7 @@ export const ESWATINI_HIGHER_EDUCATION_INSTITUTIONS = [
 ] as const;
 
 export const CURRICULA_BY_LEVEL: Record<EducationLevel, string[]> = {
-  Primary: ["Eswatini National Curriculum", "Eswatini Primary Certificate (EPC)", "Cambridge Primary", "CAPS", "Other / Not sure"],
+  Primary: ["Eswatini National Curriculum", "Eswatini Primary Certificate (EPC)", "Eswatini Primary School Assessment (EPSA)", "Cambridge Primary", "CAPS", "Other / Not sure"],
   "Secondary High": ["Eswatini Junior Certificate (JC)", "Cambridge Lower Secondary", "IGCSE / Cambridge", "CAPS", "Other / Not sure"],
   "High School": ["Eswatini General Certificate (EGCSE)", "IGCSE / Cambridge", "CAPS", "Other / Not sure"],
   Matric: ["A-Level", "IB Diploma", "Other / Not sure"],
@@ -88,6 +88,7 @@ export const CURRICULA_BY_LEVEL: Record<EducationLevel, string[]> = {
 };
 
 export type CurriculumSubject = { name: string; code?: string; category: "Core" | "Elective" | "Programme area" };
+export const ESWATINI_CURRICULUM_SOURCE_URL = "https://www.examscouncil.org.sz/";
 
 /** ECESWA subject registers; codes identify the published examination subject, not a claim that every school offers it. */
 const PRIMARY_SUBJECTS: CurriculumSubject[] = [
@@ -104,6 +105,31 @@ const PRIMARY_SUBJECTS: CurriculumSubject[] = [
   { name: "Expressive Arts", code: "641", category: "Elective" },
   { name: "Health and Physical Education", code: "642", category: "Elective" },
   { name: "ICT", code: "645", category: "Elective" },
+];
+const EPC_SUBJECTS: CurriculumSubject[] = [
+  { name: "English Language", code: "111", category: "Core" },
+  { name: "Mathematics", code: "212", category: "Core" },
+  { name: "SiSwati", code: "414", category: "Core" },
+  { name: "Science", code: "513", category: "Core" },
+  { name: "Social Studies", code: "515", category: "Core" },
+  { name: "Religious Education", code: "631", category: "Core" },
+  { name: "French", code: "434", category: "Elective" },
+  { name: "Agriculture", code: "616", category: "Elective" },
+  { name: "Consumer Science", code: "627", category: "Elective" },
+  { name: "Expressive Arts", code: "641", category: "Elective" },
+  { name: "Health and Physical Education", code: "642", category: "Elective" },
+  { name: "ICT", code: "645", category: "Elective" },
+];
+const PRIMARY_FOUNDATION_SUBJECTS: CurriculumSubject[] = [
+  { name: "English", category: "Core" },
+  { name: "Mathematics", category: "Core" },
+  { name: "Science", category: "Core" },
+  { name: "Religious Education", category: "Core" },
+  { name: "SiSwati", category: "Core" },
+  { name: "French", category: "Elective" },
+  { name: "Home Economics", category: "Elective" },
+  { name: "Practical Art", category: "Elective" },
+  { name: "Physical Education", category: "Elective" },
 ];
 const JUNIOR_CERTIFICATE_SUBJECTS: CurriculumSubject[] = [
   { name: "English Language", code: "101", category: "Core" },
@@ -160,7 +186,21 @@ export function curriculaFor(level: string): string[] {
 
 export function curriculumSubjectsFor(level: string, curriculum: string, grade = ""): CurriculumSubject[] {
   const selected = curriculum.toLowerCase();
-  if (level === "Primary") return PRIMARY_SUBJECTS;
+  if (level === "Primary") {
+    if (/epsa/.test(selected)) return PRIMARY_SUBJECTS;
+    if (/cambridge/.test(selected)) return [
+      ...PRIMARY_FOUNDATION_SUBJECTS,
+      { name: "Computing", category: "Elective" },
+      { name: "Global Perspectives", category: "Elective" },
+    ];
+    if (/caps/.test(selected)) return [
+      ...PRIMARY_FOUNDATION_SUBJECTS,
+      { name: "Life Skills", category: "Elective" },
+      { name: "Technology", category: "Elective" },
+    ];
+    if (/epc/.test(selected) || /grade\s*[5-7]/i.test(grade)) return EPC_SUBJECTS;
+    return PRIMARY_FOUNDATION_SUBJECTS;
+  }
   if (level === "Secondary High") {
     if (/prevocational|epcse/.test(selected)) return PREVOCATIONAL_SUBJECTS;
     if (/cambridge|igcse/.test(selected)) return [
@@ -188,9 +228,11 @@ export function curriculumSubjectsFor(level: string, curriculum: string, grade =
 }
 
 export function subjectCatalogNote(level: string, curriculum: string, grade = ""): string {
-  if (level === "Primary") return /grade [5-7]/i.test(grade)
-    ? "Eswatini Primary Certificate subjects (ECESWA register). Subject availability can differ by school."
-    : "Eswatini primary learning areas. The EPC examination syllabus applies to Grades 5–7; confirm the school's exact lower-primary subject list.";
+  if (level === "Primary") return /epsa/i.test(curriculum)
+    ? "EPSA examination subject register. Subject availability and examination entry depend on the school and current ECESWA session."
+    : /grade [5-7]/i.test(grade) || /epc/i.test(curriculum)
+      ? "Eswatini Primary Certificate (EPC) syllabus subjects for Grades 5–7. The school confirms which elective learning areas are offered."
+      : "Eswatini lower-primary learning areas. The EPC examination syllabus is for Grades 5–7; follow the school's current Grade 0–4 scheme of work.";
   if (level === "Secondary High") return /prevocational|epcse/i.test(curriculum)
     ? "Eswatini Prevocational Certificate subjects (EPCSE)."
     : "Junior Certificate and school-offered elective subjects. Your school determines which electives are available.";
