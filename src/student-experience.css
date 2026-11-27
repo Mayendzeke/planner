@@ -355,3 +355,23 @@
   .app-shell:not(.app-shell-mia) .topbar-actions { gap: 7px; }
   .app-shell:not(.app-shell-mia) .search-box { width: min(230px,56vw); }
 }
+
+/* Keep all navigation destinations reachable when the menu grows. */
+.sidebar-nav-slot {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb,var(--muted) 28%,transparent) transparent;
+  margin: 0 -4px;
+  padding: 0 4px 8px;
+}
+.sidebar-nav-slot .main-nav { display: grid; gap: 5px; }
+.sidebar-nav-slot::-webkit-scrollbar { width: 5px; }
+.sidebar-nav-slot::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb,var(--muted) 28%,transparent);
+  border-radius: 999px;
+}
+.sidebar-nav-slot::-webkit-scrollbar-track { background: transparent; }
