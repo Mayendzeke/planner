@@ -328,6 +328,47 @@
 }
 
 
+/* Student brand home stays at the top-left; the More/menu control lives only in the bottom navigation. */
+.app-shell:not(.app-shell-mia) .topbar-brand-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 0 0;
+  padding: 3px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.app-shell:not(.app-shell-mia) .topbar-brand-home:hover {
+  background: color-mix(in srgb,var(--panel-strong) 82%,var(--brand-primary) 8%);
+}
+.app-shell:not(.app-shell-mia) .topbar-brand-home .brand-logo-image {
+  display: block;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+.app-shell:not(.app-shell-mia) .topbar .mobile-menu-button,
+.app-shell:not(.app-shell-mia) .topbar .mobile-menu {
+  display: none !important;
+}
+@media(max-width:760px) {
+  .app-shell:not(.app-shell-mia) .topbar-brand-home {
+    flex-basis: 38px;
+    width: 38px;
+    height: 38px;
+  }
+  .app-shell:not(.app-shell-mia) .topbar-brand-home .brand-logo-image {
+    width: 33px;
+    height: 33px;
+  }
+}
+
 /* Clean desktop-first toolbar: search, notifications and account only. */
 .app-shell:not(.app-shell-mia) .topbar {
   display: flex;
