@@ -110,3 +110,10 @@ test("language studio provides official SiSwati routes and guards its source acc
   assert.match(hubStyles, /language-resource-grid/);
   assert.match(hubStyles, /@media\(max-width:760px\)/);
 });
+
+test("browser-side learning UI contains no provider API secrets", () => {
+  const frontend = app + readFileSync(new URL("../src/components/LanguageLearningHub.tsx", import.meta.url), "utf8");
+  assert.ok(!frontend.includes("CLOUDFLARE_API_TOKEN"));
+  assert.ok(!frontend.includes("GEMINI_API_KEY"));
+  assert.ok(!frontend.includes("SUPABASE_SERVICE_ROLE_KEY"));
+});
