@@ -180,7 +180,7 @@ const PREVOCATIONAL_SUBJECTS: CurriculumSubject[] = [
   { name: "Technical Studies", code: "5925", category: "Programme area" },
   { name: "Food and Textiles Technology", code: "5926", category: "Programme area" },
 ];
-const TERTIARY_SUBJECTS: CurriculumSubject[] = [
+export const TERTIARY_SUBJECTS: CurriculumSubject[] = [
   ...["Accounting", "Business Administration", "Business Management", "Marketing", "Economics", "Finance", "Human Resource Management", "Procurement and Supply Chain Management", "Public Sector Accounting", "Hospitality and Tourism", "Tourism Management", "Project Management", "Entrepreneurship", "Law", "Education", "Early Childhood Care and Development", "Special and Inclusive Education", "Nursing", "Midwifery", "Medicine and Surgery", "Pharmacy", "Medical Laboratory Science", "Radiography", "Community Development", "Social Work", "Psychology", "Theology", "Agriculture", "Agronomy", "Animal Science", "Horticulture", "Food Science and Nutrition", "Environmental Health", "Environmental Management", "Engineering", "Electrical and Electronic Engineering", "Mechanical Engineering", "Civil Engineering", "Quantity Surveying", "Construction", "Information Technology", "Computer Science", "Cybersecurity", "Network Security", "Software Development", "Data Science", "Information Systems", "Journalism and Mass Communication", "Professional Communication", "Languages and Linguistics", "Research Methods"].map(name => ({ name, category: "Programme area" as const })),
 ];
 
