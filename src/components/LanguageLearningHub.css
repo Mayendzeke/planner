@@ -31,3 +31,7 @@
 :root[data-theme="dark"] .language-hero, :root[data-theme="dark"] .language-practice-panel, :root[data-theme="dark"] .language-resource-card{background:var(--panel);border-color:var(--border)}
 :root[data-theme="dark"] .language-skill-preview, :root[data-theme="dark"] .language-feature-tag, :root[data-theme="dark"] .language-ai-mark, :root[data-theme="dark"] .language-controls select, :root[data-theme="dark"] .language-honesty-note{background:var(--panel-strong);border-color:var(--border);color:var(--text)}
 @media(max-width:760px){.language-hero{align-items:flex-start;flex-wrap:wrap;padding:18px}.language-hero-icon{width:45px;height:45px}.language-feature-tag{margin-left:62px}.language-practice-panel,.language-resource-card{padding:17px}.language-resource-grid{grid-template-columns:1fr}.language-controls{grid-template-columns:1fr}.language-ai-mark{font-size:10px}}
+
+.language-exam-structure{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:14px;padding:12px;border-radius:12px;background:var(--panel-strong);border:1px solid var(--border)}
+.language-exam-structure strong{margin-bottom:2px;color:var(--text);font-size:12px}
+.language-exam-structure span{color:var(--muted);font-size:11px;line-height:1.45}
