@@ -21,6 +21,19 @@ type Assignment = {
 type Submission = { score: number; totalPoints: number; percentage: number; manualReview: number; aiMarked: number; markingStatus: string; markingNotice: string; teacherFeedback?: string; results: Record<string,{correct:boolean|null;points:number;awarded:number;explanation?:string;markingMethod?:string;confidence?:number;status?:string}> };
 type StoredAttempt = { score:number; total_points:number; submitted_at:string; marked_at:string|null; teacher_feedback:string; marking_status:string; teacher_review_required:boolean; ai_marked_at:string|null; marking_details:Record<string,unknown>; manual_marks:Record<string,number> };
 
+function getQuestionOptions(question: Question): string[] {
+  const content = question.content as Record<string, unknown>;
+  const raw = Array.isArray(content.options) ? content.options : Array.isArray(content.choices) ? content.choices : [];
+  return raw.map(option => {
+    if (typeof option === "string" || typeof option === "number") return String(option).trim();
+    if (option && typeof option === "object") {
+      const item = option as Record<string, unknown>;
+      return String(item.label ?? item.text ?? item.value ?? "").trim();
+    }
+    return "";
+  }).filter(Boolean);
+}
+
 type AssignedAssessmentsProps={assignmentType?:"teacher_assignment"|"scheduled_assessment"|"practice"|"non_practice";refreshKey?:number};
 
 export default function AssignedAssessments({assignmentType,refreshKey}:AssignedAssessmentsProps={}) {
@@ -151,8 +164,10 @@ export default function AssignedAssessments({assignmentType,refreshKey}:Assigned
   const isAnswered=(question:Question)=>{
     const value=answers[question.id];
     if(question.question_type==="matching"){
+      const pairs=question.content?.pairs||[];
+      if(!pairs.length)return String(value??"").trim().length>0;
       const record=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};
-      return (question.content?.pairs||[]).length>0&&(question.content?.pairs||[]).every(pair=>String(record[pair.left]||"").trim().length>0);
+      return pairs.every(pair=>String(record[pair.left]||"").trim().length>0);
     }
     return String(value??"").trim().length>0;
   };
@@ -197,18 +212,26 @@ export default function AssignedAssessments({assignmentType,refreshKey}:Assigned
         {active.questions.map((question,index)=>{
           const value=answers[question.id];
           const result=submission?.results?.[question.id];
+          const questionType=question.question_type.trim().toLowerCase().replace(/[\\s-]+/g,"_");
+          const isTrueFalse=["true_false","truefalse"].includes(questionType);
+          const isChoiceQuestion=isTrueFalse||["multiple_choice","multiplechoice","mcq"].includes(questionType);
+          const choiceOptions=isTrueFalse?["True","False"]:getQuestionOptions(question);
           return <article className="assigned-question" id={"assigned-q-"+question.id} key={question.id}>
             <div className="assigned-question-top"><strong>Question {index+1}</strong><span>{question.points} marks</span></div>
             {question.content?.topic&&<small className="assigned-question-topic">{question.content.topic}</small>}
             <p>{question.prompt}</p>
-            {question.question_type==="multiple_choice"||question.question_type==="true_false"?
-              <div className="assigned-question-options">{(question.question_type==="true_false"?["True","False"]:(question.content?.options||[]).filter(option=>String(option).trim().length>0)).map(option=><button type="button" key={option} disabled={!!submission} className={value===option?"selected":""} onClick={()=>setAnswer(question.id,option)}>{option}</button>)}</div>:
+            {isChoiceQuestion?
+              choiceOptions.length>0?
+                <div className="assigned-question-options">{choiceOptions.map(option=><button type="button" key={option} disabled={!!submission} className={value===option?"selected":""} onClick={()=>setAnswer(question.id,option)}>{option}</button>)}</div>:
+                <label className="assigned-answer-field"><span>Answer options are unavailable. Type your answer.</span><input type="text" disabled={!!submission} value={String(value??"")} onChange={e=>setAnswer(question.id,e.target.value)} placeholder="Type your answer here…"/></label>:
               question.question_type==="matching"?
-                <div className="assigned-matching-list">{(question.content?.pairs||[]).map((pair,i)=><label key={i}><span>{pair.left}</span><select disabled={!!submission} value={String((value as Record<string,unknown>|undefined)?.[pair.left]||"")} onChange={e=>setAnswer(question.id,{...(value as Record<string,unknown>||{}),[pair.left]:e.target.value})}><option value="">Choose a match</option>{(question.content?.pairs||[]).map(item=><option key={item.right} value={item.right}>{item.right}</option>)}</select></label>)}</div>:
+                (question.content?.pairs||[]).length>0?
+                  <div className="assigned-matching-list">{(question.content?.pairs||[]).map((pair,i)=><label key={i}><span>{pair.left}</span><select disabled={!!submission} value={String((value as Record<string,unknown>|undefined)?.[pair.left]||"")} onChange={e=>setAnswer(question.id,{...(value as Record<string,unknown>||{}),[pair.left]:e.target.value})}><option value="">Choose a match</option>{(question.content?.pairs||[]).map(item=><option key={item.right} value={item.right}>{item.right}</option>)}</select></label>)}</div>:
+                  <label className="assigned-answer-field"><span>Write each match as “left = right”, one per line.</span><textarea rows={4} disabled={!!submission} value={String(value??"")} onChange={e=>setAnswer(question.id,e.target.value)} placeholder={"First item = matching answer\nSecond item = matching answer"}/></label>:
                 <>
                   {question.question_type==="word_puzzle"&&question.content?.clue&&<p className="assigned-question-clue"><strong>Clue:</strong> {question.content.clue}</p>}
                   <label className="assigned-answer-field"><span>{question.question_type==="short_answer"?"Your written answer":question.question_type==="word_puzzle"?"Your puzzle answer":"Your answer"}</span><textarea rows={question.question_type==="short_answer"?4:2} disabled={!!submission} value={String(value??"")} onChange={e=>setAnswer(question.id,e.target.value)} placeholder={question.question_type==="word_puzzle"?"Enter the word that solves the clue…":"Type your answer here…"}/></label>
-                </>}
+                </>
             {submission&&<div className={result?.correct===true?"assigned-result correct":result?.correct===false?"assigned-result incorrect":"assigned-result review"}>
               {result?.correct===true?<CheckCircle2 size={15}/>:result?.correct===false?<AlertCircle size={15}/>:<Clock3 size={15}/>}
               <span>{!result?"Result details are not available yet":result.status==="teacher_review"?"Teacher review pending":result.markingMethod==="miλ"?"MIΛ marked · "+result.awarded+"/"+result.points+" marks · "+Math.round(Number(result.confidence||0)*100)+"% confidence":result.correct===true?"Correct · "+result.awarded+"/"+result.points+" marks":result.correct===false?"Not correct · "+result.awarded+"/"+result.points+" marks":"Marked · "+result.awarded+"/"+result.points+" marks"}</span>
