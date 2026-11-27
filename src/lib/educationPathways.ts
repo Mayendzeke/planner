@@ -194,7 +194,7 @@ export function curriculumSubjectsFor(level: string, curriculum: string, grade =
   if (country.trim() && !/eswatini|swaziland/i.test(country)) {
     if (level === "Primary") return ["English", "Mathematics", "Science", "Social Studies", "Languages", "Computing / ICT", "Religious Education", "Creative Arts", "Physical Education", "Agriculture", "Technology", "Life Skills"].map(name => ({ name, category: "Available subject" as const }));
     if (level === "Tertiary") return TERTIARY_SUBJECTS;
-    return [...JUNIOR_CERTIFICATE_SUBJECTS, ...EGCSE_SUBJECTS, { name: "Computer Science", category: "Available subject" as const }, { name: "ICT", category: "Available subject" as const }];
+    return Array.from(new Set([...JUNIOR_CERTIFICATE_SUBJECTS, ...EGCSE_SUBJECTS].map(item => item.name).concat(["Computer Science", "ICT"]))).map(name => ({ name, category: "Available subject" as const }));
   }
   if (level === "Primary") {
     if (/epsa/.test(selected)) return PRIMARY_SUBJECTS;
