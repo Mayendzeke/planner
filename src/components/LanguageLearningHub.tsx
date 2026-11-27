@@ -19,7 +19,7 @@ type Props = {
 
 const readingCatalogue = [
   { title: "Taga netisho", detail: "Proverbs and idioms in context", focus: "Meaning, usage and cultural context" },
-  { title: "Tinkondwane", detail: "Traditional stories", focus: "Narrative structure, values and oral tradition" },
+  { title: "Tinganekwane", detail: "Traditional stories", focus: "Narrative structure, values and oral tradition" },
   { title: "Tinkondlo", detail: "Poetry and oral performance", focus: "Imagery, tone, structure and interpretation" },
   { title: "Tindzaba", detail: "Short stories and narrative texts", focus: "Character, setting, theme and evidence" },
 ];
