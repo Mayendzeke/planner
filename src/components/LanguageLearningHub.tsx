@@ -84,7 +84,7 @@ export default function LanguageLearningHub({
     setLanguage(next);
     setSyllabusId(defaultLanguageSyllabusId(next, educationLevel, grade, curriculum, subjects));
     setSelectedSkill(LANGUAGE_SKILLS[next][0].value);
-    setCustomLanguage(next === "Other" ? subjects.find(subject => /language/i.test(subject)) || "" : "");
+    setCustomLanguage(next === "Other" ? customLanguageFromProfile(subjects) : "");
   };
 
   const startPractice = () => {
@@ -147,7 +147,7 @@ export default function LanguageLearningHub({
         <label>
           <span>Language</span>
           <select value={language} onChange={(event) => changeLanguage(event.target.value as LanguageChoice)}>
-            {profileLanguageChoices.map((choice) => <option key={choice} value={choice}>{choice === "Other" ? (subjects.find(subject => /language/i.test(subject)) || "Other language") : choice}</option>)}
+            {profileLanguageChoices.map((choice) => <option key={choice} value={choice}>{choice === "Other" ? (customLanguageFromProfile(subjects) || "Other language") : choice}</option>)}
           </select>
         </label>
         <label>
