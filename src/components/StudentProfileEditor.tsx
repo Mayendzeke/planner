@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { BookOpen, ImagePlus, Pencil, Save, UserRound, X } from "lucide-react";
 import type { StudentProfile } from "./StudentOnboarding";
 import { supabase } from "../lib/supabase";
-import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isStandardGrade, isTertiaryLevel } from "../lib/educationPathways";
+import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isStandardGrade, isTertiaryLevel, normalizeEducationLevel, normalizeInstitutionType } from "../lib/educationPathways";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 function calculatedAge(dateOfBirth?: string): number | null {
@@ -19,14 +19,16 @@ function calculatedAge(dateOfBirth?: string): number | null {
   return age >= 0 ? age : null;
 }
 
-export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" }: {
+export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "", startEditing = false }: {
   profile: StudentProfile;
   onSaved: (next: StudentProfile) => void;
   avatarUrl?: string;
+  startEditing?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<StudentProfile>({ ...profile, level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" });
-  const [otherGradeSelected, setOtherGradeSelected] = useState(() => Boolean(profile.grade && !isStandardGrade(profile.grade, profile.level || "Secondary High")));
+  const normalizedProfileLevel = normalizeEducationLevel(profile.level, profile.grade, profile.course, profile.institutionType);
+  const [editing, setEditing] = useState(startEditing);
+  const [draft, setDraft] = useState<StudentProfile>({ ...profile, level: normalizedProfileLevel, institutionType: normalizeInstitutionType(profile.level, profile.institutionType), qualificationLevel: profile.qualificationLevel || "" });
+  const [otherGradeSelected, setOtherGradeSelected] = useState(() => Boolean(profile.grade && !isStandardGrade(profile.grade, normalizedProfileLevel)));
   const [customSubject, setCustomSubject] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -251,7 +253,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "" 
         <p>{profile.subjects.length ? profile.subjects.join(" · ") : "No subjects added yet"}</p>
         <p>Goal: {profile.goals} · Target: {profile.targetMark}% · {profile.weeklyHours} study hours per week</p>
       </div>
-      <div className="setting-row"><div><strong>Update learner details</strong><span>Changes sync to your StudySpace account when online.</span></div><button type="button" className="secondary-button" onClick={() => { setDraft({ ...profile, level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" }); setOtherGradeSelected(Boolean(profile.grade && !isStandardGrade(profile.grade, profile.level || "Secondary High"))); setEditing(true); setError(""); setNotice(""); }}><Pencil size={15}/> Edit profile</button></div>
+      <div className="setting-row"><div><strong>Update learner details</strong><span>Changes sync to your StudySpace account when online.</span></div><button type="button" className="secondary-button" onClick={() => { setDraft({ ...profile, level: normalizedProfileLevel, institutionType: normalizeInstitutionType(profile.level, profile.institutionType), qualificationLevel: profile.qualificationLevel || "" }); setOtherGradeSelected(Boolean(profile.grade && !isStandardGrade(profile.grade, normalizedProfileLevel))); setEditing(true); setError(""); setNotice(""); }}><Pencil size={15}/> Edit profile</button></div>
     </> : <form className="onboarding-fields" onSubmit={event => void save(event)}>
       <div className="profile-editor-photo-edit"><div className="profile-editor-avatar">{avatarPreview ? <img src={avatarPreview} alt="New profile picture preview"/> : avatarUrl && !removeAvatar ? <img src={avatarUrl} alt="Current profile picture"/> : <UserRound size={28}/>}</div><div><strong>Profile picture</strong><small>Optional · PNG/JPG/WebP · up to 2 MB · Private to you and authorised administrators</small><div className="profile-editor-photo-actions"><label className="secondary-button"><ImagePlus size={14}/>{avatarFile ? "Change picture" : "Upload picture"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => chooseAvatar(event.target.files?.[0] || null)}/></label>{(profile.avatarPath || avatarFile) && <button className="text-button" type="button" onClick={() => { setAvatarFile(null); setRemoveAvatar(true); setError(""); }}>Remove picture</button>}</div></div></div>
       <p className="profile-locked-note">Full name and country are protected account details. To correct either one, contact the StudySpace administrator. Date of birth and guardian-verification details are not editable here.</p>
