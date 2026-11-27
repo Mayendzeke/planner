@@ -31,6 +31,17 @@ export const LANGUAGE_SYLLABUSES: LanguageSyllabus[] = [
     sourceNote: "Use the EPC syllabus for Grades 5–7. For Grades 0–4, use age-appropriate foundation learning and the school's current curriculum outline; do not label EPC examination objectives as Grade 0–4 requirements."
   },
   {
+    id: "primary-english-foundation",
+    language: "English",
+    label: "English · Primary Grades 0–4 · school-specific practice",
+    code: "School syllabus",
+    cycle: "School-specific",
+    status: "independent",
+    assessment: "The ECESWA EPC English syllabus is for Grades 5–7. For Grades 0–4, follow the learner's current school scheme of work and teacher guidance.",
+    coverage: ["phonics and early reading", "vocabulary development", "sentence construction", "reading comprehension", "handwriting and spelling", "guided speaking and writing"],
+    sourceNote: "This is foundation-level practice, not a claim of a verified Grade 0–4 examination syllabus. Attach the current school term plan or teacher notes for exact coverage."
+  },
+  {
     id: "jc-english",
     language: "English",
     label: "Junior Certificate English Language · Forms 1–3 · 101",
@@ -79,6 +90,17 @@ export const LANGUAGE_SYLLABUSES: LanguageSyllabus[] = [
     assessment: "Two papers are used: Paper 1 (1 hour, 40%) and Paper 2 (1 hour 30 minutes, 60%) according to ECESWA's EPC examination procedure. The syllabus content covers composition and functional/directed writing, reading comprehension, grammar and language use, and cultural knowledge.",
     coverage: ["kuvisisa lokufundvwako", "kubhala nekuhlelembisa", "lulwimi nekuhleleka kwemisho", "silulumagama", "emasiko nemasiko", "kukhuluma nekulalela"],
     sourceNote: "Use the EPC syllabus for Grades 5–7. The paper split is taken from ECESWA's official EPC examination procedure; uploaded class notes may add examples, but the official syllabus remains the curriculum authority."
+  },
+  {
+    id: "primary-siswati-foundation",
+    language: "SiSwati",
+    label: "SiSwati · Primary Grades 0–4 · school-specific practice",
+    code: "School syllabus",
+    cycle: "School-specific",
+    status: "independent",
+    assessment: "No separate public ECESWA EPC examination syllabus is listed here for Grades 0–4. Use the learner's current school scheme of work and teacher guidance.",
+    coverage: ["listening and speaking", "letter sounds and spelling", "vocabulary and sentence building", "reading short SiSwati texts", "guided writing", "age-appropriate stories and oral language"],
+    sourceNote: "This is foundation-level practice, not a claim of a verified Grade 0–4 examination syllabus. Ask the school or teacher for the current term plan and use uploaded notes as supplementary material."
   },
   {
     id: "jc-siswati",
@@ -258,6 +280,7 @@ export function defaultLanguageSyllabusId(language: LanguageChoice, educationLev
   }
 
   if (language === "English") {
+    if (level === "primary" && !isEpcGrade) return "primary-english-foundation";
     if (/igcse|cambridge|international/.test(programme)) return "english-independent";
     if (/egcse/.test(programme)) return "egcse-english";
     if (/junior certificate|\bjc\b/.test(programme) || isJcGrade) return "jc-english";
@@ -267,6 +290,7 @@ export function defaultLanguageSyllabusId(language: LanguageChoice, educationLev
   }
 
   if (language === "SiSwati") {
+    if (level === "primary" && !isEpcGrade) return "primary-siswati-foundation";
     if (/igcse|cambridge|international/.test(programme)) return "";
     if (/egcse/.test(programme) || isEgcsEGrade) {
       if (/second language|as a second language|6871/.test(subjectText)) return "egcse-siswati-second";
