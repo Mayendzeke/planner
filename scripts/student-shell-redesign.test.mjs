@@ -103,7 +103,7 @@ test("language studio provides official SiSwati routes and guards its source acc
   assert.match(hub, /First Language · 6870/);
   assert.match(hub, /Second Language · 6871/);
   assert.match(hub, /2027-2029|2027–2029/);
-  assert.match(hub, /Specimen question papers and mark schemes/);
+  assert.match(hub, /specimen papers and mark schemes/);
   assert.match(hub, /publisher-reported/);
   assert.match(hub, /not ECESWA-prescribed/);
   assert.match(hub, /onStartPractice\(prompt\)/);
