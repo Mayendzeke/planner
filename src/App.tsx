@@ -470,7 +470,8 @@ export default function App() {
         const educationLevel = String(cloud.education_level || "").trim();
         const tertiary = isTertiaryLevel(educationLevel);
         const academicSetupComplete = Boolean(
-          EDUCATION_LEVEL_VALUES.includes(educationLevel as typeof EDUCATION_LEVEL_VALUES[number])
+          (fullName.trim() || preferredName.trim())
+          && EDUCATION_LEVEL_VALUES.includes(normalizeEducationLevel(educationLevel, String(cloud.grade || ""), String(cloud.course || ""), String(cloud.institution_type || "")))
           && String(cloud.grade || "").trim()
           && String(cloud.academic_year || "").trim()
           && cloudSubjects.length > 0
@@ -844,13 +845,14 @@ export default function App() {
   const weekMinutes = weekSessions.reduce((n,s) => n + s.minutes, 0);
   const weeklyHours = weekMinutes / 60;
   const profileRequirements = [
-    Boolean(profile?.fullName?.trim()),
+    Boolean(profile?.fullName?.trim() || profile?.preferredName?.trim()),
     Boolean(profile?.level?.trim()),
     Boolean(profile?.grade?.trim()),
-    Boolean(profile?.curriculum?.trim()),
     Boolean(profile?.academicYear?.trim()),
     subjects.length > 0,
-    ...(isTertiaryLevel(profile?.level || "") ? [Boolean(profile?.institutionType?.trim()), Boolean(profile?.qualificationLevel?.trim()), Boolean(profile?.course?.trim())] : [])
+    ...(isTertiaryLevel(profile?.level || "")
+      ? [Boolean(profile?.institutionType?.trim()), Boolean(profile?.qualificationLevel?.trim()), Boolean(profile?.course?.trim())]
+      : [Boolean(profile?.curriculum?.trim())])
   ];
   const profileCompletion = Math.round(profileRequirements.filter(Boolean).length / profileRequirements.length * 100);
   const visibleTasks = tasks.filter(t => {
@@ -1239,7 +1241,7 @@ export default function App() {
     {profileSetupPromptOpen && profile && !expiredAccess && page !== "MIΛ" && page !== "My profile" && <div className="profile-setup-overlay" role="dialog" aria-modal="true" aria-labelledby="profile-setup-title">
       <section className="profile-setup-dialog glass-panel">
         <div className="profile-setup-dialog-heading">
-          <div><span className="eyebrow">YOUR LEARNING PROFILE</span><h2 id="profile-setup-title">Complete your profile</h2><p>Confirm your education stage, grade, curriculum and subjects so MIΛ and your study plan can use the right academic context. You can do this now or choose Later and return to it.</p></div>
+          <div><span className="eyebrow">YOUR LEARNING PROFILE</span><h2 id="profile-setup-title">Complete your profile</h2><p>Confirm your education stage, grade or year, curriculum or qualification details, and subjects so MIΛ and your study plan can use the right academic context. You can do this now or choose Later and return to it.</p></div>
           <button type="button" className="secondary-button" onClick={() => setProfileSetupPromptOpen(false)}>Later</button>
         </div>
         <StudentProfileEditor profile={profile} avatarUrl={avatarUrl} startEditing={true} onSaved={next => {
