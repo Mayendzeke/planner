@@ -48,7 +48,8 @@ test("student profile editing persists the selected pathway through the academic
 });
 
 test("student cloud profile restoration and setup checks recognize all stages", () => {
-  assert.match(app, /EDUCATION_LEVEL_VALUES\.includes/);
+  assert.match(app, /normalizeEducationLevel/);
+  assert.match(app, /isTertiaryLevel/);
   assert.match(app, /education_level,institution_type,qualification_level/);
   assert.match(app, /update_studyspace_learner_academic_profile/);
   assert.match(app, /p_education_level: profileToSave\.level/);
