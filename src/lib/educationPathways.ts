@@ -87,7 +87,7 @@ export const CURRICULA_BY_LEVEL: Record<EducationLevel, string[]> = {
   Tertiary: ["Eswatini Qualifications Framework (ESQF)", "Other / International framework"],
 };
 
-export type CurriculumSubject = { name: string; code?: string; category: "Core" | "Elective" | "Available subject" | "Programme area" };
+export type CurriculumSubject = { name: string; code?: string; category: "Core" | "Core choice" | "Elective" | "Available subject" | "Programme area" };
 export const ESWATINI_CURRICULUM_SOURCE_URL = "https://www.examscouncil.org.sz/";
 
 /** ECESWA subject registers; codes identify the published examination subject, not a claim that every school offers it. */
@@ -152,12 +152,12 @@ const JUNIOR_CERTIFICATE_SUBJECTS: CurriculumSubject[] = [
   { name: "Consumer Science", code: "540", category: "Elective" },
 ];
 const EGCSE_SUBJECTS: CurriculumSubject[] = [
-  { name: "SiSwati – First Language", code: "6870", category: "Core" },
-  { name: "SiSwati – Second Language", code: "6871", category: "Core" },
+  { name: "SiSwati – First Language", code: "6870", category: "Core choice" },
+  { name: "SiSwati – Second Language", code: "6871", category: "Core choice" },
   { name: "English Language", code: "6873", category: "Core" },
   { name: "Mathematics", code: "6880", category: "Core" },
-  { name: "Biology", code: "6884", category: "Core" },
-  { name: "Physical Science", code: "6888", category: "Core" },
+  { name: "Biology", code: "6884", category: "Core choice" },
+  { name: "Physical Science", code: "6888", category: "Core choice" },
   { name: "Agriculture", code: "6882", category: "Elective" },
   { name: "Literature in English", code: "6875", category: "Elective" },
   { name: "Geography", code: "6890", category: "Elective" },
