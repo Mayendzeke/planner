@@ -117,3 +117,8 @@ test("browser-side learning UI contains no provider API secrets", () => {
   assert.ok(!frontend.includes("GEMINI_API_KEY"));
   assert.ok(!frontend.includes("SUPABASE_SERVICE_ROLE_KEY"));
 });
+
+test("expanded student navigation keeps its destination list scrollable", () => {
+  assert.match(styles, /\.sidebar-nav-slot\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.match(styles, /\.sidebar-nav-slot\s*\{[^}]*min-height:\s*0/s);
+});
