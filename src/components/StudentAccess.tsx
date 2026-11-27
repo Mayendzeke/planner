@@ -47,7 +47,7 @@ function isAdultOnDate(value: string): boolean { return ageOnDate(value) >= 18; 
 const todayDate = eswatiniToday;
 
 export default function StudentAccess({ installAvailable = false, onInstall }: { installAvailable?: boolean; onInstall?: () => void }) {
-  const [mode, setMode] = useState<"signin" | "enrol">("signin");
+  const [mode, setMode] = useState<"signin" | "enrol">(() => new URLSearchParams(window.location.search).get("register") === "1" ? "enrol" : "signin");
   const [studentId, setStudentId] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [pin, setPin] = useState("");
