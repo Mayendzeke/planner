@@ -1133,7 +1133,6 @@ export default function App() {
     <main className={"main-area" + (page === "MIΛ" ? " main-area-mia" : "")}>
       <header className="topbar" aria-label="Student workspace toolbar">
         <button type="button" className="topbar-brand-home" onClick={() => { setPage("Overview"); setSidebarCollapsed(false); setMobileMenu(false); }} aria-label="Study Space home" title="Study Space home"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt="Study Space"/></button>
-        <button type="button" className="icon-button mobile-menu-button" aria-label="Open navigation" aria-controls="student-navigation-drawer" aria-expanded={mobileMenu} onClick={()=>setMobileMenu(true)}><Menu size={20}/></button>
         <div className="topbar-actions">
           <label className="search-box"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search tasks and subjects…" aria-label="Search tasks and subjects" disabled={expiredAccess}/><kbd>/</kbd></label>
           <StudentNotificationCenter onNavigate={destination=>{setPage(destination as Page);setMobileMenu(false);}}/>
