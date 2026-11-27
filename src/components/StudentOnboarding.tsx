@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
-import { EDUCATION_PATHWAYS, ESWATINI_HIGHER_EDUCATION_INSTITUTIONS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, TERTIARY_SUBJECTS, ESWATINI_CURRICULUM_SOURCE_URL, curriculaFor, curriculumSubjectsFor, gradeOptionsFor, isTertiaryLevel, subjectCatalogNote } from "../lib/educationPathways";
+import { EDUCATION_PATHWAYS, ESWATINI_HIGHER_EDUCATION_INSTITUTIONS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, TERTIARY_SUBJECTS, ESWATINI_CURRICULUM_SOURCE_URL, curriculaFor, curriculumSubjectsFor, gradeOptionsFor, isTertiaryLevel, subjectCatalogNote, tertiaryProgrammesFor, tertiaryInstitutionStatus } from "../lib/educationPathways";
 
 export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string; timetable_kind?: "school" | "personal" };
 
@@ -83,6 +83,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
   const subjectMetadata = new Map<string, (typeof availableSubjectEntries)[number]>(availableSubjectEntries.map(item => [item.name, item] as const));
   const gradeOptions = gradeOptionsFor(profile.level);
   const curriculumOptions = curriculaFor(profile.level, profile.country);
+  const tertiaryProgrammeOptions = tertiaryProgrammesFor(profile.institution);
   const filteredSubjects = availableSubjects.filter(name => name.toLocaleLowerCase().includes(subjectSearch.trim().toLocaleLowerCase()));
 
   function toggleSubject(name: string) {
@@ -231,7 +232,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
         {isTertiaryLevel(profile.level) && <>
           <label className="field-label">Institution type<select value={profile.institutionType} onChange={e => update("institutionType", e.target.value)}><option value="">Choose institution type</option>{INSTITUTION_TYPES.map(item => <option key={item}>{item}</option>)}</select></label>
           <label className="field-label">Qualification level<select value={profile.qualificationLevel} onChange={e => update("qualificationLevel", e.target.value)}><option value="">Choose qualification</option>{QUALIFICATION_LEVELS.map(item => <option key={item}>{item}</option>)}</select></label>
-          <label className="field-label">Course / programme<input list="studyspace-programmes" value={profile.course} onChange={e => update("course", e.target.value)} placeholder="Search or enter your registered programme" maxLength={160}/><datalist id="studyspace-programmes">{TERTIARY_SUBJECTS.map(item => <option key={item.name} value={item.name}/>)}</datalist></label>
+          <label className="field-label">Course / programme<input list="studyspace-programmes" value={profile.course} onChange={e => update("course", e.target.value)} placeholder="Search or enter your registered programme" maxLength={160}/><datalist id="studyspace-programmes">{(profile.institution.trim() ? tertiaryProgrammeOptions : TERTIARY_SUBJECTS.map(item => item.name)).map(name => <option key={name} value={name}/>)}</datalist>{profile.institution.trim() && isTertiaryLevel(profile.level) && <small className="subtle-note">Institution status in ESHEC August 2026 register: {tertiaryInstitutionStatus(profile.institution)}. Confirm current programme availability with the institution.</small>}</label>
         </>}
         <label className="field-label">Curriculum / awarding framework{isTertiaryLevel(profile.level) && <span className="field-optional"> OPTIONAL</span>}<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum / framework</option>{curriculumOptions.map(item => <option key={item}>{item}</option>)}</select></label>
         <label className="field-label">{isTertiaryLevel(profile.level) ? "Academic periods" : "Number of school terms"}<select value={profile.termCount} onChange={e => update("termCount", e.target.value)}><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="1">One continuous academic year</option><option value="custom">Other / Not sure</option></select></label>
