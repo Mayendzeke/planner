@@ -242,7 +242,7 @@ export default function AssignedAssessments({assignmentType,refreshKey}:Assigned
                 <>
                   {isWordPuzzle&&question.content?.clue&&<p className="assigned-question-clue"><strong>Clue:</strong> {question.content.clue}</p>}
                   <label className="assigned-answer-field"><span>{isShortAnswer?"Your written answer":isWordPuzzle?"Your puzzle answer":isFillBlank?"Fill in the missing answer":"Your answer"}</span><textarea rows={isShortAnswer?4:2} disabled={!!submission} value={String(value??"")} onChange={e=>setAnswer(question.id,e.target.value)} placeholder={isWordPuzzle?"Enter the word that solves the clue…":isFillBlank?"Type the missing word or phrase…":"Type your answer here…"}/></label>
-                </>
+                </>}
             {submission&&<div className={result?.correct===true?"assigned-result correct":result?.correct===false?"assigned-result incorrect":"assigned-result review"}>
               {result?.correct===true?<CheckCircle2 size={15}/>:result?.correct===false?<AlertCircle size={15}/>:<Clock3 size={15}/>}
               <span>{!result?"Result details are not available yet":result.status==="teacher_review"?"Teacher review pending":result.markingMethod==="miλ"?"MIΛ marked · "+result.awarded+"/"+result.points+" marks · "+Math.round(Number(result.confidence||0)*100)+"% confidence":result.correct===true?"Correct · "+result.awarded+"/"+result.points+" marks":result.correct===false?"Not correct · "+result.awarded+"/"+result.points+" marks":"Marked · "+result.awarded+"/"+result.points+" marks"}</span>
