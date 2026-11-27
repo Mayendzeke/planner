@@ -525,7 +525,7 @@ export default function App() {
         if (cached) {
           const cachedLevel = normalizeEducationLevel(cached.level, cached.grade, cached.course, cached.institutionType);
           const cachedProfile = { ...cached, level: cachedLevel, institutionType: normalizeInstitutionType(cached.level, cached.institutionType) };
-          const cachedComplete = Boolean(cachedProfile.fullName.trim() && cachedProfile.grade.trim() && cachedProfile.academicYear.trim()
+          const cachedComplete = Boolean((cachedProfile.fullName.trim() || cachedProfile.preferredName.trim()) && cachedProfile.grade.trim() && cachedProfile.academicYear.trim()
             && cachedProfile.subjects.length > 0
             && (isTertiaryLevel(cachedLevel)
               ? cachedProfile.institutionType && cachedProfile.qualificationLevel && cachedProfile.course
