@@ -18,6 +18,10 @@ type Props = {
   onOpenProfile?: () => void;
 };
 
+function customLanguageFromProfile(subjects: string[]): string {
+  return subjects.find(subject => /language|spanish|german|arabic|chinese|japanese|korean|italian|swahili|isiZulu|isiXhosa|afrikaans|dutch|russian|hindi|urdu|mandarin|hebrew|greek|latin/i.test(subject)) || "";
+}
+
 function languageChoicesFromProfile(subjects: string[]): LanguageChoice[] {
   const text = subjects.join(" | ").toLowerCase();
   const choices: LanguageChoice[] = [];
@@ -25,7 +29,7 @@ function languageChoicesFromProfile(subjects: string[]): LanguageChoice[] {
   if (/english|language arts/.test(text)) choices.push("English");
   if (/french/.test(text)) choices.push("French");
   if (/portuguese/.test(text)) choices.push("Portuguese");
-  if (/\b[a-z]+\s+language\b/.test(text) && !choices.length) choices.push("Other");
+  if (!choices.length && customLanguageFromProfile(subjects)) choices.push("Other");
   return choices;
 }
 
@@ -50,7 +54,7 @@ export default function LanguageLearningHub({
   const [syllabusId, setSyllabusId] = useState(() =>
     profileLanguageChoices.length ? defaultLanguageSyllabusId(initialLanguage, educationLevel, grade, curriculum, subjects) : ""
   );
-  const [customLanguage, setCustomLanguage] = useState(() => initialLanguage === "Other" ? subjects.find(subject => /language/i.test(subject)) || "" : "");
+  const [customLanguage, setCustomLanguage] = useState(() => initialLanguage === "Other" ? customLanguageFromProfile(subjects) : "");
   const [selectedSkill, setSelectedSkill] = useState(LANGUAGE_SKILLS[initialLanguage][0].value);
   const hasLanguageSubject = profileLanguageChoices.length > 0;
 
@@ -65,7 +69,7 @@ export default function LanguageLearningHub({
     setLanguage(nextLanguage);
     setSyllabusId(defaultLanguageSyllabusId(nextLanguage, educationLevel, grade, curriculum, subjects));
     setSelectedSkill(LANGUAGE_SKILLS[nextLanguage][0].value);
-    if (nextLanguage === "Other") setCustomLanguage(subjects.find(subject => /language/i.test(subject)) || "");
+    if (nextLanguage === "Other") setCustomLanguage(customLanguageFromProfile(subjects));
   }, [profileLanguageChoices, educationLevel, grade, curriculum, subjects]);
 
   const syllabusOptions = syllabusesForLanguage(language);
