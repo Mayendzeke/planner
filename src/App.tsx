@@ -1187,7 +1187,7 @@ export default function App() {
         {page==="Today's Session"&&<TodaySession subjects={subjects}/>}
         {page==="MIΛ"&&profile&&<MiaChatErrorBoundary><MiaChat profile={profile} subjects={subjects} variant="studio" onExit={() => { setPage("Overview"); setMobileMenu(false); }} initialAttachment={miaResourceStart?.file} initialPrompt={miaResourceStart?.prompt} onAttachmentConsumed={consumeMiaResourceStart}/></MiaChatErrorBoundary>}
         {page==="Learning Studio"&&profile&&<LearningStudio subjects={subjects} learnerLevel={profile.level} grade={profile.grade} curriculum={profile.curriculum} onAskMia={startMiaWithPrompt} onOpenAssessments={()=>setPage("Study & Exams")} onOpenMaterials={()=>setPage("Study Materials & Resources")}/>}
-         {page==="Languages"&&<LanguageLearningHub onStartPractice={startMiaWithPrompt}/}>
+         {page==="Languages"&&<LanguageLearningHub onStartPractice={startMiaWithPrompt}/>}
         {page==="Labs"&&<SubjectLabs subjects={subjects} studentId={cloudUserId}/>}
         {page==="Subjects"&&<SubjectManager profile={profile} onSubjectsChanged={()=>void refresh()} onOpenPlanner={name=>{setPage("Planner");setSearch(name);}}/>}
         {page==="Study & Exams"&&<StudyExamsErrorBoundary><StudyExamsPage subjects={subjects}/></StudyExamsErrorBoundary>}
