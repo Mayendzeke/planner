@@ -8,7 +8,7 @@ import {
 import { plannerDb, setPlannerDbUser, type PlannerTask, type Subject, type StudySession } from "./data/db";
 import { setStudentStorageOwner, studentStorageKey } from "./lib/studentStorage";
 import { prepareAssessmentProgramme, prepareAssignedTeacherStudyPacks, syncStudentWorkspace } from "./lib/cloudSync";
-import { EDUCATION_LEVEL_VALUES, isEducationLevel, isTertiaryLevel } from "./lib/educationPathways";
+import { EDUCATION_LEVEL_VALUES, isTertiaryLevel, normalizeEducationLevel, normalizeInstitutionType } from "./lib/educationPathways";
 import StudentOnboarding, { type StudentProfile } from "./components/StudentOnboarding";
 import StudentProfileEditor from "./components/StudentProfileEditor";
 import StudentProfileEngagementCard from "./components/StudentProfileEngagementCard";
@@ -153,6 +153,7 @@ export default function App() {
   const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
   const [profileProgressGraceUserId, setProfileProgressGraceUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [profileSetupPromptOpen, setProfileSetupPromptOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [tasks, setTasks] = useState<PlannerTask[]>([]);
@@ -416,11 +417,13 @@ export default function App() {
   useEffect(() => {
     if (!cloudUserId) {
       setProfile(null);
+      setProfileSetupPromptOpen(false);
       setProfileOwnerId(null);
       return;
     }
     if (termsAccepted !== true) {
       setProfile(null);
+      setProfileSetupPromptOpen(false);
       setProfileOwnerId(cloudUserId);
       return;
     }
@@ -437,8 +440,8 @@ export default function App() {
             && Array.isArray(parsed.subjects) && Array.isArray(parsed.preferredDays)) {
             cached = {
               ...(parsed as StudentProfile),
-              level: isEducationLevel(String(parsed.level || "")) ? String(parsed.level) : "Secondary High",
-              institutionType: String(parsed.institutionType || ""),
+              level: normalizeEducationLevel(String(parsed.level || ""), String(parsed.grade || ""), String(parsed.course || ""), String(parsed.institutionType || "")),
+              institutionType: normalizeInstitutionType(String(parsed.level || ""), String(parsed.institutionType || "")),
               qualificationLevel: String(parsed.qualificationLevel || ""),
             };
           }
@@ -477,18 +480,11 @@ export default function App() {
               && String(cloud.course || "").trim()
             : String(cloud.curriculum || "").trim())
         );
-        if (!cloud.profile_setup_dismissed_at && !academicSetupComplete) {
-          if (alive) {
-            setCloudUserName(fullName || preferredName || cloudUserName);
-            setProfile(null);
-            setProfileOwnerId(cloudUserId);
-            setError("");
-          }
-          return;
-        }
+        if (alive) setProfileSetupPromptOpen(!academicSetupComplete);
         if (!fullName.trim() && !preferredName.trim()) {
           if (alive) {
             setProfile(null);
+            setProfileSetupPromptOpen(false);
             setProfileOwnerId(cloudUserId);
             setError("");
           }
@@ -500,8 +496,8 @@ export default function App() {
           country: String(cloud.country || ""),
           institution: String(cloud.institution || ""),
           course: String(cloud.course || ""),
-          level: isEducationLevel(educationLevel) ? educationLevel : "Secondary High",
-          institutionType: String(cloud.institution_type || ""),
+          level: normalizeEducationLevel(educationLevel, String(cloud.grade || ""), String(cloud.course || ""), String(cloud.institution_type || "")),
+          institutionType: normalizeInstitutionType(educationLevel, String(cloud.institution_type || "")),
           qualificationLevel: String(cloud.qualification_level || ""),
           grade: String(cloud.grade || ""),
           curriculum: String(cloud.curriculum || "Other / Not sure"),
@@ -525,13 +521,22 @@ export default function App() {
       } catch (reason) {
         if (!alive) return;
         if (cached) {
-          setProfile({ ...cached, level: "Secondary High" });
+          const cachedLevel = normalizeEducationLevel(cached.level, cached.grade, cached.course, cached.institutionType);
+          const cachedProfile = { ...cached, level: cachedLevel, institutionType: normalizeInstitutionType(cached.level, cached.institutionType) };
+          const cachedComplete = Boolean(cachedProfile.fullName.trim() && cachedProfile.grade.trim() && cachedProfile.academicYear.trim()
+            && cachedProfile.subjects.length > 0
+            && (isTertiaryLevel(cachedLevel)
+              ? cachedProfile.institutionType && cachedProfile.qualificationLevel && cachedProfile.course
+              : cachedProfile.curriculum));
+          setProfile(cachedProfile);
+          setProfileSetupPromptOpen(!cachedComplete);
           setProfileOwnerId(cloudUserId);
           setError(reason instanceof Error
             ? "Using your saved offline profile. Cloud refresh failed: " + reason.message
             : "Using your saved offline profile. Cloud refresh failed; your local copy is retained.");
         } else {
           setProfile(null);
+          setProfileSetupPromptOpen(false);
           setProfileOwnerId(cloudUserId);
           setError(reason instanceof Error ? "Your cloud profile could not be restored: " + reason.message : "Your cloud profile could not be restored. Check your connection.");
         }
@@ -714,11 +719,12 @@ export default function App() {
       if (sessionError || !authState.session) throw new Error("Your secure session has expired. Sign in again before completing setup.");
       const accountName = String(authState.session.user.user_metadata?.full_name ?? authState.session.user.user_metadata?.fullName ?? cloudUserName ?? "").trim();
       const safeName = nextProfile.fullName.trim() || accountName || "Student";
+      const normalizedLevel = normalizeEducationLevel(nextProfile.level, nextProfile.grade, nextProfile.course, nextProfile.institutionType);
       const profileToSave: StudentProfile = {
         ...nextProfile,
-        level: isEducationLevel(nextProfile.level) ? nextProfile.level : "Secondary High",
-        institutionType: isTertiaryLevel(nextProfile.level) ? nextProfile.institutionType : "School",
-        qualificationLevel: isTertiaryLevel(nextProfile.level) ? nextProfile.qualificationLevel : "",
+        level: normalizedLevel,
+        institutionType: normalizeInstitutionType(nextProfile.level, nextProfile.institutionType),
+        qualificationLevel: isTertiaryLevel(normalizedLevel) ? nextProfile.qualificationLevel : "",
         fullName: safeName,
         preferredName: nextProfile.preferredName.trim() || safeName
       };
@@ -813,6 +819,7 @@ export default function App() {
       const savedProfile: StudentProfile = { ...profileToSave, avatarPath };
       localStorage.setItem("studyspace-profile:" + authState.session.user.id, JSON.stringify(savedProfile));
       setProfile(savedProfile);
+      setProfileSetupPromptOpen(false);
       const existing = await plannerDb.subjects.toArray();
       const names = new Set(existing.map(subject => subject.name.toLocaleLowerCase()));
       const additions = profileToSave.subjects.filter(name => !names.has(name.toLocaleLowerCase()));
@@ -843,7 +850,7 @@ export default function App() {
     Boolean(profile?.curriculum?.trim()),
     Boolean(profile?.academicYear?.trim()),
     subjects.length > 0,
-    ...((profile?.level === "College" || profile?.level === "University") ? [Boolean(profile?.course?.trim())] : [])
+    ...(isTertiaryLevel(profile?.level || "") ? [Boolean(profile?.institutionType?.trim()), Boolean(profile?.qualificationLevel?.trim()), Boolean(profile?.course?.trim())] : [])
   ];
   const profileCompletion = Math.round(profileRequirements.filter(Boolean).length / profileRequirements.length * 100);
   const visibleTasks = tasks.filter(t => {
@@ -1132,7 +1139,7 @@ export default function App() {
       </header>
       <div key={page} data-page={page} className={"page-content "+(expiredAccess && page!=="Subscription" ? "access-locked-content" : "")} aria-disabled={expiredAccess && page!=="Subscription"}>
         <section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR PERSONAL STUDY SPACE</div><h1>{page==="Learning Studio"?"Your learning studio.":page==="Languages"?"Grow your language skills.":page==="Settings"?"Your account and preferences.":page==="My profile"?"Your profile.":page==="Overview"?`${new Date().getHours()<12?"Good morning":new Date().getHours()<17?"Good afternoon":"Good evening"}, ${profile.preferredName.trim()||profile.fullName.split(" ")[0]||"there"}.`:page==="Today's Session"?"Your classroom is ready.":page==="Subjects"?"Your subjects.":page==="Labs"?"Explore your subject labs.":page==="Planner"?"Your study plan.":page==="Timetable"?"Your timetable, organised.":page==="MIΛ"?"Your learning companion.":page==="Testimonials"?"Your StudySpace story.":page==="Study & Exams"?"Test your knowledge.":page==="Study Materials & Resources"?"Your study materials, organised.":page==="Academic Calendar"?"Your academic year.":page==="Progress"?"Progress you can measure.":page==="Messages"?"Your conversations.":page==="Friends"?"Your StudySpace friends.":page==="Help & feedback"?"We are here to help.":page==="Subscription"?"Your Studyspace plan.":"Make it yours."}</h1><p className="welcome-subtitle">{page==="Learning Studio"?"Study, practise, build visual understanding and keep your revision moving.":page==="Languages"?"Practise SiSwati vocabulary, grammar, reading, writing and examination skills with MIΛ.":page==="Settings"?"Manage your appearance, reminders, privacy, account security and data backups.":page==="My profile"?"View and update the details you choose to share.":page==="Overview"?"Welcome back. Let’s make today count.":page==="Today's Session"?"Continue your lesson, work through the worksheet, review notes and manage homework.":page==="Subjects"?"Organise the subjects that shape your learning.":page==="Labs"?"Interactive tools matched to your enrolled subjects and assigned modules.":page==="Planner"?"Keep deadlines, assignments and study tasks together.":page==="Timetable"?"View your school lessons and personal study availability in one place.":page==="MIΛ"?"Educational support for your subjects, homework, revision and study planning.":page==="Testimonials"?"Share how StudySpace has helped you learn. Your testimonial stays private unless separate marketing permission is given and it is approved.":page==="Study & Exams"?"Complete teacher assignments, practise by subject and prepare for examinations.":page==="Study Materials & Resources"?"Keep your own notes and teacher-assigned learning materials together, ready to preview and study.":page==="Academic Calendar"?"Keep school terms, holidays and examinations in one place.":page==="Progress"?"Your results, learning history and MIΛ guidance.":page==="Messages"?"Contact your teacher, ask for help or connect with approved classmates.":page==="Friends"?"Find learners, manage friend requests and message accepted connections.":page==="Help & feedback"?"Send a private report, share an idea or contact the Studyspace team directly.":page==="Subscription"?"View your current access and choose a plan to request.":"Control your appearance, privacy and backups."}</p></div>{(page==="Overview"||page==="Planner")&&<button className="primary-button" onClick={() => openNewTask()}><Plus size={17}/> Add a task</button>}{page==="Subjects"&&<button className="primary-button" onClick={()=>setSubjectOpen(true)}><Plus size={17}/> Add subject</button>}{page==="Learning Studio"&&<div className="welcome-actions"><button type="button" className="secondary-button" onClick={()=>setPage("Study Materials & Resources")}><BookOpen size={15}/> Resources</button><button type="button" className="primary-button" onClick={()=>setPage("Study & Exams")}><GraduationCap size={15}/> Assessments</button></div>}{page==="Today's Session"&&<button type="button" className="secondary-button" onClick={()=>setPage("MIΛ")}><Brain size={15}/> Ask MIΛ</button>}</section>
-        {profileProgressReady && page !== "Subscription" && (profileCompletion < 100 || page === "My profile" || profileProgressGraceUserId === cloudUserId) && <section className={"profile-completion-card " + (profileCompletion === 100 ? "is-complete" : "")}>
+        {profileProgressReady && !profileSetupPromptOpen && page !== "Subscription" && (profileCompletion < 100 || page === "My profile" || profileProgressGraceUserId === cloudUserId) && <section className={"profile-completion-card " + (profileCompletion === 100 ? "is-complete" : "")}>
           <div className="profile-completion-top">
             <div>
               <span className="eyebrow">{profileCompletion === 100 ? "PROFILE COMPLETE" : "YOUR PROFILE"}</span>
