@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, ImagePlus, Plus, Sparkles, Trash2, UserRound } from "lucide-react";
-import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isTertiaryLevel } from "../lib/educationPathways";
+import { EDUCATION_PATHWAYS, ESWATINI_HIGHER_EDUCATION_INSTITUTIONS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, TERTIARY_SUBJECTS, curriculaFor, curriculumSubjectsFor, gradeOptionsFor, isTertiaryLevel, subjectCatalogNote } from "../lib/educationPathways";
 
 export type OnboardingTimetableEntry = { subject_name: string; title: string; day_of_week: number; starts_at: string; ends_at: string; location: string; notes: string; timetable_kind?: "school" | "personal" };
 
@@ -35,23 +35,6 @@ const emptyProfile: StudentProfile = {
 };
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const subjectCatalog: Record<string, string[]> = {
-  primary: ["English", "Siswati", "Mathematics", "Science", "Social Studies", "Environmental Studies", "Agriculture", "ICT / Computer Studies", "Religious Education", "Creative Arts", "Physical Education", "French", "Portuguese"],
-  secondary: ["English Language", "English Literature", "Siswati", "Mathematics", "Additional Mathematics", "Biology", "Chemistry", "Physics", "Combined Science", "Agriculture", "Geography", "History", "Business Studies", "Accounting", "Economics", "Commerce", "Computer Science", "ICT", "French", "Portuguese", "Development Studies", "Design and Technology", "Food and Nutrition", "Art and Design", "Physical Education"],
-  college: ["Accounting", "Business Management", "Marketing", "Economics", "Finance", "Human Resource Management", "Hospitality Management", "Tourism Management", "Computer Science", "Information Technology", "Software Development", "Education", "Law", "Nursing", "Engineering", "Agriculture", "Communications", "Project Management", "Research Methods"],
-  university: ["Accounting", "Business Administration", "Marketing", "Economics", "Finance", "Human Resource Management", "Hospitality Management", "Tourism Management", "Computer Science", "Information Technology", "Software Engineering", "Education", "Law", "Nursing", "Medicine", "Engineering", "Agriculture", "Communications", "Psychology", "Research Methods"]
-};
-function catalogFor(level: string, curriculum: string, institutionType: string) {
-  if (level === "Primary") return subjectCatalog.primary;
-  if (level === "Tertiary" && institutionType === "College") return subjectCatalog.college;
-  if (level === "Tertiary" && institutionType === "University") return subjectCatalog.university;
-  if (level === "Tertiary") return [...subjectCatalog.college, "Electrical Installation", "Mechanical Engineering", "Construction", "Automotive Technology", "Information Systems"];
-  const core = subjectCatalog.secondary;
-  if (curriculum === "IB") return [...core, "Theory of Knowledge", "Extended Essay", "Creativity, Activity and Service"];
-  if (curriculum === "CAPS") return [...core, "Life Orientation", "isiZulu", "isiXhosa"];
-  if (curriculum === "A-Level") return [...core, "General Paper", "Thinking Skills"];
-  return core;
-}
 
 export default function StudentOnboarding({ onComplete, initialFullName = "" }: { onComplete: (profile: StudentProfile, avatarFile?: File | null, skipSetup?: boolean) => Promise<void> | void; initialFullName?: string }) {
   const [step, setStep] = useState(0);
@@ -95,8 +78,11 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
     setProfile(current => ({ ...current, [key]: value }));
   }
 
-  const availableSubjects = useMemo(() => catalogFor(profile.level, profile.curriculum, profile.institutionType), [profile.level, profile.curriculum, profile.institutionType]);
+  const availableSubjectEntries = useMemo(() => curriculumSubjectsFor(profile.level, profile.curriculum, profile.grade), [profile.level, profile.curriculum, profile.grade]);
+  const availableSubjects = availableSubjectEntries.map(item => item.name);
+  const subjectMetadata = new Map(availableSubjectEntries.map(item => [item.name, item]));
   const gradeOptions = gradeOptionsFor(profile.level);
+  const curriculumOptions = curriculaFor(profile.level);
   const filteredSubjects = availableSubjects.filter(name => name.toLocaleLowerCase().includes(subjectSearch.trim().toLocaleLowerCase()));
 
   function toggleSubject(name: string) {
@@ -223,7 +209,7 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
         <label className="field-label">Student's full name<input autoFocus value={profile.fullName} onChange={e => update("fullName", e.target.value)} placeholder="Enter full name" maxLength={100}/></label>
         <label className="field-label">Preferred name <span className="field-optional">OPTIONAL</span><input value={profile.preferredName} onChange={e => update("preferredName", e.target.value)} placeholder="What should we call you?" maxLength={60}/></label>
         <label className="field-label">Country<input value={profile.country} onChange={e => update("country", e.target.value)} placeholder="e.g. Eswatini" maxLength={80}/></label>
-        <label className="field-label">School or institution <span className="field-optional">OPTIONAL</span><input value={profile.institution} onChange={e => update("institution", e.target.value)} placeholder="Enter school or institution" maxLength={120}/></label>
+        <label className="field-label">School or institution <span className="field-optional">OPTIONAL</span><input list="studyspace-institutions" value={profile.institution} onChange={e => update("institution", e.target.value)} placeholder="Search or enter your school / institution" maxLength={120}/><datalist id="studyspace-institutions">{ESWATINI_HIGHER_EDUCATION_INSTITUTIONS.map(item => <option key={item} value={item}/>)}</datalist></label>
       </div>}
 
       {step === 1 && <div className="onboarding-fields">
@@ -245,18 +231,18 @@ export default function StudentOnboarding({ onComplete, initialFullName = "" }: 
         {isTertiaryLevel(profile.level) && <>
           <label className="field-label">Institution type<select value={profile.institutionType} onChange={e => update("institutionType", e.target.value)}><option value="">Choose institution type</option>{INSTITUTION_TYPES.map(item => <option key={item}>{item}</option>)}</select></label>
           <label className="field-label">Qualification level<select value={profile.qualificationLevel} onChange={e => update("qualificationLevel", e.target.value)}><option value="">Choose qualification</option>{QUALIFICATION_LEVELS.map(item => <option key={item}>{item}</option>)}</select></label>
-          <label className="field-label">Course / programme<input value={profile.course} onChange={e => update("course", e.target.value)} placeholder="e.g. Diploma in IT, BBA, MSc Education" maxLength={160}/></label>
+          <label className="field-label">Course / programme<input list="studyspace-programmes" value={profile.course} onChange={e => update("course", e.target.value)} placeholder="Search or enter your registered programme" maxLength={160}/><datalist id="studyspace-programmes">{TERTIARY_SUBJECTS.map(item => <option key={item.name} value={item.name}/>)}</datalist></label>
         </>}
-        <label className="field-label">Curriculum / awarding framework{isTertiaryLevel(profile.level) && <span className="field-optional"> OPTIONAL</span>}<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum / framework</option>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select></label>
+        <label className="field-label">Curriculum / awarding framework{isTertiaryLevel(profile.level) && <span className="field-optional"> OPTIONAL</span>}<select value={profile.curriculum} onChange={e => update("curriculum", e.target.value)}><option value="">Choose curriculum / framework</option>{curriculumOptions.map(item => <option key={item}>{item}</option>)}</select></label>
         <label className="field-label">{isTertiaryLevel(profile.level) ? "Academic periods" : "Number of school terms"}<select value={profile.termCount} onChange={e => update("termCount", e.target.value)}><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="1">One continuous academic year</option><option value="custom">Other / Not sure</option></select></label>
       </div>}
 
       {step === 2 && <div className="onboarding-fields">
         <div className="subject-picker">
-          <div className="subject-picker-heading"><div><strong>Choose your subjects</strong><span>Tap each item to select it. You can choose more than one.</span></div><b>{profile.subjects.length} selected</b></div>
+          <div className="subject-picker-heading"><div><strong>Choose your subjects</strong><span>Choose from the current curriculum and examination register. Your school or institution decides which options it offers.</span></div><b>{profile.subjects.length} selected</b></div><p className="subtle-note">{subjectCatalogNote(profile.level, profile.curriculum, profile.grade)}</p>
           <label className="subject-picker-search"><BookOpen size={16}/><input value={subjectSearch} onChange={e => setSubjectSearch(e.target.value)} placeholder="Search subjects or courses…" aria-label="Search subjects and courses"/></label>
           <div className="subject-picker-list" role="group" aria-label="Available subjects">
-            {filteredSubjects.map(name => <label className="subject-picker-option" key={name}><input type="checkbox" checked={profile.subjects.includes(name)} onChange={() => toggleSubject(name)}/><span>{name}</span><i>{profile.subjects.includes(name) ? "Selected" : "Add"}</i></label>)}
+            {filteredSubjects.map(name => { const meta = subjectMetadata.get(name); return <label className="subject-picker-option" key={name}><input type="checkbox" checked={profile.subjects.includes(name)} onChange={() => toggleSubject(name)}/><span>{name}{meta?.code ? <small> · {meta.code}</small> : null}<small className="subject-category">{meta?.category || "Additional"}</small></span><i>{profile.subjects.includes(name) ? "Selected" : "Add"}</i></label>; })}
             {!filteredSubjects.length && <p className="subject-picker-empty">No matching subject in this list. Add it below.</p>}
           </div>
           <div className="subject-picker-custom"><input value={customSubject} onChange={e => setCustomSubject(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomSubject(); } }} placeholder="Add a subject not listed…" maxLength={80}/><button type="button" className="secondary-button" onClick={addCustomSubject} disabled={!customSubject.trim()}>Add</button></div>
