@@ -50,13 +50,13 @@ export function isTertiaryLevel(value: string): boolean {
  * from the recorded grade/form before a conservative default is used.
  */
 export function normalizeEducationLevel(value: string, grade = "", course = "", institutionType = ""): EducationLevel {
-  const stage = value.trim().toLowerCase().replace(/\\s+/g, " ");
+  const stage = value.trim().toLowerCase().replace(/\s+/g, " ");
   const year = grade.trim().toLowerCase();
   const fromGrade = (): EducationLevel | null => {
-    if (/\\b(?:form\\s*6|sixth form|matric|a[- ]?level|grade\\s*12)\\b/.test(year)) return "Matric";
-    if (/\\b(?:form\\s*[45]|grade\\s*(?:10|11))\\b/.test(year)) return "High School";
-    if (/\\b(?:form\\s*[123]|grade\\s*(?:8|9))\\b/.test(year)) return "Secondary High";
-    if (/\\bgrade\\s*[0-7]\\b/.test(year)) return "Primary";
+    if (/\b(?:form\s*6|sixth form|matric|a[- ]?level|grade\s*12)\b/.test(year)) return "Matric";
+    if (/\b(?:form\s*[45]|grade\s*(?:10|11))\b/.test(year)) return "High School";
+    if (/\b(?:form\s*[123]|grade\s*(?:8|9))\b/.test(year)) return "Secondary High";
+    if (/\bgrade\s*[0-7]\b/.test(year)) return "Primary";
     return null;
   };
   if (["primary", "primary school"].includes(stage)) return "Primary";
@@ -68,7 +68,7 @@ export function normalizeEducationLevel(value: string, grade = "", course = "", 
   const gradeStage = fromGrade();
   if (gradeStage) return gradeStage;
   if (["college", "university", "technical / tvet", "tvet"].includes(institutionType.trim().toLowerCase())) return "Tertiary";
-  if (/\\b(?:certificate|diploma|bachelor|master|doctorate|phd|degree)\\b/i.test(course)) return "Tertiary";
+  if (/\b(?:certificate|diploma|bachelor|master|doctorate|phd|degree)\b/i.test(course)) return "Tertiary";
   return "Secondary High";
 }
 
