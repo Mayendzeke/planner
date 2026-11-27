@@ -472,7 +472,7 @@ export default function App() {
         const tertiary = isTertiaryLevel(normalizedEducationLevel);
         const academicSetupComplete = Boolean(
           (fullName.trim() || preferredName.trim())
-          && EDUCATION_LEVEL_VALUES.includes(normalizedEducationLevel)
+          && Boolean(normalizedEducationLevel)
           && String(cloud.grade || "").trim()
           && String(cloud.academic_year || "").trim()
           && cloudSubjects.length > 0
