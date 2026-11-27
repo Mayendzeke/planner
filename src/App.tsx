@@ -134,6 +134,10 @@ export default function App() {
     try { return localStorage.getItem("studyspace-sidebar-collapsed") === "true"; }
     catch { return false; }
   });
+  useEffect(() => {
+    try { localStorage.setItem("studyspace-sidebar-collapsed", String(sidebarCollapsed)); }
+    catch { /* Sidebar preference remains available for this session. */ }
+  }, [sidebarCollapsed]);
   const [messageInitialContactId, setMessageInitialContactId] = useState<string | undefined>(undefined);
   const [miaResourceStart, setMiaResourceStart] = useState<{ file: File | null; prompt: string } | null>(null);
   const startMiaWithResource = useCallback((file: File, prompt: string) => {
@@ -1104,7 +1108,7 @@ export default function App() {
     <StudyspaceDailyNudges />
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
     <aside id="student-navigation-drawer" className={"sidebar glass-panel " + (mobileMenu ? "sidebar-open" : "")}>
-      <div className="brand"><button type="button" className="brand-home-link" onClick={() => { setPage("Overview"); setMobileMenu(false); }} aria-label="Go to Study Space home" title="Home"><div className="brand-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt=""/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div></button><button type="button" className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
+      <div className="brand"><button type="button" className="brand-home-link" onClick={() => { setPage("Overview"); setMobileMenu(false); }} aria-label="Go to Study Space home" title="Home"><div className="brand-mark"><img className="brand-logo-image" src={import.meta.env.BASE_URL + "favicon.svg"} alt=""/></div><div><span className="brand-name">studyspace<span className="brand-dot">.</span></span><span className="brand-subtitle">YOUR LEARNING COMPANION</span></div></button><button type="button" className={"desktop-sidebar-toggle " + (sidebarCollapsed ? "is-collapsed" : "")} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setSidebarCollapsed(value => !value)}><ChevronRight size={16}/></button><button type="button" className="icon-button mobile-close" aria-label="Close navigation" onClick={() => setMobileMenu(false)}><X size={18}/></button></div>
       <div className="workspace-label">YOUR WORKSPACE</div>
       <button type="button" className="profile-card profile-card-button" onClick={()=>{setPage("My profile");setMobileMenu(false);}} aria-label="View and edit my profile"><div className="avatar">{avatarUrl ? <img src={avatarUrl} alt=""/> : <span>{(profile?.preferredName || profile?.fullName || "S").trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()).join("")}</span>}</div><div className="profile-copy"><strong>{profile?.preferredName || profile?.fullName || "My study space"}</strong><span>{profile?.institution || profile?.level || (subjects.length + " subjects · " + openTasks.length + " open tasks")}</span><small>View / edit profile</small></div><UserRound className="profile-open-icon" size={15}/></button>
       <div className="nav-label">STUDY</div>
