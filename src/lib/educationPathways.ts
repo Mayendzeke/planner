@@ -44,6 +44,44 @@ export function isTertiaryLevel(value: string): boolean {
   return value === "Tertiary";
 }
 
+/**
+ * Normalise legacy profile values without discarding the learner's saved form,
+ * year, course or institution. Ambiguous legacy school stages are classified
+ * from the recorded grade/form before a conservative default is used.
+ */
+export function normalizeEducationLevel(value: string, grade = "", course = "", institutionType = ""): EducationLevel {
+  const stage = value.trim().toLowerCase().replace(/\\s+/g, " ");
+  const year = grade.trim().toLowerCase();
+  const fromGrade = (): EducationLevel | null => {
+    if (/\\b(?:form\\s*6|sixth form|matric|a[- ]?level|grade\\s*12)\\b/.test(year)) return "Matric";
+    if (/\\b(?:form\\s*[45]|grade\\s*(?:10|11))\\b/.test(year)) return "High School";
+    if (/\\b(?:form\\s*[123]|grade\\s*(?:8|9))\\b/.test(year)) return "Secondary High";
+    if (/\\bgrade\\s*[0-7]\\b/.test(year)) return "Primary";
+    return null;
+  };
+  if (["primary", "primary school"].includes(stage)) return "Primary";
+  if (["secondary high", "junior secondary", "junior secondary school"].includes(stage)) return "Secondary High";
+  if (["high school", "high school / sixth form", "senior secondary", "senior secondary school"].includes(stage)) return fromGrade() ?? "High School";
+  if (["secondary school", "secondary", "secondary / high school"].includes(stage)) return fromGrade() ?? "Secondary High";
+  if (["matric", "matric / form 6", "form 6", "sixth form"].includes(stage)) return "Matric";
+  if (["tertiary", "higher education", "college", "university", "technical / tvet", "tvet"].includes(stage)) return "Tertiary";
+  const gradeStage = fromGrade();
+  if (gradeStage) return gradeStage;
+  if (["college", "university", "technical / tvet", "tvet"].includes(institutionType.trim().toLowerCase())) return "Tertiary";
+  if (/\\b(?:certificate|diploma|bachelor|master|doctorate|phd|degree)\\b/i.test(course)) return "Tertiary";
+  return "Secondary High";
+}
+
+export function normalizeInstitutionType(level: string, value = ""): string {
+  const current = value.trim();
+  if (INSTITUTION_TYPES.includes(current as typeof INSTITUTION_TYPES[number]) && current !== "School") return current;
+  const legacy = level.trim().toLowerCase();
+  if (legacy === "college") return "College";
+  if (legacy === "university") return "University";
+  if (legacy === "technical / tvet" || legacy === "tvet") return "Technical / TVET";
+  return isTertiaryLevel(normalizeEducationLevel(level)) ? "Other" : "School";
+}
+
 export function educationLevelLabel(value: string): string {
   return EDUCATION_PATHWAYS.find((stage) => stage.value === value)?.label ?? value;
 }
