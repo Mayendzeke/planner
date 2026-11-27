@@ -3017,3 +3017,15 @@ textarea:focus-visible {
 @media(prefers-reduced-motion:reduce) {
   .mobile-bottom-nav-item { transition:none; }
 }
+
+
+/* The splash cap flies directly into the fixed student toolbar brand. */
+.topbar-brand-home .brand-logo-image { view-transition-name: studyspace-logo-flight; }
+@supports (view-transition-name: studyspace-logo-flight) {
+  ::view-transition-group(studyspace-logo-flight) { animation-duration: 980ms; animation-timing-function: cubic-bezier(.18,.82,.22,1); }
+  ::view-transition-old(studyspace-logo-flight),
+  ::view-transition-new(studyspace-logo-flight) { animation: none; mix-blend-mode: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar-brand-home .brand-logo-image, .studyspace-splash-logo { view-transition-name: none; }
+}
