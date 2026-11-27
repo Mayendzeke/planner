@@ -18,3 +18,28 @@
   outline: 2px solid var(--mint);
   outline-offset: 4px;
 }
+
+
+/* Compact clickable business mark in the student topbar. */
+.topbar-brand-home {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.topbar-brand-home .brand-logo-image {
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+.topbar-brand-home:hover { background: var(--glass-strong, rgba(255,255,255,.08)); }
+.topbar-brand-home:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
