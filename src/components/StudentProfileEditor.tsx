@@ -6,7 +6,7 @@ import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QU
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 function calculatedAge(dateOfBirth?: string): number | null {
-  if (!dateOfBirth || !/^\\d{4}-\\d{2}-\\d{2}$/.test(dateOfBirth)) return null;
+  if (!dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return null;
   const [year, month, day] = dateOfBirth.split("-").map(Number);
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Mbabane", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const value = (key: string) => Number(parts.find(item => item.type === key)?.value || 0);
@@ -214,8 +214,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "",
   }
 
   function cancel() {
-    setDraft({ ...profile, level: profile.level || "Secondary High", institutionType: profile.institutionType || "School", qualificationLevel: profile.qualificationLevel || "" });
-    setOtherGradeSelected(Boolean(profile.grade && !isStandardGrade(profile.grade, profile.level || "Secondary High")));
+    setDraft({ ...profile, level: normalizedProfileLevel, institutionType: normalizeInstitutionType(profile.level, profile.institutionType), qualificationLevel: profile.qualificationLevel || "" });
+    setOtherGradeSelected(Boolean(profile.grade && !isStandardGrade(profile.grade, normalizedProfileLevel)));
     setCustomSubject("");
     setAvatarFile(null);
     setRemoveAvatar(false);
