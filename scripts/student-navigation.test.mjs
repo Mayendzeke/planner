@@ -20,6 +20,12 @@ test("student sidebar navigation is grouped by learning task", () => {
   }
 });
 
+test("SiSwati language learning is available in the LEARN navigation group", () => {
+  assert.match(app, /names: \["Learning Studio", "MIΛ", "Subjects", "Labs", "Study & Exams", "Study Materials & Resources", "Languages"\]/);
+  assert.match(app, /label: "Learn"[\s\S]*?"Languages"\].includes\(page\)/);
+  assert.match(app, /name: "Languages", icon: Languages/);
+});
+
 test("mobile quick navigation exposes core student destinations and More", () => {
   assert.match(app, /className="mobile-bottom-nav"/);
   for (const label of ["Home", "Learn", "Planner", "Tests", "MIΛ", "More"]) {
