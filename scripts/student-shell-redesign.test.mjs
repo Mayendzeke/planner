@@ -122,3 +122,14 @@ test("expanded student navigation keeps its destination list scrollable", () => 
   assert.match(styles, /\.sidebar-nav-slot\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(styles, /\.sidebar-nav-slot\s*\{[^}]*min-height:\s*0/s);
 });
+
+test("SiSwati learning supports all four language skills and the official 6871 paper weighting", () => {
+  const hub = readFileSync(new URL("../src/components/LanguageLearningHub.tsx", import.meta.url), "utf8");
+  assert.match(hub, /Listening comprehension/);
+  assert.match(hub, /Speaking and oral conversation/);
+  assert.match(hub, /Paper 1 Reading and Directed Writing/);
+  assert.match(hub, /Paper 2 Listening/);
+  assert.match(hub, /Paper 3 Speaking/);
+  assert.match(hub, /2 hours 15 minutes/);
+  assert.match(hub, /weighting/);
+});
