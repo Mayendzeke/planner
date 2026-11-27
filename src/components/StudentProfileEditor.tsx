@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { BookOpen, ImagePlus, Pencil, Save, UserRound, X } from "lucide-react";
 import type { StudentProfile } from "./StudentOnboarding";
 import { supabase } from "../lib/supabase";
-import { CURRICULA, EDUCATION_PATHWAYS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, gradeOptionsFor, isStandardGrade, isTertiaryLevel, normalizeEducationLevel, normalizeInstitutionType } from "../lib/educationPathways";
+import { EDUCATION_PATHWAYS, ESWATINI_HIGHER_EDUCATION_INSTITUTIONS, INSTITUTION_TYPES, OTHER_GRADE_VALUE, QUALIFICATION_LEVELS, TERTIARY_SUBJECTS, curriculaFor, curriculumSubjectsFor, gradeOptionsFor, isStandardGrade, isTertiaryLevel, normalizeEducationLevel, normalizeInstitutionType } from "../lib/educationPathways";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 function calculatedAge(dateOfBirth?: string): number | null {
@@ -39,6 +39,8 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "",
   const [sexChoice, setSexChoice] = useState<"male" | "female" | "">("");
   const [savingSex, setSavingSex] = useState(false);
   const gradeOptions = gradeOptionsFor(draft.level);
+  const curriculumOptions = curriculaFor(draft.level);
+  const availableSubjectEntries = curriculumSubjectsFor(draft.level, draft.curriculum, draft.grade);
 
   useEffect(() => {
     if (!avatarFile) { setAvatarPreview(""); return; }
@@ -261,7 +263,7 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "",
         <label className="field-label">Full name<input readOnly value={draft.fullName} aria-readonly="true"/></label>
         <label className="field-label">Preferred name<input maxLength={80} value={draft.preferredName} onChange={event => update("preferredName", event.target.value)}/></label>
         <label className="field-label">Country<input readOnly value={draft.country} aria-readonly="true"/></label>
-        <label className="field-label">School / institution<input maxLength={160} value={draft.institution} onChange={event => update("institution", event.target.value)}/></label>
+        <label className="field-label">School / institution<input list="studyspace-profile-institutions" maxLength={160} value={draft.institution} onChange={event => update("institution", event.target.value)}/><datalist id="studyspace-profile-institutions">{ESWATINI_HIGHER_EDUCATION_INSTITUTIONS.map(item => <option key={item} value={item}/>)}</datalist></label>
         <label className="field-label">Education stage<select value={draft.level} onChange={event => {
           const level = event.target.value;
           setDraft(current => ({ ...current, level, grade: "", course: "", institutionType: level === "Tertiary" ? "" : "School", qualificationLevel: "", curriculum: "" }));
@@ -276,13 +278,15 @@ export default function StudentProfileEditor({ profile, onSaved, avatarUrl = "",
         {isTertiaryLevel(draft.level) && <>
           <label className="field-label">Institution type<select value={draft.institutionType} onChange={event => update("institutionType", event.target.value)}><option value="">Choose institution type</option>{INSTITUTION_TYPES.map(item => <option key={item}>{item}</option>)}</select></label>
           <label className="field-label">Qualification level<select value={draft.qualificationLevel} onChange={event => update("qualificationLevel", event.target.value)}><option value="">Choose qualification</option>{QUALIFICATION_LEVELS.map(item => <option key={item}>{item}</option>)}</select></label>
-          <label className="field-label">Course / programme<input maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)} placeholder="e.g. Diploma in IT, BBA, MSc Education"/></label>
+          <label className="field-label">Course / programme<input list="studyspace-profile-programmes" maxLength={160} value={draft.course} onChange={event => update("course", event.target.value)} placeholder="Search or enter your registered programme"/><datalist id="studyspace-profile-programmes">{TERTIARY_SUBJECTS.map(item => <option key={item.name} value={item.name}/>)}</datalist></label>
         </>}
-        <label className="field-label">Curriculum / awarding framework<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}><option value="">Choose curriculum / framework</option>{CURRICULA.map(item => <option key={item}>{item}</option>)}</select>{isTertiaryLevel(draft.level) && <span className="field-optional"> OPTIONAL</span>}</label>
+        <label className="field-label">Curriculum / awarding framework<select value={draft.curriculum} onChange={event => update("curriculum", event.target.value)}><option value="">Choose curriculum / framework</option>{curriculumOptions.map(item => <option key={item}>{item}</option>)}</select>{isTertiaryLevel(draft.level) && <span className="field-optional"> OPTIONAL</span>}</label>
         <label className="field-label">Academic year<input maxLength={30} value={draft.academicYear} onChange={event => update("academicYear", event.target.value)}/></label>
         <label className="field-label">Number of terms<select value={draft.termCount} onChange={event => update("termCount", event.target.value)}><option value="1">1 academic year</option><option value="2">2 terms / semesters</option><option value="3">3 terms</option><option value="4">4 terms</option><option value="custom">Other / not sure</option></select></label>
       </div>
-      <div className="field-label">Subjects <span className="field-optional">YOUR CURRENT SELECTION</span><div className="subject-picker-selected"><div>{draft.subjects.map(name => <button type="button" key={name} onClick={() => update("subjects", draft.subjects.filter(item => item !== name))}>{name}<b>×</b></button>)}</div></div></div>
+      <div className="field-label">Subjects <span className="field-optional">YOUR CURRENT SELECTION</span>
+        <div className="subject-picker-list" role="group" aria-label="Available curriculum subjects">{availableSubjectEntries.map(item => <label className="subject-picker-option" key={item.name}><input type="checkbox" checked={draft.subjects.includes(item.name)} onChange={() => update("subjects", draft.subjects.includes(item.name) ? draft.subjects.filter(name => name !== item.name) : [...draft.subjects, item.name])}/><span>{item.name}{item.code ? <small> · {item.code}</small> : null}<small className="subject-category">{item.category}</small></span><i>{draft.subjects.includes(item.name) ? "Selected" : "Add"}</i></label>)}</div>
+        <div className="subject-picker-selected"><div>{draft.subjects.filter(name => !availableSubjectEntries.some(item => item.name === name)).map(name => <button type="button" key={name} onClick={() => update("subjects", draft.subjects.filter(item => item !== name))}>{name}<b>×</b></button>)}</div></div></div>
       <div className="subject-picker-custom"><input maxLength={80} value={customSubject} onChange={event => setCustomSubject(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addSubject(); } }} placeholder="Add a subject or course"/><button type="button" className="secondary-button" onClick={addSubject} disabled={!customSubject.trim()}>Add</button></div>
       <label className="field-label">Main academic goal<select value={draft.goals} onChange={event => update("goals", event.target.value)}><option>Improve my marks</option><option>Prepare for examinations</option><option>Stay organised and meet deadlines</option><option>Build consistent study habits</option><option>Maintain strong academic performance</option></select></label>
       <div className="onboarding-two-col">
