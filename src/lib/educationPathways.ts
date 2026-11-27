@@ -182,12 +182,20 @@ const TERTIARY_SUBJECTS: CurriculumSubject[] = [
   ...["Accounting", "Business Administration", "Business Management", "Marketing", "Economics", "Finance", "Human Resource Management", "Procurement and Supply Chain Management", "Public Sector Accounting", "Hospitality and Tourism", "Tourism Management", "Project Management", "Entrepreneurship", "Law", "Education", "Early Childhood Care and Development", "Special and Inclusive Education", "Nursing", "Midwifery", "Medicine and Surgery", "Pharmacy", "Medical Laboratory Science", "Radiography", "Community Development", "Social Work", "Psychology", "Theology", "Agriculture", "Agronomy", "Animal Science", "Horticulture", "Food Science and Nutrition", "Environmental Health", "Environmental Management", "Engineering", "Electrical and Electronic Engineering", "Mechanical Engineering", "Civil Engineering", "Quantity Surveying", "Construction", "Information Technology", "Computer Science", "Cybersecurity", "Network Security", "Software Development", "Data Science", "Information Systems", "Journalism and Mass Communication", "Professional Communication", "Languages and Linguistics", "Research Methods"].map(name => ({ name, category: "Programme area" as const })),
 ];
 
-export function curriculaFor(level: string): string[] {
+export function curriculaFor(level: string, country = "Eswatini"): string[] {
+  if (country.trim() && !/eswatini|swaziland/i.test(country)) {
+    return ["National curriculum (school-specific)", "IGCSE / Cambridge", "A-Level", "IB Diploma", "CAPS", "Other / Not sure"];
+  }
   return (CURRICULA_BY_LEVEL[level as EducationLevel] || [...CURRICULA]);
 }
 
-export function curriculumSubjectsFor(level: string, curriculum: string, grade = ""): CurriculumSubject[] {
+export function curriculumSubjectsFor(level: string, curriculum: string, grade = "", country = "Eswatini"): CurriculumSubject[] {
   const selected = curriculum.toLowerCase();
+  if (country.trim() && !/eswatini|swaziland/i.test(country)) {
+    if (level === "Primary") return ["English", "Mathematics", "Science", "Social Studies", "Languages", "Computing / ICT", "Religious Education", "Creative Arts", "Physical Education", "Agriculture", "Technology", "Life Skills"].map(name => ({ name, category: "Available subject" as const }));
+    if (level === "Tertiary") return TERTIARY_SUBJECTS;
+    return [...JUNIOR_CERTIFICATE_SUBJECTS, ...EGCSE_SUBJECTS, { name: "Computer Science", category: "Available subject" as const }, { name: "ICT", category: "Available subject" as const }];
+  }
   if (level === "Primary") {
     if (/epsa/.test(selected)) return PRIMARY_SUBJECTS;
     if (/cambridge/.test(selected)) return [
@@ -229,7 +237,8 @@ export function curriculumSubjectsFor(level: string, curriculum: string, grade =
   return [];
 }
 
-export function subjectCatalogNote(level: string, curriculum: string, grade = ""): string {
+export function subjectCatalogNote(level: string, curriculum: string, grade = "", country = "Eswatini"): string {
+  if (country.trim() && !/eswatini|swaziland/i.test(country)) return "General subject suggestions only. Confirm the exact subject names and syllabus with your country's education authority or school before exam-specific study.";
   if (level === "Primary") return /epsa/i.test(curriculum)
     ? "EPSA examination subject register. Subject availability and examination entry depend on the school and current ECESWA session."
     : /grade [5-7]/i.test(grade) || /epc/i.test(curriculum)
