@@ -1,5 +1,5 @@
 import "./LanguageLearningHub.css";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BookOpen, ExternalLink, Languages, Sparkles } from "lucide-react";
 import {
   LANGUAGE_SKILLS,
@@ -15,7 +15,19 @@ type Props = {
   grade?: string;
   curriculum?: string;
   subjects?: string[];
+  onOpenProfile?: () => void;
 };
+
+function languageChoicesFromProfile(subjects: string[]): LanguageChoice[] {
+  const text = subjects.join(" | ").toLowerCase();
+  const choices: LanguageChoice[] = [];
+  if (/siswati|si\\s*swati/.test(text)) choices.push("SiSwati");
+  if (/english|language arts/.test(text)) choices.push("English");
+  if (/french/.test(text)) choices.push("French");
+  if (/portuguese/.test(text)) choices.push("Portuguese");
+  if (/\\b[a-z]+\\s+language\\b/.test(text) && !choices.length) choices.push("Other");
+  return choices;
+}
 
 const readingCatalogue = [
   { title: "Taga netisho", detail: "Proverbs and idioms in context", focus: "Meaning, usage and cultural context" },
@@ -30,26 +42,45 @@ export default function LanguageLearningHub({
   grade = "",
   curriculum = "",
   subjects = [],
+  onOpenProfile,
 }: Props) {
-  const [language, setLanguage] = useState<LanguageChoice>("SiSwati");
+  const profileLanguageChoices = useMemo(() => languageChoicesFromProfile(subjects), [subjects]);
+  const initialLanguage = profileLanguageChoices[0] || "Other";
+  const [language, setLanguage] = useState<LanguageChoice>(initialLanguage);
   const [syllabusId, setSyllabusId] = useState(() =>
-    defaultLanguageSyllabusId("SiSwati", educationLevel, grade, curriculum, subjects)
+    profileLanguageChoices.length ? defaultLanguageSyllabusId(initialLanguage, educationLevel, grade, curriculum, subjects) : ""
   );
-  const [customLanguage, setCustomLanguage] = useState("");
-  const [selectedSkill, setSelectedSkill] = useState(LANGUAGE_SKILLS.SiSwati[0].value);
+  const [customLanguage, setCustomLanguage] = useState(() => initialLanguage === "Other" ? subjects.find(subject => /language/i.test(subject)) || "" : "");
+  const [selectedSkill, setSelectedSkill] = useState(LANGUAGE_SKILLS[initialLanguage][0].value);
+  const hasLanguageSubject = profileLanguageChoices.length > 0;
+
+  useEffect(() => {
+    if (!profileLanguageChoices.length) {
+      setSyllabusId("");
+      setLanguage("Other");
+      setCustomLanguage("");
+      return;
+    }
+    const nextLanguage = profileLanguageChoices.includes(language) ? language : profileLanguageChoices[0];
+    setLanguage(nextLanguage);
+    setSyllabusId(defaultLanguageSyllabusId(nextLanguage, educationLevel, grade, curriculum, subjects));
+    setSelectedSkill(LANGUAGE_SKILLS[nextLanguage][0].value);
+    if (nextLanguage === "Other") setCustomLanguage(subjects.find(subject => /language/i.test(subject)) || "");
+  }, [profileLanguageChoices, educationLevel, grade, curriculum, subjects]);
 
   const syllabusOptions = syllabusesForLanguage(language);
   const selectedSyllabus = syllabusById(syllabusId);
   const skills = LANGUAGE_SKILLS[language];
   const selectedSkillInfo = skills.find((skill) => skill.value === selectedSkill) || skills[0];
   const displayLanguage = language === "Other" ? customLanguage.trim() || "your selected language" : language;
-  const canStart = Boolean(selectedSyllabus && (language !== "Other" || customLanguage.trim()));
+  const canStart = Boolean(hasLanguageSubject && selectedSyllabus && (language !== "Other" || customLanguage.trim()));
 
   const changeLanguage = (next: LanguageChoice) => {
+    if (!profileLanguageChoices.includes(next)) return;
     setLanguage(next);
     setSyllabusId(defaultLanguageSyllabusId(next, educationLevel, grade, curriculum, subjects));
     setSelectedSkill(LANGUAGE_SKILLS[next][0].value);
-    setCustomLanguage("");
+    setCustomLanguage(next === "Other" ? subjects.find(subject => /language/i.test(subject)) || "" : "");
   };
 
   const startPractice = () => {
@@ -112,11 +143,7 @@ export default function LanguageLearningHub({
         <label>
           <span>Language</span>
           <select value={language} onChange={(event) => changeLanguage(event.target.value as LanguageChoice)}>
-            <option value="SiSwati">SiSwati</option>
-            <option value="English">English</option>
-            <option value="French">French</option>
-            <option value="Portuguese">Portuguese</option>
-            <option value="Other">Other language</option>
+            {profileLanguageChoices.map((choice) => <option key={choice} value={choice}>{choice === "Other" ? (subjects.find(subject => /language/i.test(subject)) || "Other language") : choice}</option>)}
           </select>
         </label>
         <label>
@@ -138,8 +165,14 @@ export default function LanguageLearningHub({
 
       <div className="language-profile-context">
         <span><strong>Profile pathway:</strong> {[educationLevel, grade, curriculum].filter(Boolean).join(" · ") || "Not set yet"}</span>
-        <span>Choose the exact syllabus if your school follows a different exam board or course.</span>
+        <span><strong>Language subjects:</strong> {subjects.filter(subject => /english|siswati|si\\s*swati|french|portuguese|language/i.test(subject)).join(", ") || "None selected in your profile"}</span>
       </div>
+      {!hasLanguageSubject && <section className="language-syllabus-prompt" role="status">
+        <BookOpen size={20}/>
+        <div><strong>Choose your language subject first</strong><p>MIΛ cannot safely guess which language you study. Open My Profile, select English, SiSwati, French, Portuguese or the language subject your school teaches, save your changes, then return here.</p>
+          {onOpenProfile && <button type="button" className="language-practice-button" onClick={onOpenProfile}>Update my profile <ArrowRight size={15}/></button>}
+        </div>
+      </section>}
 
       {selectedSyllabus ? (
         <section className="language-syllabus-summary">
@@ -225,7 +258,7 @@ export default function LanguageLearningHub({
       <button type="button" className="language-practice-button" disabled={!canStart} onClick={startPractice}>
         <Sparkles size={17} /> Start guided practice with MIΛ <ArrowRight size={16} />
       </button>
-      {!canStart && <p className="language-validation-note">Select a syllabus first. If you chose “Other language”, enter its name as well.</p>}
+      {!canStart && hasLanguageSubject && <p className="language-validation-note">Select the exact syllabus for your chosen language subject. If the course is not listed, add its name and provide the current school syllabus before exam-specific practice.</p>}
     </section>
   );
 }
