@@ -400,7 +400,6 @@ export default function WeeklyTest({ subjects }: { subjects: Subject[] }) {
   const sectionLetter = String.fromCharCode(65 + Math.max(0, modes.findIndex(item => item.name === questionMode)));
   const currentMatches = matchingAnswers[questionIndex] ?? {};
   const hasMatchingPairs = Boolean(question?.pairs?.length);
-  const hasChoiceOptions = Boolean(question?.options?.length);
   const correct = !!question && (hasMatchingPairs
     ? question.pairs!.every(pair => currentMatches[pair.left] === pair.right)
     : response.trim().toLocaleLowerCase() === question.answer.toLocaleLowerCase());
