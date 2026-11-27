@@ -35,3 +35,58 @@
 .language-exam-structure{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:14px;padding:12px;border-radius:12px;background:var(--panel-strong);border:1px solid var(--border)}
 .language-exam-structure strong{margin-bottom:2px;color:var(--text);font-size:12px}
 .language-exam-structure span{color:var(--muted);font-size:11px;line-height:1.45}
+
+
+/* Syllabus-first Language Studio layout */
+.language-learning-hub{display:flex;flex-direction:column;gap:18px;min-width:0}
+.language-hub-header{display:flex;align-items:center;gap:16px;padding:22px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(120deg,rgba(125,105,225,.12),rgba(110,194,181,.08)),var(--panel);box-shadow:var(--shadow)}
+.language-hub-icon{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:14px;color:var(--brand-primary);background:color-mix(in srgb,var(--brand-primary) 13%,transparent)}
+.language-hub-header h2{margin:5px 0;color:var(--text);font-size:clamp(20px,2.5vw,27px);letter-spacing:-.6px}
+.language-hub-header p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.language-hub-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:18px;border:1px solid var(--border);border-radius:18px;background:var(--panel)}
+.language-hub-controls label{display:flex;flex-direction:column;gap:7px;min-width:0;color:var(--text);font-size:12px;font-weight:750}
+.language-hub-controls select,.language-hub-controls input{width:100%;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:11px;color:var(--text);background:var(--panel-strong);font:inherit;font-size:13px}
+.language-custom-name{grid-column:1/-1}
+.language-profile-context{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;padding:11px 14px;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong);color:var(--muted);font-size:11px;line-height:1.5}
+.language-profile-context strong{color:var(--text)}
+.language-syllabus-summary,.language-syllabus-prompt,.language-skills-section,.language-reading-catalogue{padding:20px;border:1px solid var(--border);border-radius:18px;background:var(--panel);box-shadow:var(--shadow)}
+.language-syllabus-summary-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.language-syllabus-summary h3,.language-section-heading h3{margin:5px 0 8px;color:var(--text);font-size:17px;font-weight:800}
+.language-syllabus-summary p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+.language-source-status{display:inline-flex;align-items:center;flex:0 0 auto;padding:7px 10px;border:1px solid var(--border);border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.2px;color:var(--brand-primary);background:var(--panel-strong)}
+.language-source-status.official-pdf{color:#2fbd91}
+.language-source-status.official-page{color:#d4a34e}
+.language-source-status.independent{color:var(--muted)}
+.language-coverage-list{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+.language-coverage-list span{padding:6px 9px;border:1px solid var(--border);border-radius:999px;color:var(--text);background:var(--panel-strong);font-size:10px;line-height:1.3}
+.language-source-note{padding:11px 13px;border-left:3px solid var(--brand-primary);border-radius:0 10px 10px 0;background:var(--panel-strong)}
+.language-source-links{display:flex;flex-wrap:wrap;gap:12px 18px;margin-top:14px}
+.language-source-links a{display:inline-flex;align-items:center;gap:6px;color:var(--brand-primary);font-size:12px;font-weight:750;text-decoration:none}
+.language-source-links a:hover{text-decoration:underline}
+.language-syllabus-prompt{display:flex;align-items:flex-start;gap:12px;color:var(--brand-primary)}
+.language-syllabus-prompt strong{display:block;color:var(--text);font-size:13px}
+.language-syllabus-prompt p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
+.language-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.language-section-heading .eyebrow{margin:0;color:var(--brand-primary);font-size:10px;font-weight:800;letter-spacing:1.3px}
+.language-section-heading h3{margin:4px 0 0}
+.language-section-heading>span{color:var(--muted);font-size:11px}
+.language-skill-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.language-skill-card{display:flex;flex-direction:column;gap:7px;min-height:100px;padding:13px;text-align:left;border:1px solid var(--border);border-radius:13px;background:var(--panel-strong);color:var(--text);cursor:pointer;transition:border-color .16s,transform .16s}
+.language-skill-card strong{font-size:12px}
+.language-skill-card span{color:var(--muted);font-size:11px;line-height:1.5}
+.language-skill-card:hover{transform:translateY(-1px);border-color:var(--brand-primary)}
+.language-skill-card.active{border-color:var(--brand-primary);box-shadow:inset 0 0 0 1px var(--brand-primary);background:color-mix(in srgb,var(--brand-primary) 9%,var(--panel-strong))}
+.language-reading-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.language-reading-grid article{display:flex;flex-direction:column;gap:6px;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--panel-strong)}
+.language-reading-grid strong{color:var(--text);font-size:12px}
+.language-reading-grid span,.language-reading-grid small{color:var(--muted);font-size:11px;line-height:1.45}
+.language-notes-callout{display:flex;align-items:flex-start;gap:11px;padding:13px 15px;border-left:3px solid var(--brand-secondary);border-radius:0 12px 12px 0;background:var(--panel-strong);color:var(--muted)}
+.language-notes-callout svg{flex:0 0 auto;color:var(--brand-secondary);margin-top:2px}
+.language-notes-callout p{margin:0;font-size:12px;line-height:1.6}
+.language-notes-callout strong{color:var(--text)}
+.language-practice-button{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:46px;padding:0 16px;border:0;border-radius:12px;background:var(--brand-primary);color:#fff;font-size:13px;font-weight:800;box-shadow:0 6px 16px rgba(109,91,211,.2);cursor:pointer}
+.language-practice-button:disabled{opacity:.48;cursor:not-allowed;box-shadow:none}
+.language-validation-note{margin:-8px 0 0;color:var(--muted);font-size:11px;text-align:center}
+:root[data-theme="light"] .language-hub-controls,:root[data-theme="light"] .language-syllabus-summary,:root[data-theme="light"] .language-skills-section,:root[data-theme="light"] .language-reading-catalogue{background:var(--panel)}
+:root[data-theme="light"] .language-hub-controls select,:root[data-theme="light"] .language-hub-controls input{background:#fff;color:var(--text)}
+@media(max-width:760px){.language-hub-header{align-items:flex-start;padding:17px}.language-hub-controls{grid-template-columns:1fr;padding:14px}.language-custom-name{grid-column:auto}.language-syllabus-summary,.language-syllabus-prompt,.language-skills-section,.language-reading-catalogue{padding:15px}.language-syllabus-summary-heading{flex-direction:column}.language-source-status{align-self:flex-start}.language-profile-context{flex-direction:column}}
