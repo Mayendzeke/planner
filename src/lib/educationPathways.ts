@@ -36,6 +36,169 @@ export const QUALIFICATION_LEVELS = [
 
 export const OTHER_GRADE_VALUE = "__other_grade__";
 
+/** Eswatini institutions from the ESHEC registered-institutions and accredited-programmes register, updated 1 October 2026. */
+export const ESWATINI_HIGHER_EDUCATION_INSTITUTIONS = [
+  "University of Eswatini (UNESWA)",
+  "Matsapha Police Academy",
+  "William Pitcher Teacher Training College",
+  "Ngwane Teacher Training College",
+  "Eswatini Institute of Management and Public Administration (EIMPA)",
+  "Advanced School of Information Technology (ASIT)",
+  "Eswatini Medical Christian University (EMCU)",
+  "Good Shepherd Catholic College of Health Sciences",
+  "Institute of Development Management (IDM)",
+  "Limkokwing University",
+  "Southern Africa Nazarene University (SANU)",
+  "Amadi University College",
+  "African Prime Institute of Science and Technology (APIST)",
+  "African Christian College",
+  "Botho University Eswatini Campus",
+  "Bradford College",
+  "Centre for International Technology and Consultancy (CIT)",
+  "Eastern and Southern African Management Institute (ESAMI)",
+  "Emergency Medical Rescue College (EMRC)",
+  "Emmanuel Wesleyan Bible College",
+  "Institute of Research Management and Development (IRDM)",
+  "Mananga Centre for Regional Integration and Management Development",
+  "Springfield Research University",
+  "Eswatini College of Theology",
+  "Workers College",
+  "Soft-Tech College",
+  "NOSA",
+  "SHAK Enterprise",
+  "St John",
+  "Bethel Vocational Centre",
+  "BSA Training Centre",
+  "Bosco Youth Agricultural Centre (BYAC)",
+  "Ngwane Park TVET",
+  "SIMAVSHEQ",
+  "Solar Training and Renewable Energy Entrepreneurship Centre",
+  "Ubombo Technical College (U-TECH)",
+  "Eswatini College of Technology (ECOT)",
+  "Eswatini Cooperative Development College (ECODEC)",
+  "Gwamile Vocational and Commercial Training Institute",
+] as const;
+
+export const CURRICULA_BY_LEVEL: Record<EducationLevel, string[]> = {
+  Primary: ["Eswatini National Curriculum", "Eswatini Primary Certificate (EPC)", "Cambridge Primary", "CAPS", "Other / Not sure"],
+  "Secondary High": ["Eswatini Junior Certificate (JC)", "Cambridge Lower Secondary", "IGCSE / Cambridge", "CAPS", "Other / Not sure"],
+  "High School": ["Eswatini General Certificate (EGCSE)", "IGCSE / Cambridge", "CAPS", "Other / Not sure"],
+  Matric: ["A-Level", "IB Diploma", "Other / Not sure"],
+  Tertiary: ["Eswatini Qualifications Framework (ESQF)", "Other / International framework"],
+};
+
+export type CurriculumSubject = { name: string; code?: string; category: "Core" | "Elective" | "Programme area" };
+
+/** ECESWA subject registers; codes identify the published examination subject, not a claim that every school offers it. */
+const PRIMARY_SUBJECTS: CurriculumSubject[] = [
+  { name: "English Language", code: "111", category: "Core" },
+  { name: "Mathematics", code: "212", category: "Core" },
+  { name: "SiSwati", code: "414", category: "Core" },
+  { name: "Science", code: "513", category: "Core" },
+  { name: "Social Studies", code: "515", category: "Core" },
+  { name: "Religious Education", code: "631", category: "Core" },
+  { name: "French", code: "434", category: "Elective" },
+  { name: "Agriculture", code: "616", category: "Elective" },
+  { name: "Consumer Science", code: "627", category: "Elective" },
+  { name: "Practical Arts and Technology", code: "640", category: "Elective" },
+  { name: "Expressive Arts", code: "641", category: "Elective" },
+  { name: "Health and Physical Education", code: "642", category: "Elective" },
+  { name: "ICT", code: "645", category: "Elective" },
+];
+const JUNIOR_CERTIFICATE_SUBJECTS: CurriculumSubject[] = [
+  { name: "English Language", code: "101", category: "Core" },
+  { name: "English Literature", code: "120", category: "Elective" },
+  { name: "SiSwati", code: "207", category: "Core" },
+  { name: "Mathematics", code: "309", category: "Core" },
+  { name: "Science", code: "414", category: "Core" },
+  { name: "French", code: "202", category: "Elective" },
+  { name: "Agriculture", code: "516", category: "Elective" },
+  { name: "Additional Mathematics", code: "519", category: "Elective" },
+  { name: "Bookkeeping and Accounts", code: "520", category: "Elective" },
+  { name: "Business Studies", code: "521", category: "Elective" },
+  { name: "Development Studies", code: "524", category: "Elective" },
+  { name: "Geography", code: "527", category: "Elective" },
+  { name: "History", code: "530", category: "Elective" },
+  { name: "Religious Education", code: "533", category: "Elective" },
+  { name: "Design and Technology", code: "537", category: "Elective" },
+  { name: "Consumer Science", code: "540", category: "Elective" },
+];
+const EGCSE_SUBJECTS: CurriculumSubject[] = [
+  { name: "SiSwati – First Language", code: "6870", category: "Core" },
+  { name: "SiSwati – Second Language", code: "6871", category: "Core" },
+  { name: "English Language", code: "6873", category: "Core" },
+  { name: "Mathematics", code: "6880", category: "Core" },
+  { name: "Biology", code: "6884", category: "Elective" },
+  { name: "Physical Science", code: "6888", category: "Elective" },
+  { name: "Agriculture", code: "6882", category: "Elective" },
+  { name: "Literature in English", code: "6875", category: "Elective" },
+  { name: "Geography", code: "6890", category: "Elective" },
+  { name: "History", code: "6891", category: "Elective" },
+  { name: "Religious Education", code: "6893", category: "Core" },
+  { name: "Accounting", code: "6896", category: "Elective" },
+  { name: "Business Studies", code: "6897", category: "Elective" },
+  { name: "Economics", code: "6899", category: "Elective" },
+  { name: "Design and Technology", code: "6902", category: "Elective" },
+  { name: "Fashion and Fabrics", code: "6904", category: "Elective" },
+  { name: "Food and Nutrition", code: "6905", category: "Elective" },
+];
+const PREVOCATIONAL_SUBJECTS: CurriculumSubject[] = [
+  { name: "Agricultural Technology", code: "5920", category: "Programme area" },
+  { name: "Business Accounting", code: "5921", category: "Programme area" },
+  { name: "Entrepreneurship", code: "5923", category: "Programme area" },
+  { name: "Information and Communication Technology", code: "5924", category: "Programme area" },
+  { name: "Technical Studies", code: "5925", category: "Programme area" },
+  { name: "Food and Textiles Technology", code: "5926", category: "Programme area" },
+];
+const TERTIARY_SUBJECTS: CurriculumSubject[] = [
+  ...["Accounting", "Business Administration", "Business Management", "Marketing", "Economics", "Finance", "Human Resource Management", "Procurement and Supply Chain Management", "Public Sector Accounting", "Hospitality and Tourism", "Tourism Management", "Project Management", "Entrepreneurship", "Law", "Education", "Early Childhood Care and Development", "Special and Inclusive Education", "Nursing", "Midwifery", "Medicine and Surgery", "Pharmacy", "Medical Laboratory Science", "Radiography", "Community Development", "Social Work", "Psychology", "Theology", "Agriculture", "Agronomy", "Animal Science", "Horticulture", "Food Science and Nutrition", "Environmental Health", "Environmental Management", "Engineering", "Electrical and Electronic Engineering", "Mechanical Engineering", "Civil Engineering", "Quantity Surveying", "Construction", "Information Technology", "Computer Science", "Cybersecurity", "Network Security", "Software Development", "Data Science", "Information Systems", "Journalism and Mass Communication", "Professional Communication", "Languages and Linguistics", "Research Methods"].map(name => ({ name, category: "Programme area" as const })),
+];
+
+export function curriculaFor(level: string): string[] {
+  return (CURRICULA_BY_LEVEL[level as EducationLevel] || [...CURRICULA]);
+}
+
+export function curriculumSubjectsFor(level: string, curriculum: string, grade = ""): CurriculumSubject[] {
+  const selected = curriculum.toLowerCase();
+  if (level === "Primary") return PRIMARY_SUBJECTS;
+  if (level === "Secondary High") {
+    if (/prevocational|epcse/.test(selected)) return PREVOCATIONAL_SUBJECTS;
+    if (/cambridge|igcse/.test(selected)) return [
+      ...JUNIOR_CERTIFICATE_SUBJECTS.filter(item => !["Bookkeeping and Accounts", "Development Studies", "Consumer Science"].includes(item.name)),
+      { name: "ICT", category: "Elective" }, { name: "Computer Science", category: "Elective" },
+    ];
+    return JUNIOR_CERTIFICATE_SUBJECTS;
+  }
+  if (level === "High School") {
+    if (/igcse|cambridge/.test(selected)) return [
+      ...EGCSE_SUBJECTS,
+      { name: "ICT", code: "0417", category: "Elective" },
+      { name: "French", code: "0520", category: "Elective" },
+      { name: "Development Studies", code: "0453", category: "Elective" },
+    ];
+    return EGCSE_SUBJECTS;
+  }
+  if (level === "Matric") return [
+    { name: "English Language", category: "Core" },
+    { name: "Mathematics", category: "Elective" },
+    ...["Biology", "Chemistry", "Physics", "Geography", "History", "Economics", "Accounting", "Business", "Computer Science", "French", "SiSwati", "Psychology", "Sociology", "General Paper", "Thinking Skills"].map(name => ({ name, category: "Elective" as const })),
+  ];
+  if (level === "Tertiary") return TERTIARY_SUBJECTS;
+  return [];
+}
+
+export function subjectCatalogNote(level: string, curriculum: string, grade = ""): string {
+  if (level === "Primary") return /grade [5-7]/i.test(grade)
+    ? "Eswatini Primary Certificate subjects (ECESWA register). Subject availability can differ by school."
+    : "Eswatini primary learning areas. The EPC examination syllabus applies to Grades 5–7; confirm the school's exact lower-primary subject list.";
+  if (level === "Secondary High") return /prevocational|epcse/i.test(curriculum)
+    ? "Eswatini Prevocational Certificate subjects (EPCSE)."
+    : "Junior Certificate and school-offered elective subjects. Your school determines which electives are available.";
+  if (level === "High School") return "EGCSE / Cambridge subject register. Your school determines which subjects and science options it offers.";
+  if (level === "Tertiary") return "Programme areas drawn from the ESHEC 2026 registered-institution and accredited-programme register. Confirm the exact award title with your institution.";
+  return "Choose subjects that match your current school or programme outline. Add a subject if it is not listed.";
+}
+
 export function isEducationLevel(value: string): value is EducationLevel {
   return EDUCATION_LEVEL_VALUES.includes(value as EducationLevel);
 }
