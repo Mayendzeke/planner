@@ -57,6 +57,17 @@ export const LANGUAGE_SYLLABUSES: LanguageSyllabus[] = [
     sourceNote: "The 2027–2029 syllabus adds/clarifies informal formats such as emails, text-based writing stimuli and possible argumentative essays. Teach the four skills together; grammar is integrated rather than isolated."
   },
   {
+    id: "english-independent",
+    language: "English",
+    label: "English · school-specific / Cambridge / independent practice",
+    code: "School syllabus",
+    cycle: "School-specific",
+    status: "independent",
+    assessment: "No ECESWA EPC, JC or EGCSE course has been selected. Use the learner's confirmed school or exam-board syllabus; do not assume an ECESWA paper structure.",
+    coverage: ["reading", "writing", "listening", "speaking", "vocabulary", "grammar", "comprehension and composition"],
+    sourceNote: "For Cambridge IGCSE or another international programme, attach the exact current syllabus or teacher outline before generating exam-specific assessments."
+  },
+  {
     id: "epc-siswati",
     language: "SiSwati",
     label: "EPC SiSwati · Grades 5–7 · 414",
@@ -247,6 +258,7 @@ export function defaultLanguageSyllabusId(language: LanguageChoice, educationLev
   }
 
   if (language === "English") {
+    if (/igcse|cambridge|international/.test(programme)) return "english-independent";
     if (/egcse/.test(programme)) return "egcse-english";
     if (/junior certificate|\bjc\b/.test(programme) || isJcGrade) return "jc-english";
     if (/\bepc\b/.test(programme) || isEpcGrade) return "epc-english";
@@ -255,6 +267,7 @@ export function defaultLanguageSyllabusId(language: LanguageChoice, educationLev
   }
 
   if (language === "SiSwati") {
+    if (/igcse|cambridge|international/.test(programme)) return "";
     if (/egcse/.test(programme) || isEgcsEGrade) {
       if (/second language|as a second language|6871/.test(subjectText)) return "egcse-siswati-second";
       if (/first language|6870/.test(subjectText)) return "egcse-siswati-first";
