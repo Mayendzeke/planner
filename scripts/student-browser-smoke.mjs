@@ -194,6 +194,7 @@ async function main() {
     const destinations = [
       "Today's Session",
       "Learning Studio",
+      "Languages",
       "MIΛ",
       "Subjects",
       "Labs",
@@ -221,18 +222,22 @@ async function main() {
         destination,
         `Navigation should open the ${destination} screen.`,
       );
+      if (destination === "Languages") {
+        await page.getByRole("heading", { name: "Learn in your language." }).waitFor({ state: "visible" });
+      }
     }
 
     await sidebar.getByRole("button", { name: "Settings and backup", exact: true }).click();
     await page.waitForFunction(() => document.querySelector(".page-content")?.getAttribute("data-page") === "Settings");
+
+    const themeOptions = page.locator(".theme-options");
+    await themeOptions.getByRole("button", { name: /Light/ }).click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
+    await themeOptions.getByRole("button", { name: /Dark/ }).click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+
     await sidebar.getByRole("button", { name: "View and edit my profile", exact: true }).click();
     await page.waitForFunction(() => document.querySelector(".page-content")?.getAttribute("data-page") === "My profile");
-
-    const themeToggle = page.locator("button.theme-toggle");
-    await themeToggle.click();
-    await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
-    await page.getByRole("button", { name: "Switch to dark theme" }).click();
-    await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
 
     await page.setViewportSize({ width: 1024, height: 768 });
     assert.equal(await page.getByRole("navigation", { name: "Quick navigation" }).isVisible(), false, "Tablet layout should use the desktop navigation.");
