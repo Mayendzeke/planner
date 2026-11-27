@@ -39,7 +39,7 @@ export const LANGUAGE_SYLLABUSES: LanguageSyllabus[] = [
     status: "official-pdf",
     subjectPage: ec + "/programmes/subject.php?id=25&programme=JC",
     pdfUrl: ec + "/upload-centre/syllabus/JC%20English%20Language%202027-2027%20Syllabus.pdf",
-    assessment: "Four papers: Reading and Directed Writing (2 hours, 35%); Continuous Writing (2 hours, 35%); Listening (about 45 minutes, 15%); and Speaking (school-based assessment, 15%).",
+    assessment: "Four papers: Reading and Directed Writing (2 hours, 35%); Continuous Writing (2 hours, 35%); Listening (about 40 minutes, 15%); and Speaking (about 8–10 minutes, school-based assessment, 15%).",
     coverage: ["reading comprehension and inference", "directed writing and audience", "continuous writing", "listening comprehension", "speaking and interaction", "grammar, vocabulary and register"],
     sourceNote: "Use the 2027 JC syllabus and its current specimen/past papers. Do not substitute the older 2024–2026 syllabus."
   },
@@ -65,9 +65,9 @@ export const LANGUAGE_SYLLABUSES: LanguageSyllabus[] = [
     status: "official-pdf",
     subjectPage: ec + "/programmes/subject.php?id=17&programme=EPC",
     pdfUrl: ec + "/upload-centre/syllabus/EPC%20Siswati%202025-2027%20Syllabus.pdf",
-    assessment: "The syllabus assesses written language through composition and functional/directed writing, reading comprehension, grammar and language use, and cultural knowledge. Follow the paper structure in the linked current syllabus; do not infer weightings from practice material.",
+    assessment: "Two papers are used: Paper 1 (1 hour, 40%) and Paper 2 (1 hour 30 minutes, 60%) according to ECESWA's EPC examination procedure. The syllabus content covers composition and functional/directed writing, reading comprehension, grammar and language use, and cultural knowledge.",
     coverage: ["kuvisisa lokufundvwako", "kubhala nekuhlelembisa", "lulwimi nekuhleleka kwemisho", "silulumagama", "emasiko nemasiko", "kukhuluma nekulalela"],
-    sourceNote: "Use the EPC syllabus for Grades 5–7. Uploaded class notes may add examples, but the official syllabus remains the curriculum authority."
+    sourceNote: "Use the EPC syllabus for Grades 5–7. The paper split is taken from ECESWA's official EPC examination procedure; uploaded class notes may add examples, but the official syllabus remains the curriculum authority."
   },
   {
     id: "jc-siswati",
@@ -232,34 +232,38 @@ export function defaultLanguageSyllabusId(language: LanguageChoice, educationLev
   const year = grade.trim().toLowerCase();
   const programme = curriculum.trim().toLowerCase();
   const subjectText = subjects.join(" ").toLowerCase();
-  const isEpc = /epc|epsa/.test(programme) || (level === "primary" && /\bgrade\s*[5-7]\b/.test(year));
-  const isJc = /junior certificate|\bjc\b/.test(programme) || level === "secondary high" || /\bform\s*[1-3]\b/.test(year);
-  const isEgcsE = /egcse/.test(programme) || level === "high school" || /\bform\s*[45]\b/.test(year);
-  const isIgcse = /igcse/.test(programme);
+  const isEpcGrade = level === "primary" && /\bgrade\s*[5-7]\b/.test(year);
+  const isJcGrade = level === "secondary high" || /\bform\s*[1-3]\b/.test(year);
+  const isEgcsEGrade = level === "high school" || /\bform\s*[4-5]\b/.test(year);
 
   if (language === "Portuguese") return "portuguese-independent";
   if (language === "Other") return "other-independent";
+
   if (language === "French") {
-    if (isEpc) return "epc-french";
-    if (isJc) return "jc-french";
-    if (isIgcse) return "igcse-french";
-    return "igcse-french";
-  }
-  if (language === "English") {
-    if (isEpc) return "epc-english";
-    if (isJc) return "jc-english";
-    if (isEgcsE) return "egcse-english";
+    if (/igcse/.test(programme)) return "igcse-french";
+    if (/junior certificate|\bjc\b/.test(programme) || isJcGrade) return "jc-french";
+    if (/\bepc\b/.test(programme) || isEpcGrade) return "epc-french";
     return "";
   }
+
+  if (language === "English") {
+    if (/egcse/.test(programme)) return "egcse-english";
+    if (/junior certificate|\bjc\b/.test(programme) || isJcGrade) return "jc-english";
+    if (/\bepc\b/.test(programme) || isEpcGrade) return "epc-english";
+    if (isEgcsEGrade) return "egcse-english";
+    return "";
+  }
+
   if (language === "SiSwati") {
-    if (isEpc) return "epc-siswati";
-    if (isJc) return "jc-siswati";
-    if (isEgcsE) {
+    if (/egcse/.test(programme) || isEgcsEGrade) {
       if (/second language|as a second language|6871/.test(subjectText)) return "egcse-siswati-second";
       if (/first language|6870/.test(subjectText)) return "egcse-siswati-first";
       return "";
     }
+    if (/junior certificate|\bjc\b/.test(programme) || isJcGrade) return "jc-siswati";
+    if (/\bepc\b/.test(programme) || isEpcGrade) return "epc-siswati";
     return "";
   }
+
   return "";
 }
