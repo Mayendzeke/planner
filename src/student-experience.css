@@ -375,3 +375,65 @@
   border-radius: 999px;
 }
 .sidebar-nav-slot::-webkit-scrollbar-track { background: transparent; }
+
+
+/* Login-time academic profile prompt. */
+.profile-setup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(5, 9, 22, .72);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.profile-setup-dialog {
+  width: min(920px, 100%);
+  max-height: min(92dvh, 960px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: clamp(16px, 2.5vw, 28px);
+  border: 1px solid var(--glass-border, rgba(255,255,255,.18));
+  border-radius: 26px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.36);
+}
+.profile-setup-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.profile-setup-dialog-heading h2 {
+  margin: 5px 0 7px;
+  font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+}
+.profile-setup-dialog-heading p {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--muted, #aab4c5);
+  line-height: 1.55;
+}
+.profile-setup-dialog-heading .secondary-button {
+  flex: 0 0 auto;
+}
+@media (max-width: 640px) {
+  .profile-setup-overlay {
+    align-items: start;
+    padding: 8px;
+  }
+  .profile-setup-dialog {
+    max-height: calc(100dvh - 16px);
+    padding: 14px;
+    border-radius: 18px;
+  }
+  .profile-setup-dialog-heading {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .profile-setup-dialog-heading .secondary-button {
+    align-self: flex-end;
+  }
+}
