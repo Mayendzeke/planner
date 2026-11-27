@@ -10,6 +10,8 @@ const skills = [
   { value: "Vocabulary and word meaning", label: "Vocabulary", description: "Build useful words, meanings and examples." },
   { value: "Grammar and sentence construction", label: "Grammar", description: "Practise sentence structure and language rules." },
   { value: "Reading comprehension", label: "Reading", description: "Read a short passage and answer questions." },
+  { value: "Listening comprehension", label: "Listening", description: "Understand announcements, dialogues, talks and interviews." },
+  { value: "Speaking and oral conversation", label: "Speaking", description: "Practise pronunciation, conversation and giving opinions." },
   { value: "Translation between SiSwati and English", label: "Translation", description: "Compare meaning and practise accurate translation." },
   { value: "Composition and creative writing", label: "Writing", description: "Plan, write and improve your own composition." },
   { value: "Oral literature, idioms and proverbs", label: "Oral literature", description: "Explore oral forms and their meaning in context." },
@@ -24,7 +26,14 @@ export default function LanguageLearningHub({ onStartPractice }: LanguageLearnin
 
   const start = () => {
     const sourceContext = language === "SiSwati"
-      ? "StudySpace has verified metadata for the ECESWA EGCSE SiSwati " + courseFocus + " syllabus, 2027–2029, for Form 4/Form 5. First Language is for learners whose mother tongue is SiSwati; Second Language is for learners studying it as an additional language. The full PDF text is not included automatically, so do not claim to have read it or invent exact syllabus requirements. Use the official reference only as a source pointer and say when exact coverage cannot be verified. Some local book titles in the catalogue are only publisher-reported; never describe them as ECESWA-prescribed or confirmed set texts."
+      ? [
+          "StudySpace has verified metadata for the ECESWA EGCSE SiSwati " + courseFocus + " syllabus, 2027–2029, for Form 4/Form 5. First Language (6870) is intended for learners whose mother tongue is SiSwati; Second Language (6871) is intended for learners whose mother tongue is not SiSwati.",
+          courseFocus === "Second Language"
+            ? "Use this verified 2027–2029 assessment structure for Second Language 6871: Paper 1 Reading and Directed Writing — 2 hours 15 minutes, 70 marks, 50%; Paper 2 Listening — approximately 45 minutes, 40 marks, 25%; Paper 3 Speaking — approximately 15 minutes, 30 marks, 25%. All three papers are compulsory. Train reading, writing, listening and speaking. Do not invent exact current-cycle exam requirements beyond this structure."
+            : "For First Language 6870, use the linked 2027–2029 ECESWA syllabus and its current-cycle specimen papers/mark schemes as the source of truth. Do not infer paper weightings or set texts without checking those materials.",
+          "The full First/Second Language PDF text is not included automatically in this chat prompt. Never claim to have read a linked PDF or invent exact syllabus requirements. Use the official references as source pointers and say when exact coverage cannot be verified.",
+          "Some local book titles in the catalogue are only publisher-reported; never describe them as ECESWA-prescribed or confirmed set texts."
+        ].join(" ")
       : "No dedicated official English language syllabus document is attached to this activity. Match practice to my StudySpace learner profile and clearly distinguish general practice from exact examination syllabus coverage.";
     const prompt = [
       "Act as my age-appropriate StudySpace language tutor.",
@@ -99,9 +108,15 @@ export default function LanguageLearningHub({ onStartPractice }: LanguageLearnin
           <div className="language-resource-icon"><BookOpen size={18}/></div>
           <span className="language-source-status">OFFICIAL ECESWA · 6871</span>
           <h3>SiSwati as a Second Language</h3>
-          <p>Separate 2027–2029 syllabus for learners studying SiSwati as an additional language. Do not use this route as a substitute for First Language preparation.</p>
+          <p>Separate 2027–2029 syllabus for learners whose mother tongue is not SiSwati. The official course develops listening, speaking, reading and writing.</p>
           <a href="https://www.examscouncil.org.sz/upload-centre/syllabus/EGCSE%20Siswati%20as%20a%20Second%20Language%202027-2029%20Syllabus.pdf" target="_blank" rel="noreferrer">Open 2027–2029 syllabus <ArrowUpRight size={14}/></a>
-          <a href="https://www.examscouncil.org.sz/programmes/subject.php?id=44&programme=EGCSE" target="_blank" rel="noreferrer">Past papers and course information <ArrowUpRight size={14}/></a>
+          <a href="https://www.examscouncil.org.sz/programmes/subject.php?id=44&programme=EGCSE" target="_blank" rel="noreferrer">ECESWA course page and paper archive <ArrowUpRight size={14}/></a>
+          <div className="language-exam-structure">
+            <strong>2027–2029 assessment</strong>
+            <span>Paper 1 · Reading &amp; Directed Writing · 2h 15m · 50%</span>
+            <span>Paper 2 · Listening · ~45m · 25%</span>
+            <span>Paper 3 · Speaking · ~15m · 25%</span>
+          </div>
         </article>
 
         <article className="language-resource-card">
