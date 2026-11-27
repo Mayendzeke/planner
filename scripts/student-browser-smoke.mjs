@@ -225,6 +225,11 @@ async function main() {
       if (destination === "Languages") {
         await page.getByRole("heading", { name: "Learn in your language." }).waitFor({ state: "visible" });
       }
+      if (destination === "MIΛ") {
+        // MIΛ is intentionally full-screen and hides the main sidebar until the learner exits.
+        await page.getByRole("button", { name: "Back to StudySpace home" }).click();
+        await page.waitForFunction(() => document.querySelector(".page-content")?.getAttribute("data-page") === "Overview");
+      }
     }
 
     await sidebar.getByRole("button", { name: "Settings and backup", exact: true }).click();
