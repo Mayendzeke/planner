@@ -99,16 +99,18 @@ test("MIΛ keeps its approved interface, conversation history navigation and hom
 
 test("language studio provides official SiSwati routes and guards its source accuracy", () => {
   const hub = readFileSync(new URL("../src/components/LanguageLearningHub.tsx", import.meta.url), "utf8");
+  const catalog = readFileSync(new URL("../src/lib/languageSyllabusCatalog.ts", import.meta.url), "utf8");
   const hubStyles = readFileSync(new URL("../src/components/LanguageLearningHub.css", import.meta.url), "utf8");
-  assert.match(hub, /First Language · 6870/);
-  assert.match(hub, /Second Language · 6871/);
-  assert.match(hub, /2027-2029|2027–2029/);
-  assert.match(hub, /specimen papers and mark schemes/);
-  assert.match(hub, /publisher-reported/);
-  assert.match(hub, /ECESWA-prescribed or confirmed examination set text/);
+  assert.match(catalog, /EGCSE First Language SiSwati · Forms 4–5 · 6870/);
+  assert.match(catalog, /EGCSE SiSwati as a Second Language · Forms 4–5 · 6871/);
+  assert.match(catalog, /2027–2029/);
+  assert.match(catalog, /status: "official-pdf"/);
+  assert.match(catalog, /examscouncil\.org\.sz/);
+  assert.match(hub, /Do not claim to have read a full PDF/);
+  assert.match(hub, /do not invent current prescribed texts/);
   assert.match(hub, /onStartPractice\(prompt\)/);
-  assert.match(hubStyles, /language-resource-grid/);
-  assert.match(hubStyles, /@media\(max-width:760px\)/);
+  assert.match(hubStyles, /language-skill-grid/);
+  assert.match(hubStyles, /@media\s*\(max-width:\s*760px\)/);
 });
 
 test("browser-side learning UI contains no provider API secrets", () => {
@@ -123,13 +125,16 @@ test("expanded student navigation keeps its destination list scrollable", () => 
   assert.match(styles, /\.sidebar-nav-slot\s*\{[^}]*min-height:\s*0/s);
 });
 
-test("SiSwati learning supports all four language skills and the official 6871 paper weighting", () => {
+test("SiSwati learning supports the four language skills and the official 6871 paper weighting", () => {
+  const catalog = readFileSync(new URL("../src/lib/languageSyllabusCatalog.ts", import.meta.url), "utf8");
   const hub = readFileSync(new URL("../src/components/LanguageLearningHub.tsx", import.meta.url), "utf8");
-  assert.match(hub, /Listening comprehension/);
-  assert.match(hub, /Speaking and oral conversation/);
-  assert.match(hub, /Paper 1 Reading and Directed Writing/);
-  assert.match(hub, /Paper 2 Listening/);
-  assert.match(hub, /Paper 3 Speaking/);
-  assert.match(hub, /2 hours 15 minutes/);
-  assert.match(hub, /weighting/);
+  assert.match(catalog, /reading reports, articles, advertisements and instructions/);
+  assert.match(catalog, /summary and directed writing/);
+  assert.match(catalog, /listening comprehension/);
+  assert.match(catalog, /spoken interaction and description/);
+  assert.match(catalog, /Paper 1 Reading and Directed Writing \(2 hours 15 minutes, 50%\)/);
+  assert.match(catalog, /Paper 2 Listening \(about 45 minutes, 25%\)/);
+  assert.match(catalog, /Paper 3 Speaking \(about 15 minutes, 25%\)/);
+  assert.match(hub, /selectedSyllabus\.assessment/);
+  assert.match(hub, /selectedSyllabus\.coverage/);
 });
